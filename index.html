@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Toko Ikan Hias - XYZ</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
+    <style>
+      /* CSS tambahan jika ada, tapi usahakan minimal karena menggunakan Tailwind */
+    </style>
+  </head>
+  <body class="bg-gray-100 font-sans">
+    <header class="bg-blue-600 shadow-md">
+      <div class="container mx-auto p-4 flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-white">🐠 Ikan Hias Shop</h1>
+        <nav>
+          <a href="#" class="text-white hover:text-blue-200 p-2">Katalog</a>
+          <button
+            id="auth-btn"
+            class="bg-white text-blue-600 font-semibold py-1 px-3 rounded-full hover:bg-blue-100 transition duration-300"
+          >
+            Masuk
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container mx-auto p-6">
+      <h2 class="text-3xl font-bold text-gray-800 mb-6">Katalog Produk</h2>
+
+      <div
+        id="product-list"
+        class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+      >
+        <div
+          class="p-4 bg-white rounded-lg shadow-lg text-center"
+          id="loading-message"
+        >
+          Memuat data ikan...
+        </div>
+      </div>
+    </main>
+
+    <footer class="bg-gray-800 text-white mt-10 py-4">
+      <div class="container mx-auto text-center">
+        &copy; 2025 Toko Ikan Hias. Ditenagai oleh GitHub Pages & Firebase.
+      </div>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>
