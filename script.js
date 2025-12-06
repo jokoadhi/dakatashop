@@ -221,6 +221,31 @@ async function loadProducts() {
   }
 }
 
+// 🔥 FUNGSI BARU: Mengatur tampilan saat kembali ke daftar produk 🔥
+function handleBackToProductsClick() {
+  if (productDetailView) productDetailView.classList.add("hidden");
+  if (managementView) managementView.classList.add("hidden"); // Pastikan Management View tersembunyi
+
+  // Tampilkan kembali Daftar Produk
+  if (productListWrapperElement)
+    productListWrapperElement.classList.remove("hidden");
+
+  // LOGIKA KONTROL BANNER: Banner hanya muncul jika user BUKAN penjual
+  // Asumsi: sellerControls adalah elemen unik yang terlihat hanya oleh penjual.
+  const isSellerLoggedIn = currentUser && sellerControls;
+
+  if (isSellerLoggedIn) {
+    // Jika Penjual, pastikan Banner disembunyikan
+    if (mainBanner) mainBanner.classList.add("hidden");
+  } else {
+    // Jika Pembeli/Belum Login, tampilkan Banner
+    if (mainBanner) mainBanner.classList.remove("hidden");
+  }
+
+  // Muat ulang produk
+  loadProducts();
+}
+
 // 🔥 FUNGSI BARU: Mengelola penambahan/pengurangan kuantitas 🔥
 function handleQuantityChange(increment) {
   if (!productQuantityInput || !detailStockInfo) return;
@@ -1630,19 +1655,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 🔥 7. Event Listener untuk Tombol Kembali ke Daftar Produk (Detail View) 🔥
   if (backToProductsBtn) {
-    backToProductsBtn.addEventListener("click", () => {
-      if (productDetailView) productDetailView.classList.add("hidden");
-      if (productListWrapperElement)
-        productListWrapperElement.classList.remove("hidden");
-
-      // 🔥 PERUBAHAN BARU: Tampilkan kembali Banner Utama 🔥
-      if (mainBanner) mainBanner.classList.remove("hidden");
-
-      if (productListWrapperElement)
-        productListWrapperElement.classList.remove("hidden");
-      // Memuat ulang produk setelah kembali
-      loadProducts();
-    });
+    backToProductsBtn.addEventListener("click", handleBackToProductsClick);
   }
 
   // 🔥 8. Event Listener untuk Tombol Kuantitas Produk (Detail View) 🔥
