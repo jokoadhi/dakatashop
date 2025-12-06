@@ -23,7 +23,6 @@ const firebaseConfig = {
 const app = firebase.initializeApp(firebaseConfig);
 const db = app.firestore();
 const auth = app.auth();
-
 // -----------------------------------------------------------------
 // BAGIAN 2: VARIABEL GLOBAL & DEKLARASI DOM
 // -----------------------------------------------------------------
@@ -76,7 +75,8 @@ let productDetailView,
   qtyDecrementBtn,
   qtyIncrementBtn,
   productQuantityInput,
-  detailStockInfo;
+  detailStockInfo,
+  quantityControlsWrapper; // <-- DIPISAHKAN OLEH KOMA DARI DETAILSTOCKINFO
 
 // 🔥 VARIABEL BARU UNTUK CROPPER 🔥
 let cropperInstance;
@@ -285,11 +285,14 @@ function handleProductCardClick(e) {
     productListWrapperElement.classList.add("hidden");
   if (managementView && !managementView.classList.contains("hidden"))
     managementView.classList.add("hidden");
+
+  // 🔥 PERUBAHAN BARU: Sembunyikan Banner Utama 🔥
+  if (mainBanner) mainBanner.classList.add("hidden");
+
   if (productDetailView) productDetailView.classList.remove("hidden");
 
   loadProductDetails(productId);
 }
-
 // 🔥 FUNGSI BARU: Memuat data detail produk 🔥
 async function loadProductDetails(productId) {
   // Reset tampilan
@@ -299,8 +302,9 @@ async function loadProductDetails(productId) {
   detailShopNameText.textContent = "Toko Rahasia";
   detailProductImage.src =
     "https://via.placeholder.com/600x400.png?text=Memuat...";
-  detailOwnerMessage.classList.add("hidden");
+  if (detailOwnerMessage) detailOwnerMessage.classList.add("hidden");
 
+  if (mainBanner) mainBanner.classList.add("hidden");
   // Reset Kuantitas ke 1 dan aktifkan/nonaktifkan tombol
   if (productQuantityInput) productQuantityInput.value = 1;
   if (qtyDecrementBtn) qtyDecrementBtn.disabled = true;
@@ -309,6 +313,9 @@ async function loadProductDetails(productId) {
   // Tampilkan info stok default
   if (detailStockInfo)
     detailStockInfo.textContent = "Stok: Sedang diperiksa...";
+
+  // Dapatkan Elemen Tombol Aksi (untuk disembunyikan)
+  const actionButtons = document.getElementById("detail-action-buttons");
 
   try {
     const productDoc = await db.collection("products").doc(productId).get();
@@ -343,30 +350,48 @@ async function loadProductDetails(productId) {
 
     detailShopNameText.textContent = shopName;
 
-    // 🔥 UPDATE STOK INFO 🔥
-    if (detailStockInfo) detailStockInfo.textContent = `Stok: ${stok}`;
+    // 🔥 KONTROL RESPONSIF (PEMILIK vs PEMBELI) 🔥
 
-    // Kontrol tombol kuantitas berdasarkan stok
-    if (stok <= 0) {
-      if (qtyIncrementBtn) qtyIncrementBtn.disabled = true;
-      if (productQuantityInput) productQuantityInput.value = 0;
-    } else {
-      if (qtyIncrementBtn) qtyIncrementBtn.disabled = false;
-      if (productQuantityInput) productQuantityInput.value = 1; // Kembali ke 1
-    }
-
-    // Tampilkan pesan jika user adalah pemilik
     if (isOwner) {
-      detailOwnerMessage.textContent =
-        "Anda adalah pemilik produk ini. Fitur beli/keranjang dinonaktifkan.";
-      detailOwnerMessage.classList.remove("hidden");
-      // Sembunyikan tombol beli/keranjang jika ada
-      const actionButtons = document.getElementById("detail-action-buttons");
+      // Tampilkan pesan jika user adalah pemilik
+      if (detailOwnerMessage) {
+        detailOwnerMessage.textContent =
+          "Anda adalah pemilik produk ini. Fitur beli/keranjang dinonaktifkan.";
+        detailOwnerMessage.classList.remove("hidden");
+      }
+
+      // 1. Sembunyikan Tombol Beli/Keranjang
       if (actionButtons) actionButtons.classList.add("hidden");
+
+      // 2. Sembunyikan Kontrol Kuantitas
+      if (quantityControlsWrapper)
+        quantityControlsWrapper.classList.add("hidden");
+
+      // 3. Sembunyikan Info Stok
+      if (detailStockInfo) detailStockInfo.classList.add("hidden");
     } else {
-      detailOwnerMessage.classList.add("hidden");
-      const actionButtons = document.getElementById("detail-action-buttons");
+      // Tampilkan kembali elemen untuk pembeli
+      if (detailOwnerMessage) detailOwnerMessage.classList.add("hidden");
+
+      // 1. Tampilkan Tombol Beli/Keranjang
       if (actionButtons) actionButtons.classList.remove("hidden");
+
+      // 2. Tampilkan Kontrol Kuantitas
+      if (quantityControlsWrapper)
+        quantityControlsWrapper.classList.remove("hidden");
+
+      // 3. Tampilkan Info Stok dan update nilainya
+      if (detailStockInfo) detailStockInfo.classList.remove("hidden");
+      if (detailStockInfo) detailStockInfo.textContent = `Stok: ${stok}`; // Update teks stok
+
+      // Kontrol tombol kuantitas berdasarkan stok (hanya untuk pembeli)
+      if (stok <= 0) {
+        if (qtyIncrementBtn) qtyIncrementBtn.disabled = true;
+        if (productQuantityInput) productQuantityInput.value = 0;
+      } else {
+        if (qtyIncrementBtn) qtyIncrementBtn.disabled = false;
+        if (productQuantityInput) productQuantityInput.value = 1; // Kembali ke 1
+      }
     }
   } catch (error) {
     console.error("Error loading product details:", error);
@@ -377,7 +402,6 @@ async function loadProductDetails(productId) {
     if (detailStockInfo) detailStockInfo.textContent = "Stok: Tidak diketahui";
   }
 }
-
 function createProductCard(product) {
   const card = document.createElement("div");
   // KEY CHANGE: flex flex-col h-full untuk tampilan card yang seragam
@@ -1333,6 +1357,7 @@ document.addEventListener("DOMContentLoaded", () => {
   qtyIncrementBtn = document.getElementById("qty-increment");
   productQuantityInput = document.getElementById("product-quantity");
   detailStockInfo = document.getElementById("detail-stock-info");
+  quantityControlsWrapper = document.getElementById("detail-qty-control");
   // -------------------------------------------------
 
   // 🔥 INISIALISASI VARIABEL TOGGLE SANDI LOGIN (PASTIKAN ADA) 🔥
@@ -1607,6 +1632,12 @@ document.addEventListener("DOMContentLoaded", () => {
   if (backToProductsBtn) {
     backToProductsBtn.addEventListener("click", () => {
       if (productDetailView) productDetailView.classList.add("hidden");
+      if (productListWrapperElement)
+        productListWrapperElement.classList.remove("hidden");
+
+      // 🔥 PERUBAHAN BARU: Tampilkan kembali Banner Utama 🔥
+      if (mainBanner) mainBanner.classList.remove("hidden");
+
       if (productListWrapperElement)
         productListWrapperElement.classList.remove("hidden");
       // Memuat ulang produk setelah kembali

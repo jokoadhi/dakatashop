@@ -421,18 +421,18 @@
 
     <div
       id="product-detail-view"
-      class="container mx-auto p-4 md:p-8 flex-grow hidden"
+      class="container mx-auto p-3 sm:p-4 md:p-8 flex-grow hidden"
     >
       <div
-        class="bg-white rounded-xl shadow-2xl relative p-6 md:p-10 border border-gray-100"
+        class="bg-white rounded-xl shadow-2xl relative p-4 sm:p-6 md:p-10 border border-gray-100"
       >
         <button
           id="back-to-products-btn"
-          class="mb-6 inline-flex items-center text-blue-600 hover:text-blue-800 font-semibold transition duration-150"
+          class="mb-4 sm:mb-6 inline-flex items-center text-gray-600 hover:text-gray-900 font-semibold transition duration-150 text-sm"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            class="h-5 w-5 mr-1"
+            class="h-4 w-4 mr-1"
             viewBox="0 0 20 20"
             fill="currentColor"
           >
@@ -446,139 +446,180 @@
         </button>
 
         <div
-          class="grid grid-cols-1 md:grid-cols-2 gap-8"
+          class="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10"
           id="product-detail-content"
         >
-          <div id="detail-image-container" class="order-1 md:order-1">
+          <div
+            id="detail-image-container"
+            class="order-1 md:order-1 md:sticky md:top-24 h-fit"
+          >
             <img
               id="detail-product-image"
               src=""
               alt="Product Image"
-              class="w-full h-auto object-cover rounded-lg shadow-lg"
+              class="w-full h-auto max-h-[400px] object-cover rounded-lg shadow-lg border border-gray-200"
             />
           </div>
 
           <div class="order-2 md:order-2">
-            <h2
-              id="detail-product-name"
-              class="text-4xl font-extrabold text-gray-900 mb-2"
-            >
-              Loading Product...
-            </h2>
-            <p
-              id="detail-shop-name"
-              class="text-sm font-semibold text-blue-600 mb-4 flex items-center"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-4 w-4 mr-1"
-                viewBox="0 0 20 20"
-                fill="currentColor"
+            <div class="pb-3 border-b-2 border-red-500/20 mb-4">
+              <h1
+                id="detail-product-name"
+                class="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-1 leading-tight"
               >
-                <path
-                  d="M10 2a1 1 0 011 1v1h1a2 2 0 012 2v2a2 2 0 01-2 2h-2.586l.293.293A1 1 0 0111 11.414V14h3a1 1 0 010 2h-3v3a1 1 0 01-2 0v-3H6a1 1 0 110-2h3v-2.586l-.293-.293A1 1 0 017.586 9H5a2 2 0 01-2-2V6a2 2 0 012-2h1V3a1 1 0 011-1h3zM8 6a1 1 0 00-1 1v1a1 1 0 102 0V7a1 1 0 00-1-1z"
-                />
-              </svg>
-              Dijual oleh:
-              <span class="ml-1 font-bold" id="detail-shop-name-text"
-                >Toko Rahasia</span
-              >
-            </p>
-
-            <p
-              id="detail-product-price"
-              class="text-5xl font-extrabold text-red-600 mb-6"
-            >
-              Rp 0
-            </p>
-
-            <h3 class="text-xl font-bold text-gray-800 mb-2">
-              Deskripsi Produk
-            </h3>
-            <p id="detail-product-description" class="text-gray-600 mb-8"></p>
-
-            <div
-              class="flex items-center space-x-4 mb-6"
-              id="detail-qty-control"
-            >
-              <span class="text-lg font-semibold text-gray-700">Jumlah:</span>
+                Loading Product...
+              </h1>
               <div
-                class="flex items-center border border-gray-300 rounded-full overflow-hidden"
-              >
-                <button
-                  id="qty-decrement"
-                  class="p-2 w-10 text-xl font-bold text-gray-600 hover:bg-gray-100 disabled:opacity-50"
-                  disabled
-                >
-                  -
-                </button>
-                <input
-                  type="number"
-                  id="product-quantity"
-                  value="1"
-                  min="1"
-                  max="100"
-                  class="w-12 text-center text-lg font-semibold border-x border-gray-300 focus:outline-none"
-                  readonly
-                />
-                <button
-                  id="qty-increment"
-                  class="p-2 w-10 text-xl font-bold text-gray-600 hover:bg-gray-100"
-                >
-                  +
-                </button>
-              </div>
-              <p id="detail-stock-info" class="text-sm text-gray-500 ml-4">
-                Stok: 0
-              </p>
-            </div>
-
-            <div class="flex flex-col space-y-3" id="detail-action-buttons">
-              <button
-                id="buy-now-btn"
-                class="w-full bg-red-600 text-white py-3 rounded-lg font-bold text-lg hover:bg-red-700 transition duration-300 flex items-center justify-center space-x-2"
+                class="flex items-center space-x-2 text-sm font-medium text-gray-600"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  class="h-6 w-6"
+                  class="h-4 w-4 text-purple-600"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M10 2a1 1 0 011 1v1h1a2 2 0 012 2v2a2 2 0 01-2 2h-2.586l.293.293A1 1 0 0111 11.414V14h3a1 1 0 010 2h-3v3a1 1 0 01-2 0v-3H6a1 1 0 110-2h3v-2.586l-.293-.293A1 1 0 017.586 9H5a2 2 0 01-2-2V6a2 2 0 012-2h1V3a1 1 0 011-1h3zM8 6a1 1 0 00-1 1v1a1 1 0 102 0V7a1 1 0 00-1-1z"
+                  />
+                </svg>
+                <p>Dijual oleh:</p>
+                <span
+                  class="font-bold text-purple-700"
+                  id="detail-shop-name-text"
+                  >Toko Rahasia</span
+                >
+              </div>
+            </div>
+
+            <div class="p-3 sm:p-4 bg-gray-50 rounded-lg shadow-inner mb-4">
+              <div
+                class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4"
+              >
+                <p
+                  id="detail-product-price"
+                  class="text-3xl sm:text-4xl font-extrabold text-red-600 mb-3 sm:mb-0"
+                >
+                  Rp 0
+                </p>
+                <div
+                  class="flex items-center space-x-2"
+                  id="detail-qty-control"
+                >
+                  <span
+                    class="text-sm font-semibold text-gray-700 whitespace-nowrap"
+                    >Jumlah:</span
+                  >
+                  <div
+                    class="flex items-center border border-gray-400 rounded-full overflow-hidden divide-x divide-gray-400"
+                  >
+                    <button
+                      id="qty-decrement"
+                      class="p-1 w-7 text-lg font-bold text-gray-600 hover:bg-gray-200 disabled:opacity-30"
+                      disabled
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      id="product-quantity"
+                      value="1"
+                      min="1"
+                      max="100"
+                      class="w-8 text-center text-sm font-semibold focus:outline-none bg-transparent"
+                      readonly
+                    />
+                    <button
+                      id="qty-increment"
+                      class="p-1 w-7 text-lg font-bold text-gray-600 hover:bg-gray-200"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <p
+                    id="detail-stock-info"
+                    class="text-xs text-gray-500 whitespace-nowrap"
+                  >
+                    Stok: 0
+                  </p>
+                </div>
+              </div>
+
+              <div
+                class="flex flex-col space-y-3 md:flex-row md:space-y-0 md:space-x-3 mt-4"
+                id="detail-action-buttons"
+              >
+                <button
+                  id="buy-now-btn"
+                  class="flex-1 bg-red-600 text-white py-2 rounded-lg font-bold text-base hover:bg-red-700 transition duration-300 flex items-center justify-center space-x-2 shadow-md"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm.707-10.293a1 1 0 00-1.414-1.414L7 9.586V7a1 1 0 10-2 0v5a1 1 0 001 1h3a1 1 0 000-2H7.414l1.293-1.293z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                  <span>Beli Sekarang</span>
+                </button>
+                <button
+                  id="add-to-cart-btn"
+                  class="flex-1 bg-yellow-400 text-gray-900 py-2 rounded-lg font-bold text-base hover:bg-yellow-500 transition duration-300 flex items-center justify-center space-x-2 shadow-md"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.376 5.504a1 1 0 00.95.787h8.14a1 1 0 00.95-.787l1.41-5.645a1 1 0 00-.01-.042L17.778 3H19a1 1 0 100-2H3z"
+                    />
+                    <path
+                      d="M5.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM14.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"
+                    />
+                  </svg>
+                  <span>Masukkan Keranjang</span>
+                </button>
+              </div>
+
+              <p
+                id="detail-owner-message"
+                class="text-xs text-blue-600 mt-4 hidden text-center p-3 border border-blue-200 bg-blue-50 rounded-lg font-semibold"
+              >
+                Anda adalah pemilik produk ini. Fitur aksi tidak tersedia.
+              </p>
+            </div>
+
+            <div
+              class="p-4 bg-white rounded-lg shadow-xl border border-gray-200"
+            >
+              <h2
+                class="text-lg font-bold text-gray-800 mb-2 flex items-center space-x-2"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5 text-red-500"
                   viewBox="0 0 20 20"
                   fill="currentColor"
                 >
                   <path
                     fill-rule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm.707-10.293a1 1 0 00-1.414-1.414L7 9.586V7a1 1 0 10-2 0v5a1 1 0 001 1h3a1 1 0 000-2H7.414l1.293-1.293z"
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
                     clip-rule="evenodd"
                   />
                 </svg>
-                <span>Beli Sekarang</span>
-              </button>
-              <button
-                id="add-to-cart-btn"
-                class="w-full bg-yellow-400 text-gray-900 py-3 rounded-lg font-bold text-lg hover:bg-yellow-500 transition duration-300 flex items-center justify-center space-x-2"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-6 w-6"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.376 5.504a1 1 0 00.95.787h8.14a1 1 0 00.95-.787l1.41-5.645a1 1 0 00-.01-.042L17.778 3H19a1 1 0 100-2H3z"
-                  />
-                  <path
-                    d="M5.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM14.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"
-                  />
-                </svg>
-                <span>Masukkan Keranjang</span>
-              </button>
+                <span>Deskripsi Produk</span>
+              </h2>
+              <p
+                id="detail-product-description"
+                class="text-sm text-gray-700 leading-relaxed"
+              ></p>
             </div>
-
-            <p
-              id="detail-owner-message"
-              class="text-sm text-red-500 mt-4 hidden text-center p-3 border border-red-200 bg-red-50 rounded-lg"
-            >
-              Anda adalah pemilik produk ini. Fitur aksi tidak tersedia.
-            </p>
           </div>
         </div>
       </div>
