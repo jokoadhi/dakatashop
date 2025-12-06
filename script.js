@@ -2,7 +2,8 @@
  * =================================================================
  * SCRIPT.JS - MULTI-SELLER E-COMMERCE LOGIC LENGKAP
  * =================================================================
- * Fitur: Auth, CRUD Produk, Management Dashboard (12 Bulan), Profil Toko.
+ * Fitur: Auth, CRUD Produk (dengan Cropper.js & Cloudinary), Detail Produk,
+ * Management Dashboard (Chart.js), Profil Toko.
  */
 
 // -----------------------------------------------------------------
@@ -61,6 +62,28 @@ let productListDiv,
   sellerControls,
   sellerGreeting;
 
+// 🔥 DEKLARASI VARIABEL DETAIL PRODUK 🔥
+let productDetailView,
+  productListWrapperElement,
+  backToProductsBtn,
+  detailProductName,
+  detailProductPrice,
+  detailProductDescription,
+  detailProductImage,
+  detailShopNameText,
+  detailOwnerMessage,
+  // 🔥 VARIABEL KUANTITAS 🔥
+  qtyDecrementBtn,
+  qtyIncrementBtn,
+  productQuantityInput,
+  detailStockInfo;
+
+// 🔥 VARIABEL BARU UNTUK CROPPER 🔥
+let cropperInstance;
+let imageToCrop; // Elemen <img> di modal crop
+let cropModal, closeCropModalBtn, applyCropBtn;
+let croppedFileBlob = null; // Menyimpan hasil crop sebelum upload
+
 // 🔥 DEKLARASI VARIABEL MANAGEMENT 🔥
 let manageBtn,
   managementView,
@@ -70,8 +93,15 @@ let manageBtn,
   transactionHistory,
   productListWrapper;
 
+// 🔥 VARIABEL BARU UNTUK TOGGLE SANDI LOGIN 🔥
+let authPasswordInput,
+  toggleAuthPasswordBtn,
+  authEyeIconOpen,
+  authEyeIconClosed;
+
 // 🔥 DEKLARASI VARIABEL GRAFIK 🔥
 let salesChartCanvas;
+let salesChartInstance; // Deklarasi untuk menyimpan instansi chart
 
 // 🔥 DEKLARASI VARIABEL PROFIL 🔥
 let profileBtn,
@@ -85,6 +115,9 @@ let profileBtn,
   newPasswordInput,
   passwordError,
   passwordSubmitBtn;
+
+// 🔥 DEKLARASI VARIABEL BARU UNTUK TOGGLE SANDI 🔥
+let togglePasswordBtn, eyeIconOpen, eyeIconClosed;
 
 // 🔥 HELPER LOADING ANIMATION 🔥
 const loadingSpinner = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
@@ -100,7 +133,6 @@ function setLoading(buttonElement, isLoading, originalText, loadingText) {
     buttonElement.classList.remove("flex", "items-center", "justify-center");
   }
 }
-
 // -----------------------------------------------------------------
 // BAGIAN 3: FUNGSI UTAMA (MEMUAT & MENAMPILKAN PRODUK)
 // -----------------------------------------------------------------
@@ -188,10 +220,171 @@ async function loadProducts() {
       '<p class="text-center col-span-full text-xl py-10 text-red-500">Koneksi ke database gagal. Periksa Firebase atau jaringan Anda.</p>';
   }
 }
+
+// 🔥 FUNGSI BARU: Mengelola penambahan/pengurangan kuantitas 🔥
+function handleQuantityChange(increment) {
+  if (!productQuantityInput || !detailStockInfo) return;
+
+  let currentQty = parseInt(productQuantityInput.value);
+
+  // Ambil stok dari detailStockInfo (Contoh: "Stok: 100")
+  const maxStockText = detailStockInfo.textContent.match(/Stok: (\d+)/);
+  const maxStock = maxStockText ? parseInt(maxStockText[1]) : 1000;
+
+  let newQty = currentQty + (increment ? 1 : -1);
+
+  // Batasan minimal (1)
+  if (newQty < 1) {
+    newQty = 1;
+  }
+
+  // Batasan maksimal (Stok)
+  if (newQty > maxStock) {
+    newQty = maxStock;
+    if (typeof Swal !== "undefined") {
+      Swal.fire({
+        icon: "warning",
+        title: "Stok Habis!",
+        text: `Anda hanya dapat membeli hingga ${maxStock} unit.`,
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+        timer: 3000,
+      });
+    }
+  }
+
+  productQuantityInput.value = newQty;
+
+  // Nonaktifkan tombol '-' jika Qty = 1
+  if (qtyDecrementBtn) {
+    qtyDecrementBtn.disabled = newQty === 1;
+  }
+  // Nonaktifkan tombol '+' jika Qty = Max Stock
+  if (qtyIncrementBtn) {
+    qtyIncrementBtn.disabled = newQty >= maxStock;
+  }
+}
+
+// 🔥 FUNGSI BARU: Menampilkan detail produk saat card diklik 🔥
+function handleProductCardClick(e) {
+  const card = e.currentTarget;
+  // Jika yang diklik adalah tombol edit/hapus, abaikan
+  if (
+    e.target.classList.contains("edit-btn") ||
+    e.target.classList.contains("delete-btn")
+  ) {
+    return;
+  }
+
+  const productId = card.dataset.id;
+  if (!productId) return;
+
+  // Sembunyikan daftar produk, tampilkan detail view
+  if (productListWrapperElement)
+    productListWrapperElement.classList.add("hidden");
+  if (managementView && !managementView.classList.contains("hidden"))
+    managementView.classList.add("hidden");
+  if (productDetailView) productDetailView.classList.remove("hidden");
+
+  loadProductDetails(productId);
+}
+
+// 🔥 FUNGSI BARU: Memuat data detail produk 🔥
+async function loadProductDetails(productId) {
+  // Reset tampilan
+  detailProductName.textContent = "Memuat...";
+  detailProductPrice.textContent = "Rp 0";
+  detailProductDescription.textContent = "Sedang memuat deskripsi...";
+  detailShopNameText.textContent = "Toko Rahasia";
+  detailProductImage.src =
+    "https://via.placeholder.com/600x400.png?text=Memuat...";
+  detailOwnerMessage.classList.add("hidden");
+
+  // Reset Kuantitas ke 1 dan aktifkan/nonaktifkan tombol
+  if (productQuantityInput) productQuantityInput.value = 1;
+  if (qtyDecrementBtn) qtyDecrementBtn.disabled = true;
+  if (qtyIncrementBtn) qtyIncrementBtn.disabled = false;
+
+  // Tampilkan info stok default
+  if (detailStockInfo)
+    detailStockInfo.textContent = "Stok: Sedang diperiksa...";
+
+  try {
+    const productDoc = await db.collection("products").doc(productId).get();
+
+    if (!productDoc.exists) {
+      detailProductName.textContent = "Produk Tidak Ditemukan";
+      return;
+    }
+
+    const product = productDoc.data();
+
+    // Ambil nama toko
+    const sellerData = await getSellerData(product.ownerId);
+    const shopName = sellerData.shopName || "Toko Rahasia";
+
+    const price =
+      typeof product.harga === "number"
+        ? product.harga
+        : parseInt(product.harga) || 0;
+    const isOwner = currentUser && product.ownerId === currentUser.uid;
+    const stok = product.stock !== undefined ? product.stock : 1000; // Menggunakan field 'stock'
+
+    detailProductName.textContent = product.nama;
+    detailProductPrice.textContent = `Rp ${price.toLocaleString("id-ID")}`;
+    detailProductDescription.textContent =
+      product.deskripsi || "Tidak ada deskripsi tersedia.";
+
+    // **Mengganti placeholder gambar dengan yang lebih baik**
+    detailProductImage.src =
+      product.imageUrl || "https://picsum.photos/600/400?grayscale&blur=2";
+    detailProductImage.alt = product.nama;
+
+    detailShopNameText.textContent = shopName;
+
+    // 🔥 UPDATE STOK INFO 🔥
+    if (detailStockInfo) detailStockInfo.textContent = `Stok: ${stok}`;
+
+    // Kontrol tombol kuantitas berdasarkan stok
+    if (stok <= 0) {
+      if (qtyIncrementBtn) qtyIncrementBtn.disabled = true;
+      if (productQuantityInput) productQuantityInput.value = 0;
+    } else {
+      if (qtyIncrementBtn) qtyIncrementBtn.disabled = false;
+      if (productQuantityInput) productQuantityInput.value = 1; // Kembali ke 1
+    }
+
+    // Tampilkan pesan jika user adalah pemilik
+    if (isOwner) {
+      detailOwnerMessage.textContent =
+        "Anda adalah pemilik produk ini. Fitur beli/keranjang dinonaktifkan.";
+      detailOwnerMessage.classList.remove("hidden");
+      // Sembunyikan tombol beli/keranjang jika ada
+      const actionButtons = document.getElementById("detail-action-buttons");
+      if (actionButtons) actionButtons.classList.add("hidden");
+    } else {
+      detailOwnerMessage.classList.add("hidden");
+      const actionButtons = document.getElementById("detail-action-buttons");
+      if (actionButtons) actionButtons.classList.remove("hidden");
+    }
+  } catch (error) {
+    console.error("Error loading product details:", error);
+    detailProductName.textContent = "Gagal Memuat Produk";
+    detailProductDescription.textContent = "Terjadi kesalahan koneksi.";
+    detailProductImage.src =
+      "https://via.placeholder.com/600x400.png?text=Error";
+    if (detailStockInfo) detailStockInfo.textContent = "Stok: Tidak diketahui";
+  }
+}
+
 function createProductCard(product) {
   const card = document.createElement("div");
+  // KEY CHANGE: flex flex-col h-full untuk tampilan card yang seragam
   card.className =
-    "bg-white rounded-xl shadow-2xl overflow-hidden transform transition duration-500 hover:scale-[1.03] hover:shadow-yellow-400/50 cursor-pointer border border-gray-100";
+    "product-card bg-white rounded-xl shadow-lg hover:shadow-xl transition duration-300 overflow-hidden flex flex-col h-full cursor-pointer border border-gray-100";
+
+  card.dataset.id = product.id;
 
   const price =
     typeof product.harga === "number"
@@ -199,81 +392,100 @@ function createProductCard(product) {
       : parseInt(product.harga) || 0;
 
   const isOwner = currentUser && product.ownerId === currentUser.uid;
-  const shopName = product.shopName || "Toko Terpercaya"; // Ambil nama toko
+  const shopName = product.shopName || "Toko Terpercaya";
 
+  // Kontrol Penjual (Tombol Edit/Hapus)
   const ownerControls = isOwner
     ? `
-        <div class="mt-3 flex space-x-2 border-t pt-3">
-            <button data-id="${product.id}" class="edit-btn text-sm font-semibold text-blue-500 hover:text-blue-700">Edit Produk</button>
-            <button data-id="${product.id}" class="delete-btn text-sm font-semibold text-red-500 hover:text-red-700">Hapus Produk</button>
+        <div class="mt-3 flex space-x-2 border-t border-gray-100 pt-3">
+            <button data-id="${product.id}" class="edit-btn text-xs font-semibold text-blue-500 hover:text-blue-700">Edit</button>
+            <button data-id="${product.id}" class="delete-btn text-xs font-semibold text-red-500 hover:text-red-700">Hapus</button>
         </div>
     `
     : "";
 
+  // Tombol Beli/Keranjang (Hanya jika bukan pemilik)
   const cartButton = isOwner
     ? ""
     : `
-      <button class="bg-yellow-400 text-gray-900 font-bold text-sm py-2 px-4 rounded-full shadow-md hover:bg-yellow-500 transition duration-300 flex items-center space-x-1">
-          <span>Tambahkan</span>
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.376 5.504a1 1 0 00.95.787h8.14a1 1 0 00.95-.787l1.41-5.645a1 1 0 00-.01-.042L17.778 3H19a1 1 0 100-2H3z" />
-              <path d="M5.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM14.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
-          </svg>
+      <button class="w-full bg-yellow-400 text-gray-900 py-1.5 rounded-lg text-sm font-bold hover:bg-yellow-500 transition duration-200 shadow-sm">
+          Keranjang
       </button>
   `;
 
-  // 🔥 LOGIKA KONDISIONAL UNTUK NAMA TOKO 🔥
+  // Tampilan Nama Toko (Hanya jika bukan pemilik)
   const shopNameDisplay = isOwner
-    ? "" // Jika isOwner adalah TRUE (penjual), maka kembalikan string kosong (sembunyikan)
+    ? ""
     : `
-      <p class="text-xs font-semibold text-gray-700 mb-3 flex items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1h1a2 2 0 012 2v2a2 2 0 01-2 2h-2.586l.293.293A1 1 0 0111 11.414V14h3a1 1 0 010 2h-3v3a1 1 0 01-2 0v-3H6a1 1 0 110-2h3v-2.586l-.293-.293A1 1 0 017.586 9H5a2 2 0 01-2-2V6a2 2 0 012-2h1V3a1 1 0 011-1h3zM8 6a1 1 0 00-1 1v1a1 1 0 102 0V7a1 1 0 00-1-1z" clip-rule="evenodd" />
-          </svg>
-          Dijual oleh: <span class="ml-1 font-bold text-blue-600">${shopName}</span>
+      <p class="text-xs font-semibold text-gray-700">
+          <span class="text-gold-accent font-semibold">Toko:</span> ${shopName}
       </p>
     `;
 
   card.innerHTML = `
-        <div class="relative h-56 w-full">
-            <img src="${
+    <div class="relative overflow-hidden h-36 sm:h-40"> 
+        <img
+            src="${
               product.imageUrl ||
               "https://via.placeholder.com/400x300.png?text=Produk+Pilihan"
             }" 
-                 alt="${product.nama}" 
-                 class="w-full h-full object-cover transition duration-300 group-hover:opacity-90">
-            <span class="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
-                ${isOwner ? "MILIK ANDA" : "Baru"}
-            </span>
+            alt="${product.nama}" 
+            class="w-full h-full object-cover"
+        />
+        <span class="absolute top-2 right-2 ${
+          isOwner ? "bg-blue-600" : "bg-red-500"
+        } text-white text-xs font-semibold px-2 py-1 rounded-lg shadow">
+            ${isOwner ? "MILIK ANDA" : "Baru"}
+        </span>
+    </div>
+
+    <div class="p-3 flex flex-col flex-grow">
+        
+        <h3 class="text-base font-bold text-gray-900 mb-1 truncate">
+            ${product.nama}
+        </h3>
+        
+        <div class="text-xs text-gray-700 mb-2 flex-grow">
+            <p class="line-clamp-2 leading-tight text-gray-500">
+                ${
+                  product.deskripsi
+                    ? product.deskripsi.substring(0, 100)
+                    : "Deskripsi tidak tersedia."
+                }
+            </p>
         </div>
 
-        <div class="p-5">
-            <h3 class="text-2xl font-bold text-gray-900 mb-1 truncate">${
-              product.nama
-            }</h3>
+        <div class="mt-auto pt-2 border-t border-gray-100">
             
-            <p class="text-sm text-gray-500 mb-2">${
-              product.deskripsi
-                ? product.deskripsi.substring(0, 60) + "..."
-                : "Deskripsi tidak tersedia."
-            }</p>
-            
-            ${shopNameDisplay} <div class="flex justify-between items-center mt-4 border-t pt-3">
-                <p class="text-3xl font-extrabold text-blue-600">
+            <div class="md:hidden"> 
+                ${shopNameDisplay} 
+            </div>
+
+            <div class="flex justify-between items-baseline mb-2">
+                <p class="text-xl font-extrabold text-red-600">
                     Rp ${price.toLocaleString("id-ID")}
                 </p>
-                ${cartButton}
+                
+                <div class="hidden md:block">
+                    ${shopNameDisplay} 
+                </div>
             </div>
-            ${ownerControls}
+
+            ${isOwner ? ownerControls : cartButton}
         </div>
-    `;
+    </div>
+`;
 
   if (isOwner) {
-    card
-      .querySelector(".delete-btn")
-      .addEventListener("click", handleDeleteProduct);
-    card.querySelector(".edit-btn").addEventListener("click", handleEditClick);
+    // Pastikan event listener dipasang pada tombol yang benar
+    const deleteBtn = card.querySelector(".delete-btn");
+    const editBtn = card.querySelector(".edit-btn");
+    if (deleteBtn) deleteBtn.addEventListener("click", handleDeleteProduct);
+    if (editBtn) editBtn.addEventListener("click", handleEditClick);
   }
+
+  // Event listener untuk Detail Produk tetap sama
+  card.addEventListener("click", handleProductCardClick);
 
   return card;
 }
@@ -367,8 +579,8 @@ auth.onAuthStateChanged(async (user) => {
     `;
 
     // Hapus instansi grafik lama (jika ada) saat status auth berubah
-    if (window.salesChartInstance) {
-      window.salesChartInstance.destroy();
+    if (salesChartInstance) {
+      salesChartInstance.destroy();
     }
   } else {
     currentUser = null;
@@ -402,6 +614,7 @@ function handleEditClick(e) {
   e.stopPropagation();
   const productId = e.currentTarget.dataset.id;
   editingProductId = productId;
+  croppedFileBlob = null; // Pastikan reset blob saat edit
 
   uploadModalTitle.textContent = "Edit Produk";
   uploadSubmitBtn.textContent = "Simpan Perubahan";
@@ -420,6 +633,10 @@ function handleEditClick(e) {
         document.getElementById("product-harga").value = product.harga;
         document.getElementById("product-desc").value = product.deskripsi;
 
+        // Asumsi ada input stock di HTML
+        const stockInput = document.getElementById("product-stock");
+        if (stockInput) stockInput.value = product.stock || 0;
+
         imagePreview.src = product.imageUrl;
         imagePreviewContainer.classList.remove("hidden");
 
@@ -434,6 +651,32 @@ function handleEditClick(e) {
         text: "Terjadi kesalahan saat mengambil data produk.",
       });
     });
+}
+
+// 🔥 FUNGSI PEMBANTU BARU: Mengunggah File/Blob ke Cloudinary 🔥
+async function uploadImageToCloudinary(fileOrBlob) {
+  const formData = new FormData();
+  formData.append("file", fileOrBlob);
+  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+  formData.append("folder", `dakata_shop/${currentUser.uid}`); // Tambahkan folder
+
+  try {
+    const response = await fetch(CLOUDINARY_URL, {
+      method: "POST",
+      body: formData,
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(
+        errorData.error.message || "Gagal mengunggah gambar ke Cloudinary."
+      );
+    }
+    const data = await response.json();
+    return data.secure_url;
+  } catch (error) {
+    console.error("Cloudinary Upload Error:", error);
+    throw error;
+  }
 }
 
 async function handleSubmitProduct(e) {
@@ -453,14 +696,27 @@ async function handleSubmitProduct(e) {
   const nama = document.getElementById("product-nama").value;
   const harga = parseInt(document.getElementById("product-harga").value);
   const deskripsi = document.getElementById("product-desc").value;
-  const file = productImageFile.files[0];
+  const stock = parseInt(document.getElementById("product-stock").value || 0);
+
+  // File dari input (hanya jika user memilih file baru tanpa melalui crop)
+  const fileFromInput = productImageFile.files[0];
 
   if (isNaN(harga) || harga <= 0) {
     uploadError.textContent = "Harga harus berupa angka positif.";
     uploadError.classList.remove("hidden");
     return;
   }
-  if (!isEditing && !file) {
+
+  if (isNaN(stock) || stock < 0) {
+    uploadError.textContent = "Stok harus berupa angka positif atau nol.";
+    uploadError.classList.remove("hidden");
+    return;
+  }
+
+  // LOGIKA BARU UNTUK MEMERIKSA FILE/BLOB (Prioritaskan blob hasil crop)
+  const fileToProcess = croppedFileBlob || fileFromInput;
+
+  if (!isEditing && !fileToProcess) {
     uploadError.textContent = "Anda harus memilih foto produk.";
     uploadError.classList.remove("hidden");
     return;
@@ -471,26 +727,10 @@ async function handleSubmitProduct(e) {
   try {
     let imageUrl;
 
-    if (file) {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-      formData.append("folder", `dakata_shop/${currentUser.uid}`);
-
-      const response = await fetch(CLOUDINARY_URL, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.error.message || "Gagal mengupload file ke Cloudinary."
-        );
-      }
-
-      const cloudinaryData = await response.json();
-      imageUrl = cloudinaryData.secure_url;
+    if (fileToProcess) {
+      // 🔥 GUNAKAN FUNGSI PEMBANTU UNTUK UPLOAD BLOB/FILE 🔥
+      imageUrl = await uploadImageToCloudinary(fileToProcess);
+      croppedFileBlob = null; // Reset setelah berhasil diupload
     } else if (isEditing) {
       imageUrl = imagePreview.src;
     }
@@ -499,6 +739,7 @@ async function handleSubmitProduct(e) {
       nama: nama,
       harga: harga,
       deskripsi: deskripsi,
+      stock: stock, // Tambahkan stok
       ownerId: currentUser.uid,
     };
 
@@ -510,7 +751,6 @@ async function handleSubmitProduct(e) {
       productData.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
       await db.collection("products").doc(editingProductId).update(productData);
     } else {
-      productData.stock = 1;
       productData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
       await db.collection("products").add(productData);
     }
@@ -520,6 +760,7 @@ async function handleSubmitProduct(e) {
     uploadModal.classList.add("hidden");
     editingProductId = null;
     uploadModalTitle.textContent = "Upload Produk Baru";
+    // Penting: Kembalikan atribut required setelah upload berhasil
     productImageFile.setAttribute("required", "required");
 
     loadProducts();
@@ -637,6 +878,7 @@ async function loadTransactionHistory() {
   startDate.setHours(0, 0, 0, 0);
 
   // --- SIMULASI DATA TRANSAKSI INTERNAL ---
+  // Catatan: Dalam aplikasi nyata, ini akan ditarik dari koleksi 'transactions' yang difilter berdasarkan currentUser.uid
   const simulatedTransactions = [
     // Desember 2025
     {
@@ -708,8 +950,6 @@ async function loadTransactionHistory() {
       status: "Completed",
       date: "2025-09-10",
     },
-
-    // (Tambah data simulasi untuk mencapai 12 bulan jika perlu)
   ];
 
   // FILTER DATA BERDASARKAN currentPeriodFilter (Sekarang 12)
@@ -787,13 +1027,28 @@ function renderSalesChart(salesData) {
   const rawLabels = Object.keys(salesData).sort();
   const chartLabels = rawLabels.map((period) => {
     const [year, month] = period.split("-");
-    return `${month}/${year.slice(2)}`;
+    // Konversi angka bulan ke nama bulan (opsional, tapi lebih user-friendly)
+    const monthNames = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "Mei",
+      "Jun",
+      "Jul",
+      "Agu",
+      "Sep",
+      "Okt",
+      "Nov",
+      "Des",
+    ];
+    return `${monthNames[parseInt(month) - 1]}/${year.slice(2)}`;
   });
   const chartValues = rawLabels.map((period) => salesData[period]);
 
   // HAPUS GRAFIK LAMA JIKA ADA
-  if (window.salesChartInstance) {
-    window.salesChartInstance.destroy();
+  if (salesChartInstance) {
+    salesChartInstance.destroy();
   }
 
   if (typeof Chart === "undefined") {
@@ -803,7 +1058,7 @@ function renderSalesChart(salesData) {
 
   // RENDERING GRAFIK MENGGUNAKAN CHART.JS
   const ctx = salesChartCanvas.getContext("2d");
-  window.salesChartInstance = new Chart(ctx, {
+  salesChartInstance = new Chart(ctx, {
     type: "bar",
     data: {
       labels: chartLabels,
@@ -828,10 +1083,10 @@ function renderSalesChart(salesData) {
           ticks: {
             callback: function (value) {
               if (value >= 1000000) {
-                return "Rp " + (value / 1000000).toFixed(1) + "M";
+                return "Rp " + (value / 1000000).toFixed(1) + "Jt"; // Diubah M -> Jt
               }
               if (value === 0) return "Rp 0";
-              return "Rp " + value / 1000 + "k";
+              return "Rp " + (value / 1000).toFixed(0) + "k"; // Ditambahkan toFixed(0)
             },
           },
         },
@@ -874,6 +1129,11 @@ async function openProfileModal() {
   if (passwordError) passwordError.classList.add("hidden");
   if (newPasswordInput) newPasswordInput.value = "";
   if (profileModal) profileModal.classList.remove("hidden");
+
+  // Reset ikon mata saat modal dibuka
+  if (newPasswordInput) newPasswordInput.setAttribute("type", "password");
+  if (eyeIconOpen) eyeIconOpen.classList.add("hidden");
+  if (eyeIconClosed) eyeIconClosed.classList.remove("hidden");
 }
 
 async function handleUpdateShopName(e) {
@@ -976,6 +1236,45 @@ async function handleUpdatePassword(e) {
   }
 }
 
+// 🔥 FUNGSI BARU: Menerapkan Hasil Crop Gambar 🔥
+function handleCropApply() {
+  if (!cropperInstance) return;
+
+  // 1. Ambil kanvas dari hasil cropping (misalnya 600x600)
+  const croppedCanvas = cropperInstance.getCroppedCanvas({
+    width: 600,
+    height: 600,
+  });
+
+  // 2. Konversi kanvas menjadi Blob (file baru)
+  croppedCanvas.toBlob(
+    (blob) => {
+      croppedFileBlob = blob; // Simpan blob ke variabel global (di Bagian 2)
+
+      // 3. Tampilkan preview menggunakan data URL dari blob baru
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (imagePreview) {
+          imagePreview.src = event.target.result;
+        }
+        if (imagePreviewContainer) {
+          imagePreviewContainer.classList.remove("hidden");
+        }
+      };
+      reader.readAsDataURL(blob);
+
+      // 4. Tutup modal dan hancurkan cropper
+      if (cropModal) cropModal.classList.add("hidden");
+      if (cropperInstance) cropperInstance.destroy();
+      cropperInstance = null;
+
+      // Atur input file menjadi tidak wajib (karena kita sudah punya blob)
+      if (productImageFile) productImageFile.removeAttribute("required");
+    },
+    "image/jpeg",
+    0.9
+  ); // Format JPEG dengan kualitas 90%
+}
 // -----------------------------------------------------------------
 // BAGIAN 8: EKSEKUSI AWAL DAN EVENT LISTENERS
 // -----------------------------------------------------------------
@@ -1002,11 +1301,47 @@ document.addEventListener("DOMContentLoaded", () => {
   uploadSubmitBtn = document.getElementById("upload-submit-btn");
 
   productImageFile = document.getElementById("product-image-file");
+  // 🔥 Diperlukan untuk preview setelah crop/edit 🔥
   imagePreview = document.getElementById("image-preview");
   imagePreviewContainer = document.getElementById("image-preview-container");
 
   sellerControls = document.getElementById("seller-controls");
   sellerGreeting = document.getElementById("seller-greeting");
+
+  // 🔥 INISIALISASI VARIABEL CROPPER BARU 🔥
+  imageToCrop = document.getElementById("image-to-crop");
+  cropModal = document.getElementById("crop-modal");
+  closeCropModalBtn = document.getElementById("close-crop-modal-btn");
+  applyCropBtn = document.getElementById("apply-crop-btn");
+  // ------------------------------------------
+
+  // 🔥 INISIALISASI VARIABEL DETAIL PRODUK 🔥
+  productDetailView = document.getElementById("product-detail-view");
+  productListWrapperElement = document.getElementById("product-list-wrapper");
+  backToProductsBtn = document.getElementById("back-to-products-btn");
+  detailProductName = document.getElementById("detail-product-name");
+  detailProductPrice = document.getElementById("detail-product-price");
+  detailProductDescription = document.getElementById(
+    "detail-product-description"
+  );
+  detailProductImage = document.getElementById("detail-product-image");
+  detailShopNameText = document.getElementById("detail-shop-name-text");
+  detailOwnerMessage = document.getElementById("detail-owner-message");
+
+  // 🔥 INISIALISASI VARIABEL KUANTITAS BARU (SOLUSI UNTUK TOMBOL + / -) 🔥
+  qtyDecrementBtn = document.getElementById("qty-decrement");
+  qtyIncrementBtn = document.getElementById("qty-increment");
+  productQuantityInput = document.getElementById("product-quantity");
+  detailStockInfo = document.getElementById("detail-stock-info");
+  // -------------------------------------------------
+
+  // 🔥 INISIALISASI VARIABEL TOGGLE SANDI LOGIN (PASTIKAN ADA) 🔥
+  authPasswordInput = document.getElementById("auth-password");
+  toggleAuthPasswordBtn = document.getElementById(
+    "toggle-auth-password-visibility"
+  );
+  authEyeIconOpen = document.getElementById("auth-eye-icon-open");
+  authEyeIconClosed = document.getElementById("auth-eye-icon-closed");
 
   // INISIALISASI VARIABEL MANAGEMENT & GRAFIK
   manageBtn = document.getElementById("manage-btn");
@@ -1030,12 +1365,19 @@ document.addEventListener("DOMContentLoaded", () => {
   newPasswordInput = document.getElementById("new-password");
   passwordError = document.getElementById("password-error");
   passwordSubmitBtn = document.getElementById("password-submit-btn");
+
+  // 🔥 INISIALISASI VARIABEL TOGGLE SANDI 🔥
+  togglePasswordBtn = document.getElementById("toggle-password-visibility");
+  eyeIconOpen = document.getElementById("eye-icon-open");
+  eyeIconClosed = document.getElementById("eye-icon-closed");
+
   // --- EVENT LISTENERS ---
 
   // 1. Produk Upload/Edit
   if (uploadBtn) {
     uploadBtn.addEventListener("click", () => {
       editingProductId = null;
+      croppedFileBlob = null; // Reset blob saat membuka modal upload baru
       uploadModalTitle.textContent = "Upload Produk Baru";
       uploadSubmitBtn.textContent = "Simpan Produk";
       if (uploadForm) uploadForm.reset();
@@ -1049,6 +1391,7 @@ document.addEventListener("DOMContentLoaded", () => {
     closeUploadModalBtn.addEventListener("click", () => {
       uploadModal.classList.add("hidden");
       editingProductId = null;
+      croppedFileBlob = null; // Reset blob saat menutup modal
       uploadModalTitle.textContent = "Upload Produk Baru";
       uploadSubmitBtn.textContent = "Simpan Produk";
       if (productImageFile)
@@ -1056,27 +1399,96 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
   if (uploadForm) uploadForm.addEventListener("submit", handleSubmitProduct);
+
+  // 🔥 1.1. Event Listener CROPPER (Disesuaikan dengan Debugging) 🔥
   if (productImageFile) {
     productImageFile.addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (file) {
+        console.log("1. File dipilih. Memulai FileReader...");
+        // Hapus preview lama agar tidak misleading
+        if (imagePreviewContainer)
+          imagePreviewContainer.classList.add("hidden");
+
         const reader = new FileReader();
         reader.onload = (event) => {
-          imagePreview.src = event.target.result;
-          imagePreviewContainer.classList.remove("hidden");
+          console.log("2. Gambar berhasil dimuat oleh FileReader.");
+
+          if (imageToCrop) {
+            imageToCrop.src = event.target.result;
+            console.log(
+              "3. imageToCrop (img element) berhasil disetel src-nya."
+            );
+          } else {
+            console.error(
+              "ERROR: Elemen #image-to-crop tidak ditemukan (NULL)!"
+            );
+            return; // Hentikan proses jika elemen tidak ada
+          }
+
+          if (cropModal) {
+            cropModal.classList.remove("hidden");
+            console.log("4. cropModal berhasil ditampilkan.");
+          } else {
+            console.error("ERROR: Elemen #crop-modal tidak ditemukan (NULL)!");
+            return; // Hentikan proses jika elemen tidak ada
+          }
+
+          // Inisialisasi Cropper.js (setelah gambar dimuat)
+          setTimeout(() => {
+            if (typeof Cropper === "undefined") {
+              console.error("ERROR: Cropper.js library tidak dimuat!");
+              return;
+            }
+
+            if (cropperInstance) cropperInstance.destroy();
+
+            // Pastikan imageToCrop sudah ada di DOM sebelum inisialisasi
+            if (imageToCrop) {
+              cropperInstance = new Cropper(imageToCrop, {
+                aspectRatio: 1,
+                viewMode: 1,
+              });
+              console.log("5. Cropper.js berhasil diinisialisasi.");
+            }
+          }, 100);
         };
         reader.readAsDataURL(file);
       } else {
-        imagePreviewContainer.classList.add("hidden");
+        if (imagePreviewContainer)
+          imagePreviewContainer.classList.add("hidden");
+        console.log("File selection dibatalkan.");
       }
     });
   }
+
+  // 🔥 1.2. Event Listener untuk Crop Modal 🔥
+  if (closeCropModalBtn) {
+    closeCropModalBtn.addEventListener("click", () => {
+      if (cropModal) cropModal.classList.add("hidden");
+      if (cropperInstance) cropperInstance.destroy();
+      if (productImageFile) productImageFile.value = ""; // Kosongkan input file
+      croppedFileBlob = null; // Batalkan crop
+    });
+  }
+
+  if (applyCropBtn) {
+    applyCropBtn.addEventListener("click", handleCropApply);
+  }
+  // ------------------------------------------
 
   // 2. Autentikasi
   if (authBtn) {
     authBtn.addEventListener("click", () => {
       if (!currentUser) {
         authModal.classList.remove("hidden");
+
+        // 🔥 Reset Sandi Login saat modal dibuka 🔥
+        if (authPasswordInput)
+          authPasswordInput.setAttribute("type", "password");
+        if (authEyeIconOpen) authEyeIconOpen.classList.add("hidden");
+        if (authEyeIconClosed) authEyeIconClosed.classList.remove("hidden");
+        // ------------------------------------------
       } else {
         // 🔥 PENYESUAIAN LOGOUT DENGAN KONFIRMASI SWEETALERT2 🔥
         Swal.fire({
@@ -1159,6 +1571,79 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   if (updatePasswordForm) {
     updatePasswordForm.addEventListener("submit", handleUpdatePassword);
+  }
+
+  // 🔥 5. Toggle Password Visibility (Profile) 🔥
+  if (togglePasswordBtn && newPasswordInput) {
+    togglePasswordBtn.addEventListener("click", () => {
+      const type =
+        newPasswordInput.getAttribute("type") === "password"
+          ? "text"
+          : "password";
+      newPasswordInput.setAttribute("type", type);
+
+      // Toggle ikon mata
+      eyeIconOpen.classList.toggle("hidden");
+      eyeIconClosed.classList.toggle("hidden");
+    });
+  }
+
+  // 🔥 6. Toggle Password Visibility (Form Login) 🔥
+  if (toggleAuthPasswordBtn && authPasswordInput) {
+    toggleAuthPasswordBtn.addEventListener("click", () => {
+      const type =
+        authPasswordInput.getAttribute("type") === "password"
+          ? "text"
+          : "password";
+      authPasswordInput.setAttribute("type", type);
+
+      // Toggle ikon mata
+      authEyeIconOpen.classList.toggle("hidden");
+      authEyeIconClosed.classList.toggle("hidden");
+    });
+  }
+
+  // 🔥 7. Event Listener untuk Tombol Kembali ke Daftar Produk (Detail View) 🔥
+  if (backToProductsBtn) {
+    backToProductsBtn.addEventListener("click", () => {
+      if (productDetailView) productDetailView.classList.add("hidden");
+      if (productListWrapperElement)
+        productListWrapperElement.classList.remove("hidden");
+      // Memuat ulang produk setelah kembali
+      loadProducts();
+    });
+  }
+
+  // 🔥 8. Event Listener untuk Tombol Kuantitas Produk (Detail View) 🔥
+  if (qtyIncrementBtn) {
+    qtyIncrementBtn.addEventListener("click", () => handleQuantityChange(true));
+  }
+  if (qtyDecrementBtn) {
+    qtyDecrementBtn.addEventListener("click", () =>
+      handleQuantityChange(false)
+    );
+  }
+
+  // Inisialisasi awal: tombol decrement harus nonaktif jika kuantitas awal 1
+  if (qtyDecrementBtn && productQuantityInput) {
+    qtyDecrementBtn.disabled = parseInt(productQuantityInput.value) === 1;
+  }
+
+  if (closeUploadModalBtn) {
+    closeUploadModalBtn.addEventListener("click", () => {
+      // Logika untuk menyembunyikan modal upload
+      uploadModal.classList.add("hidden");
+
+      // Opsional: Reset form dan tampilkan kembali tombol upload
+      uploadForm.reset();
+      imagePreviewContainer.classList.add("hidden");
+      productImageFile.setAttribute("required", "required");
+
+      // Reset mode editing
+      editingProductId = null;
+      uploadModalTitle.textContent = "Upload Produk Baru";
+      uploadSubmitBtn.textContent = "Simpan Produk";
+    });
   }
 
   // loadProducts() dipanggil otomatis oleh auth.onAuthStateChanged
