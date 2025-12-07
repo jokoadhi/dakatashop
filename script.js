@@ -746,6 +746,20 @@ function getCloudinaryPublicId(imageUrl) {
   return null;
 }
 
+function toggleBodyScroll(lockScroll) {
+  if (lockScroll) {
+    // Matikan scroll utama saat modal terbuka
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.width = "100%";
+  } else {
+    // Aktifkan kembali scroll utama saat modal tertutup
+    document.body.style.overflow = "";
+    document.body.style.position = "";
+    document.body.style.width = "";
+  }
+}
+
 async function handleSubmitAuth(e) {
   e.preventDefault();
 
@@ -2215,6 +2229,36 @@ document.addEventListener("DOMContentLoaded", () => {
   // -----------------------------------------------------------------
   // --- EVENT LISTENERS ---
   // -----------------------------------------------------------------
+
+  // 1. Tombol Pembuka Modal (profileBtn)
+  if (profileBtn) {
+    profileBtn.addEventListener("click", () => {
+      profileModal.classList.remove("hidden");
+      // KUNCI SCROLL
+      toggleBodyScroll(true);
+      // Anda bisa menambahkan logika lain di sini (misal: mengisi data profil)
+    });
+  }
+
+  // 2. Tombol Penutup Modal (closeProfileModalBtn)
+  if (closeProfileModalBtn) {
+    closeProfileModalBtn.addEventListener("click", () => {
+      profileModal.classList.add("hidden");
+      // BUKA SCROLL
+      toggleBodyScroll(false);
+    });
+  }
+
+  // 3. Penutupan Modal ketika klik di luar modal (backdrop)
+  if (profileModal) {
+    profileModal.addEventListener("click", (e) => {
+      if (e.target === profileModal) {
+        profileModal.classList.add("hidden");
+        // BUKA SCROLL
+        toggleBodyScroll(false);
+      }
+    });
+  }
 
   // 1. Produk Upload/Edit
   if (uploadBtn) {
