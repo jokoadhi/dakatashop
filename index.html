@@ -88,192 +88,278 @@
       </div>
     </header>
 
-    <section
-      id="main-banner"
-      class="bg-gray-200 py-12 sm:py-20 mb-8 border-b border-gray-300"
-    >
-      <div class="container mx-auto px-6 text-center">
-        <h1
-          class="text-3xl sm:text-5xl font-extrabold text-gray-800 mb-3 sm:mb-4"
-        >
-          Temukan Hewan dan Kebutuhan Terbaik
-        </h1>
-        <p class="text-base sm:text-xl text-gray-600 mb-6 sm:mb-8">
-          Kami menyediakan produk pilihan dengan kualitas terjamin!
-        </p>
-      </div>
-    </section>
-
-    <div
-      id="profile-modal"
-      class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-[100]"
-    >
-      <div class="bg-white rounded-xl shadow-2xl w-full max-w-md relative p-8">
-        <button
-          id="close-profile-modal-btn"
-          class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition duration-150"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-6 w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+    <main class="flex-grow">
+      <section
+        id="main-banner"
+        class="bg-gray-200 py-12 sm:py-20 mb-8 border-b border-gray-300"
+      >
+        <div class="container mx-auto px-6 text-center">
+          <h1
+            class="text-3xl sm:text-5xl font-extrabold text-gray-800 mb-3 sm:mb-4"
           >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-        <h3 class="text-2xl font-bold mb-6 text-gray-900 text-center">
-          ⚙️ Pengaturan Akun & Toko
-        </h3>
-
-        <div class="mb-6 pb-6 border-b border-gray-200">
-          <h4 class="text-xl font-semibold mb-3 text-gold-accent">
-            Update Nama Toko
-          </h4>
-          <form id="update-shop-form" class="space-y-4">
-            <div>
-              <label
-                for="shop-name"
-                class="block text-sm font-medium text-gray-700"
-                >Nama Toko Saat Ini</label
-              >
-              <input
-                type="text"
-                id="shop-name"
-                placeholder="Masukkan nama toko baru Anda"
-                required
-                class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-yellow-500 focus:border-yellow-500"
-              />
-            </div>
-            <p id="shop-name-error" class="text-red-500 text-sm hidden"></p>
-            <button
-              type="submit"
-              id="shop-name-submit-btn"
-              class="w-full bg-yellow-500 text-white py-2 rounded-lg font-semibold hover:bg-yellow-600 transition duration-300"
-            >
-              Simpan Nama Toko
-            </button>
-          </form>
+            Temukan Hewan dan Kebutuhan Terbaik
+          </h1>
+          <p class="text-base sm:text-xl text-gray-600 mb-6 sm:mb-8">
+            Kami menyediakan produk pilihan dengan kualitas terjamin!
+          </p>
         </div>
-        <div class="border p-4 rounded-lg bg-gray-50">
-          <h3 class="text-xl font-semibold mb-3 text-gray-800">
-            Ganti Kata Sandi
-          </h3>
-          <form id="update-password-form" class="space-y-3">
-            <p class="text-sm text-gray-500 italic">
-              Anda akan otomatis keluar setelah mengganti sandi.
-            </p>
-            <div>
-              <label
-                for="new-password"
-                class="block text-sm font-medium text-gray-700"
-                >Sandi Baru (Min. 6 Karakter)</label
-              >
+      </section>
 
-              <div class="relative mt-1">
-                <input
-                  type="password"
-                  id="new-password"
-                  required
-                  minlength="6"
-                  class="block w-full pr-10 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500"
-                />
-                <button
-                  type="button"
-                  id="toggle-password-visibility"
-                  class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500"
-                  aria-label="Tampilkan sandi"
-                >
-                  <svg
-                    id="eye-icon-closed"
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.976 9.976 0 015.353-6.521m.806.918A6.002 6.002 0 0012 5c2.485 0 4.5 2.015 4.5 4.5v.5"
-                    />
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M21 21L3 3"
-                    />
-                  </svg>
-                  <svg
-                    id="eye-icon-open"
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-5 w-5 hidden"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <p id="password-error" class="text-sm text-red-500 hidden"></p>
-            <button
-              id="password-submit-btn"
-              type="submit"
-              class="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition duration-200"
-            >
-              Ganti Sandi
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <section
-      id="seller-controls"
-      class="hidden container mx-auto px-6 mb-8 mt-8"
-    >
       <div
-        class="bg-white p-5 sm:p-6 rounded-xl shadow-lg border-t-4 border-gold-accent"
+        id="profile-modal"
+        class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-[100]"
       >
         <div
-          class="flex flex-col sm:flex-row justify-between items-start sm:items-center"
+          class="bg-white rounded-xl shadow-2xl w-full max-w-md relative p-8"
         >
-          <div class="mb-3 sm:mb-0">
-            <p id="seller-greeting" class="text-lg font-semibold text-gray-800">
-              Halo, Penjual!
-            </p>
-            <p class="text-sm text-gray-500">
-              Kelola dan tambahkan produk baru ke toko Anda.
-            </p>
+          <button
+            id="close-profile-modal-btn"
+            class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition duration-150"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+          <h3 class="text-2xl font-bold mb-6 text-gray-900 text-center">
+            ⚙️ Pengaturan Akun & Toko
+          </h3>
+
+          <div class="mb-6 pb-6 border-b border-gray-200">
+            <h4 class="text-xl font-semibold mb-3 text-gold-accent">
+              Update Nama Toko
+            </h4>
+            <form id="update-shop-form" class="space-y-4">
+              <div>
+                <label
+                  for="shop-name"
+                  class="block text-sm font-medium text-gray-700"
+                  >Nama Toko Saat Ini</label
+                >
+                <input
+                  type="text"
+                  id="shop-name"
+                  placeholder="Masukkan nama toko baru Anda"
+                  required
+                  class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-yellow-500 focus:border-yellow-500"
+                />
+              </div>
+              <p id="shop-name-error" class="text-red-500 text-sm hidden"></p>
+              <button
+                type="submit"
+                id="shop-name-submit-btn"
+                class="w-full bg-yellow-500 text-white py-2 rounded-lg font-semibold hover:bg-yellow-600 transition duration-300"
+              >
+                Simpan Nama Toko
+              </button>
+            </form>
           </div>
 
-          <div class="flex space-x-3">
+          <div class="mb-6 pb-6 border-b border-gray-200">
+            <h4 class="text-xl font-semibold mb-3 text-gold-accent">
+              Update Kontak & Alamat
+            </h4>
+            <form id="update-contact-form" class="space-y-4">
+              <div>
+                <label
+                  for="profile-phone"
+                  class="block text-sm font-medium text-gray-700"
+                  >Nomor HP</label
+                >
+                <input
+                  type="tel"
+                  id="profile-phone"
+                  placeholder="Masukkan Nomor HP Anda"
+                  class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-yellow-500 focus:border-yellow-500"
+                />
+              </div>
+              <div>
+                <label
+                  for="profile-address"
+                  class="block text-sm font-medium text-gray-700"
+                  >Alamat Lengkap</label
+                >
+                <textarea
+                  id="profile-address"
+                  rows="3"
+                  placeholder="Masukkan Alamat Lengkap Toko"
+                  class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-yellow-500 focus:border-yellow-500"
+                ></textarea>
+              </div>
+              <p id="contact-error" class="text-red-500 text-sm hidden"></p>
+              <button
+                type="submit"
+                id="contact-submit-btn"
+                class="w-full bg-green-500 text-white py-2 rounded-lg font-semibold hover:bg-green-600 transition duration-300"
+              >
+                Simpan Kontak & Alamat
+              </button>
+            </form>
+          </div>
+          <div class="border p-4 rounded-lg bg-gray-50">
+            <h3 class="text-xl font-semibold mb-3 text-gray-800">
+              Ganti Kata Sandi
+            </h3>
+            <form id="update-password-form" class="space-y-3">
+              <p class="text-sm text-gray-500 italic">
+                Anda akan otomatis keluar setelah mengganti sandi.
+              </p>
+              <div>
+                <label
+                  for="new-password"
+                  class="block text-sm font-medium text-gray-700"
+                  >Sandi Baru (Min. 6 Karakter)</label
+                >
+
+                <div class="relative mt-1">
+                  <input
+                    type="password"
+                    id="new-password"
+                    required
+                    minlength="6"
+                    class="block w-full pr-10 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500"
+                  />
+                  <button
+                    type="button"
+                    id="toggle-password-visibility"
+                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500"
+                    aria-label="Tampilkan sandi"
+                  >
+                    <svg
+                      id="eye-icon-closed"
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.976 9.976 0 015.353-6.521m.806.918A6.002 6.002 0 0012 5c2.485 0 4.5 2.015 4.5 4.5v.5"
+                      />
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M21 21L3 3"
+                      />
+                    </svg>
+                    <svg
+                      id="eye-icon-open"
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-5 w-5 hidden"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <p id="password-error" class="text-sm text-red-500 hidden"></p>
+              <button
+                id="password-submit-btn"
+                type="submit"
+                class="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition duration-200"
+              >
+                Ganti Sandi
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+      <section
+        id="seller-controls"
+        class="hidden container mx-auto px-6 mb-8 mt-8"
+      >
+        <div
+          class="bg-white p-5 sm:p-6 rounded-xl shadow-lg border-t-4 border-gold-accent"
+        >
+          <div
+            class="flex flex-col sm:flex-row justify-between items-start sm:items-center"
+          >
+            <div class="mb-3 sm:mb-0">
+              <p
+                id="seller-greeting"
+                class="text-lg font-semibold text-gray-800"
+              >
+                Halo, Penjual!
+              </p>
+              <p class="text-sm text-gray-500">
+                Kelola dan tambahkan produk baru ke toko Anda.
+              </p>
+            </div>
+
+            <div class="flex space-x-3">
+              <button
+                id="upload-btn"
+                class="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition duration-300 shadow-md flex items-center text-sm sm:text-base"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5 mr-2"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+                Upload Produk Baru
+              </button>
+            </div>
+          </div>
+
+          <div class="flex space-x-3 mt-4 border-t pt-4 border-gray-100">
+            <button
+              id="admin-btn"
+              class="hidden bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition duration-300 shadow-md flex items-center text-sm sm:text-base"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5 mr-2"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"
+                />
+              </svg>
+              Admin (Pelanggan)
+            </button>
+
             <button
               id="manage-btn"
               class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300 shadow-md flex items-center text-sm sm:text-base"
@@ -290,10 +376,131 @@
               </svg>
               Management
             </button>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="management-view"
+        class="hidden container mx-auto px-6 mb-12 mt-8"
+      >
+        <h2 class="text-3xl font-bold text-gray-800 mb-6">
+          💰 Dashboard Penjual
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div
+            class="bg-white p-5 rounded-xl shadow-lg border-l-4 border-green-500"
+          >
+            <p class="text-sm text-gray-500">Total Saldo</p>
+            <p id="total-saldo" class="text-3xl font-extrabold text-green-600">
+              Rp 0
+            </p>
+          </div>
+          <div
+            class="bg-white p-5 rounded-xl shadow-lg border-l-4 border-yellow-500"
+          >
+            <p class="text-sm text-gray-500">Total Produk Terjual</p>
+            <p
+              id="total-terjual"
+              class="text-3xl font-extrabold text-yellow-600"
+            >
+              0
+            </p>
+          </div>
+          <div
+            class="bg-white p-5 rounded-xl shadow-lg border-l-4 border-blue-500"
+          >
+            <p class="text-sm text-gray-500">Jumlah Transaksi</p>
+            <p
+              id="total-transaksi"
+              class="text-3xl font-extrabold text-blue-600"
+            >
+              0
+            </p>
+          </div>
+        </div>
+
+        <div
+          class="bg-white p-6 rounded-xl shadow-2xl border-t-4 border-blue-600 mb-8"
+        >
+          <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-6 w-6 mr-2 text-blue-600"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 3a1 1 0 011-1h2a1 1 0 011 1v13a1 1 0 01-1 1h-2a1 1 0 01-1-1V3z"
+              />
+            </svg>
+            Statistik Penjualan per Periode
+          </h3>
+          <div class="h-80 w-full">
+            <canvas id="salesChart"></canvas>
+          </div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-2xl">
+          <h3 class="text-xl font-bold text-gray-800 mb-4">
+            Riwayat Transaksi Terakhir
+          </h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    ID Transaksi
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Produk
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Harga Satuan
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Status
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Tanggal
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                id="transaction-history"
+                class="bg-white divide-y divide-gray-200"
+              >
+                <tr>
+                  <td colspan="5" class="text-center py-4 text-gray-500">
+                    Memuat data...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="admin-view" class="container mx-auto mt-8 px-6 hidden">
+        <div class="bg-white p-6 rounded-xl shadow-lg">
+          <div class="flex justify-between items-center mb-4 border-b pb-4">
+            <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+              Daftar Pelanggan (Admin)
+            </h2>
 
             <button
-              id="upload-btn"
-              class="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition duration-300 shadow-md flex items-center text-sm sm:text-base"
+              id="add-user-btn"
+              class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300 shadow-md flex items-center text-sm sm:text-base"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -307,349 +514,300 @@
                   clip-rule="evenodd"
                 />
               </svg>
-              Upload Produk Baru
+              Tambah User
             </button>
           </div>
-        </div>
-      </div>
-    </section>
 
-    <section
-      id="management-view"
-      class="hidden container mx-auto px-6 mb-12 mt-8"
-    >
-      <h2 class="text-3xl font-bold text-gray-800 mb-6">
-        💰 Dashboard Penjual
-      </h2>
-
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div
-          class="bg-white p-5 rounded-xl shadow-lg border-l-4 border-green-500"
-        >
-          <p class="text-sm text-gray-500">Total Saldo</p>
-          <p id="total-saldo" class="text-3xl font-extrabold text-green-600">
-            Rp 0
-          </p>
+          <div
+            class="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg"
+          >
+            <table class="min-w-full divide-y divide-gray-300">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    #
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Email
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Nama Toko
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Role
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Nomor HP
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Alamat
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Login Terakhir
+                  </th>
+                  <th
+                    class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Aksi
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                id="customer-list-table-body"
+                class="bg-white divide-y divide-gray-200"
+              ></tbody>
+            </table>
+          </div>
         </div>
-        <div
-          class="bg-white p-5 rounded-xl shadow-lg border-l-4 border-yellow-500"
-        >
-          <p class="text-sm text-gray-500">Total Produk Terjual</p>
-          <p id="total-terjual" class="text-3xl font-extrabold text-yellow-600">
-            0
-          </p>
-        </div>
-        <div
-          class="bg-white p-5 rounded-xl shadow-lg border-l-4 border-blue-500"
-        >
-          <p class="text-sm text-gray-500">Jumlah Transaksi</p>
-          <p id="total-transaksi" class="text-3xl font-extrabold text-blue-600">
-            0
-          </p>
-        </div>
-      </div>
+      </section>
 
       <div
-        class="bg-white p-6 rounded-xl shadow-2xl border-t-4 border-blue-600 mb-8"
+        class="container mx-auto px-6 py-8 flex-grow"
+        id="product-list-wrapper"
       >
-        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-6 w-6 mr-2 text-blue-600"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 3a1 1 0 011-1h2a1 1 0 011 1v13a1 1 0 01-1 1h-2a1 1 0 01-1-1V3z"
-            />
-          </svg>
-          Statistik Penjualan per Periode
-        </h3>
-        <div class="h-80 w-full">
-          <canvas id="salesChart"></canvas>
-        </div>
-      </div>
-      <div class="bg-white p-6 rounded-xl shadow-2xl">
-        <h3 class="text-xl font-bold text-gray-800 mb-4">
-          Riwayat Transaksi Terakhir
-        </h3>
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  ID Transaksi
-                </th>
-                <th
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Produk
-                </th>
-                <th
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Harga Satuan
-                </th>
-                <th
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Status
-                </th>
-                <th
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Tanggal
-                </th>
-              </tr>
-            </thead>
-            <tbody
-              id="transaction-history"
-              class="bg-white divide-y divide-gray-200"
-            >
-              <tr>
-                <td colspan="5" class="text-center py-4 text-gray-500">
-                  Memuat data...
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <div
-      id="product-detail-view"
-      class="container mx-auto p-3 sm:p-4 md:p-8 flex-grow hidden"
-    >
-      <div
-        class="bg-white rounded-xl shadow-2xl relative p-4 sm:p-6 md:p-10 border border-gray-100"
-      >
-        <button
-          id="back-to-products-btn"
-          class="mb-4 sm:mb-6 inline-flex items-center text-gray-600 hover:text-gray-900 font-semibold transition duration-150 text-sm"
+        <h2
+          id="product-list-header"
+          class="text-4xl font-bold text-gray-800 mb-8 border-l-4 border-gold-accent pl-4"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-4 w-4 mr-1"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
-              clip-rule="evenodd"
-            />
-          </svg>
-          Kembali ke Daftar Produk
-        </button>
+          Daftar Produk
+        </h2>
 
         <div
-          class="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10"
-          id="product-detail-content"
+          id="product-list"
+          class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8"
         >
           <div
-            id="detail-image-container"
-            class="order-1 md:order-1 md:sticky md:top-24 h-fit"
+            class="p-6 bg-white rounded-xl shadow-lg text-center col-span-full"
+            id="loading-message"
           >
-            <img
-              id="detail-product-image"
-              src=""
-              alt="Product Image"
-              class="w-full h-auto max-h-[400px] object-cover rounded-lg shadow-lg border border-gray-200"
-            />
+            <p class="text-lg text-gray-500">Memuat katalog produk...</p>
+            <div
+              class="mt-3 h-2 w-1/4 bg-gray-200 rounded animate-pulse mx-auto"
+            ></div>
           </div>
+        </div>
+      </div>
 
-          <div class="order-2 md:order-2">
-            <div class="pb-3 border-b-2 border-red-500/20 mb-4">
-              <h1
-                id="detail-product-name"
-                class="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-1 leading-tight"
-              >
-                Loading Product...
-              </h1>
-              <div
-                class="flex items-center space-x-2 text-sm font-medium text-gray-600"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-4 w-4 text-purple-600"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    d="M10 2a1 1 0 011 1v1h1a2 2 0 012 2v2a2 2 0 01-2 2h-2.586l.293.293A1 1 0 0111 11.414V14h3a1 1 0 010 2h-3v3a1 1 0 01-2 0v-3H6a1 1 0 110-2h3v-2.586l-.293-.293A1 1 0 017.586 9H5a2 2 0 01-2-2V6a2 2 0 012-2h1V3a1 1 0 011-1h3zM8 6a1 1 0 00-1 1v1a1 1 0 102 0V7a1 1 0 00-1-1z"
-                  />
-                </svg>
-                <p>Dijual oleh:</p>
-                <span
-                  class="font-bold text-purple-700"
-                  id="detail-shop-name-text"
-                  >Toko Rahasia</span
-                >
-              </div>
+      <div
+        id="product-detail-view"
+        class="container mx-auto p-3 sm:p-4 md:p-8 flex-grow hidden"
+      >
+        <div
+          class="bg-white rounded-xl shadow-2xl relative p-4 sm:p-6 md:p-10 border border-gray-100"
+        >
+          <button
+            id="back-to-products-btn"
+            class="mb-4 sm:mb-6 inline-flex items-center text-gray-600 hover:text-gray-900 font-semibold transition duration-150 text-sm"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4 mr-1"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            Kembali ke Daftar Produk
+          </button>
+
+          <div
+            class="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10"
+            id="product-detail-content"
+          >
+            <div
+              id="detail-image-container"
+              class="order-1 md:order-1 md:sticky md:top-24 h-fit"
+            >
+              <img
+                id="detail-product-image"
+                src=""
+                alt="Product Image"
+                class="w-full h-auto max-h-[400px] object-cover rounded-lg shadow-lg border border-gray-200"
+              />
             </div>
 
-            <div class="p-3 sm:p-4 bg-gray-50 rounded-lg shadow-inner mb-4">
-              <div
-                class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4"
-              >
-                <p
-                  id="detail-product-price"
-                  class="text-3xl sm:text-4xl font-extrabold text-red-600 mb-3 sm:mb-0"
+            <div class="order-2 md:order-2">
+              <div class="pb-3 border-b-2 border-red-500/20 mb-4">
+                <h1
+                  id="detail-product-name"
+                  class="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-1 leading-tight"
                 >
-                  Rp 0
-                </p>
+                  Loading Product...
+                </h1>
                 <div
-                  class="flex items-center space-x-2"
-                  id="detail-qty-control"
-                >
-                  <span
-                    class="text-sm font-semibold text-gray-700 whitespace-nowrap"
-                    >Jumlah:</span
-                  >
-                  <div
-                    class="flex items-center border border-gray-400 rounded-full overflow-hidden divide-x divide-gray-400"
-                  >
-                    <button
-                      id="qty-decrement"
-                      class="p-1 w-7 text-lg font-bold text-gray-600 hover:bg-gray-200 disabled:opacity-30"
-                      disabled
-                    >
-                      -
-                    </button>
-                    <input
-                      type="number"
-                      id="product-quantity"
-                      value="1"
-                      min="1"
-                      max="100"
-                      class="w-8 text-center text-sm font-semibold focus:outline-none bg-transparent"
-                      readonly
-                    />
-                    <button
-                      id="qty-increment"
-                      class="p-1 w-7 text-lg font-bold text-gray-600 hover:bg-gray-200"
-                    >
-                      +
-                    </button>
-                  </div>
-                  <p
-                    id="detail-stock-info"
-                    class="text-xs text-gray-500 whitespace-nowrap"
-                  >
-                    Stok: 0
-                  </p>
-                </div>
-              </div>
-
-              <div
-                class="flex flex-col space-y-3 md:flex-row md:space-y-0 md:space-x-3 mt-4"
-                id="detail-action-buttons"
-              >
-                <button
-                  id="buy-now-btn"
-                  class="flex-1 bg-red-600 text-white py-2 rounded-lg font-bold text-base hover:bg-red-700 transition duration-300 flex items-center justify-center space-x-2 shadow-md"
+                  class="flex items-center space-x-2 text-sm font-medium text-gray-600"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    class="h-5 w-5"
+                    class="h-4 w-4 text-purple-600"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      d="M10 2a1 1 0 011 1v1h1a2 2 0 012 2v2a2 2 0 01-2 2h-2.586l.293.293A1 1 0 0111 11.414V14h3a1 1 0 010 2h-3v3a1 1 0 01-2 0v-3H6a1 1 0 110-2h3v-2.586l-.293-.293A1 1 0 017.586 9H5a2 2 0 01-2-2V6a2 2 0 012-2h1V3a1 1 0 011-1h3zM8 6a1 1 0 00-1 1v1a1 1 0 102 0V7a1 1 0 00-1-1z"
+                    />
+                  </svg>
+                  <p>Dijual oleh:</p>
+                  <span
+                    class="font-bold text-purple-700"
+                    id="detail-shop-name-text"
+                    >Toko Rahasia</span
+                  >
+                </div>
+              </div>
+
+              <div class="p-3 sm:p-4 bg-gray-50 rounded-lg shadow-inner mb-4">
+                <div
+                  class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4"
+                >
+                  <p
+                    id="detail-product-price"
+                    class="text-3xl sm:text-4xl font-extrabold text-red-600 mb-3 sm:mb-0"
+                  >
+                    Rp 0
+                  </p>
+                  <div
+                    class="flex items-center space-x-2"
+                    id="detail-qty-control"
+                  >
+                    <span
+                      class="text-sm font-semibold text-gray-700 whitespace-nowrap"
+                      >Jumlah:</span
+                    >
+                    <div
+                      class="flex items-center border border-gray-400 rounded-full overflow-hidden divide-x divide-gray-400"
+                    >
+                      <button
+                        id="qty-decrement"
+                        class="p-1 w-7 text-lg font-bold text-gray-600 hover:bg-gray-200 disabled:opacity-30"
+                        disabled
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        id="product-quantity"
+                        value="1"
+                        min="1"
+                        max="100"
+                        class="w-8 text-center text-sm font-semibold focus:outline-none bg-transparent"
+                        readonly
+                      />
+                      <button
+                        id="qty-increment"
+                        class="p-1 w-7 text-lg font-bold text-gray-600 hover:bg-gray-200"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <p
+                      id="detail-stock-info"
+                      class="text-xs text-gray-500 whitespace-nowrap"
+                    >
+                      Stok: 0
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  class="flex flex-col space-y-3 md:flex-row md:space-y-0 md:space-x-3 mt-4"
+                  id="detail-action-buttons"
+                >
+                  <button
+                    id="buy-now-btn"
+                    class="flex-1 bg-red-600 text-white py-2 rounded-lg font-bold text-base hover:bg-red-700 transition duration-300 flex items-center justify-center space-x-2 shadow-md"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-5 w-5"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fill-rule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm.707-10.293a1 1 0 00-1.414-1.414L7 9.586V7a1 1 0 10-2 0v5a1 1 0 001 1h3a1 1 0 000-2H7.414l1.293-1.293z"
+                        clip-rule="evenodd"
+                      />
+                    </svg>
+                    <span>Beli Sekarang</span>
+                  </button>
+                  <button
+                    id="add-to-cart-btn"
+                    class="flex-1 bg-yellow-400 text-gray-900 py-2 rounded-lg font-bold text-base hover:bg-yellow-500 transition duration-300 flex items-center justify-center space-x-2 shadow-md"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-5 w-5"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.376 5.504a1 1 0 00.95.787h8.14a1 1 0 00.95-.787l1.41-5.645a1 1 0 00-.01-.042L17.778 3H19a1 1 0 100-2H3z"
+                      />
+                      <path
+                        d="M5.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM14.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"
+                      />
+                    </svg>
+                    <span>Masukkan Keranjang</span>
+                  </button>
+                </div>
+
+                <p
+                  id="detail-owner-message"
+                  class="text-xs text-blue-600 mt-4 hidden text-center p-3 border border-blue-200 bg-blue-50 rounded-lg font-semibold"
+                >
+                  Anda adalah pemilik produk ini. Fitur aksi tidak tersedia.
+                </p>
+              </div>
+
+              <div
+                class="p-4 bg-white rounded-lg shadow-xl border border-gray-200"
+              >
+                <h2
+                  class="text-lg font-bold text-gray-800 mb-2 flex items-center space-x-2"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5 text-red-500"
                     viewBox="0 0 20 20"
                     fill="currentColor"
                   >
                     <path
                       fill-rule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm.707-10.293a1 1 0 00-1.414-1.414L7 9.586V7a1 1 0 10-2 0v5a1 1 0 001 1h3a1 1 0 000-2H7.414l1.293-1.293z"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
                       clip-rule="evenodd"
                     />
                   </svg>
-                  <span>Beli Sekarang</span>
-                </button>
-                <button
-                  id="add-to-cart-btn"
-                  class="flex-1 bg-yellow-400 text-gray-900 py-2 rounded-lg font-bold text-base hover:bg-yellow-500 transition duration-300 flex items-center justify-center space-x-2 shadow-md"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-5 w-5"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.376 5.504a1 1 0 00.95.787h8.14a1 1 0 00.95-.787l1.41-5.645a1 1 0 00-.01-.042L17.778 3H19a1 1 0 100-2H3z"
-                    />
-                    <path
-                      d="M5.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM14.5 17a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"
-                    />
-                  </svg>
-                  <span>Masukkan Keranjang</span>
-                </button>
+                  <span>Deskripsi Produk</span>
+                </h2>
+                <p
+                  id="detail-product-description"
+                  class="text-sm text-gray-700 leading-relaxed"
+                ></p>
               </div>
-
-              <p
-                id="detail-owner-message"
-                class="text-xs text-blue-600 mt-4 hidden text-center p-3 border border-blue-200 bg-blue-50 rounded-lg font-semibold"
-              >
-                Anda adalah pemilik produk ini. Fitur aksi tidak tersedia.
-              </p>
-            </div>
-
-            <div
-              class="p-4 bg-white rounded-lg shadow-xl border border-gray-200"
-            >
-              <h2
-                class="text-lg font-bold text-gray-800 mb-2 flex items-center space-x-2"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-5 w-5 text-red-500"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-                <span>Deskripsi Produk</span>
-              </h2>
-              <p
-                id="detail-product-description"
-                class="text-sm text-gray-700 leading-relaxed"
-              ></p>
             </div>
           </div>
         </div>
       </div>
-    </div>
-    <main
-      class="container mx-auto px-6 py-8 flex-grow"
-      id="product-list-wrapper"
-    >
-      <h2
-        class="text-4xl font-bold text-gray-800 mb-8 border-l-4 border-gold-accent pl-4"
-      >
-        Daftar Produk
-      </h2>
-
-      <div
-        id="product-list"
-        class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8"
-      >
-        <div
-          class="p-6 bg-white rounded-xl shadow-lg text-center col-span-full"
-          id="loading-message"
-        >
-          <p class="text-lg text-gray-500">Memuat katalog produk...</p>
-          <div
-            class="mt-3 h-2 w-1/4 bg-gray-200 rounded animate-pulse mx-auto"
-          ></div>
-        </div>
-      </div>
     </main>
-
     <footer class="bg-gray-800 text-white mt-16 py-8">
       <div class="container mx-auto px-6 text-center">
         <p class="text-lg font-medium mb-2">
@@ -705,13 +863,13 @@
               class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-yellow-500 focus:border-yellow-500"
             />
           </div>
+
           <div>
             <label
               for="auth-password"
               class="block text-sm font-medium text-gray-700"
               >Kata Sandi</label
             >
-
             <div class="relative mt-1">
               <input
                 type="password"
@@ -779,6 +937,51 @@
             </div>
           </div>
 
+          <div id="auth-phone-group" class="mb-4 hidden">
+            <label
+              for="auth-phone"
+              class="block text-sm font-medium text-gray-700"
+              >Nomor HP</label
+            >
+            <input
+              type="tel"
+              id="auth-phone"
+              name="phone"
+              class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-yellow-500 focus:border-yellow-500"
+              placeholder="Contoh: 08123456789"
+            />
+          </div>
+
+          <div id="auth-address-group" class="mb-4 hidden">
+            <label
+              for="auth-address"
+              class="block text-sm font-medium text-gray-700"
+              >Alamat Lengkap</label
+            >
+            <textarea
+              id="auth-address"
+              name="address"
+              rows="3"
+              class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-yellow-500 focus:border-yellow-500"
+              placeholder="Masukkan alamat lengkap pelanggan"
+            ></textarea>
+          </div>
+
+          <div id="auth-role-group" class="mb-4 hidden">
+            <label
+              for="auth-role"
+              class="block text-sm font-medium text-gray-700"
+              >Role Pengguna</label
+            >
+            <select
+              id="auth-role"
+              name="role"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm"
+            >
+              <option value="biasa">Biasa (Penjual)</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
           <p id="auth-error" class="text-red-500 text-sm hidden"></p>
 
           <button
@@ -790,13 +993,21 @@
           </button>
         </form>
 
-        <p class="mt-4 text-center">
+        <p id="toggle-auth-mode" class="text-center text-sm mt-4 text-gray-600">
+          Ingin daftar sebagai penjual?
           <button
-            id="toggle-auth-mode"
-            class="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            id="toggle-auth-link"
+            class="font-bold text-blue-600 hover:text-blue-800 transition duration-150"
           >
-            Belum punya akun? Daftar sekarang!
+            Hubungi Admin
           </button>
+        </p>
+
+        <p
+          id="admin-register-info"
+          class="text-center text-sm mt-2 text-red-500 hidden"
+        >
+          *Mode Registrasi Admin
         </p>
       </div>
     </div>

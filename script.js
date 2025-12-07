@@ -1,14 +1,26 @@
 /**
  * =================================================================
- * SCRIPT.JS - MULTI-SELLER E-COMMERCE LOGIC LENGKAP
+ * SCRIPT.JS - MULTI-SELLER E-COMMERCE LOGIC LENGKAP (VERSI FINAL)
  * =================================================================
- * Fitur: Auth, CRUD Produk (dengan Cropper.js & Cloudinary), Detail Produk,
- * Management Dashboard (Chart.js), Profil Toko.
  */
 
 // -----------------------------------------------------------------
-// BAGIAN 1: KONFIGURASI DAN INISIALISASI FIREBASE
+// BAGIAN 1: VARIABEL GLOBAL, KONFIGURASI, DAN INISIALISASI FIREBASE
 // -----------------------------------------------------------------
+
+// 🔥 KONFIGURASI CLOUDINARY 🔥
+const CLOUDINARY_CLOUD_NAME = "daw7yn6jp";
+const CLOUDINARY_UPLOAD_PRESET = "dakata-upload-preset";
+const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+
+// --- VARIABEL GLOBAL SKRIP ---
+let currentUser = null; // Menyimpan objek user yang sedang login
+let editingProductId = null; // Menyimpan ID produk yang sedang diedit
+let cropperInstance = null; // Menyimpan instance Cropper.js
+let croppedFileBlob = null; // Menyimpan blob file gambar yang sudah di-crop
+let isInitialLoad = true; // Flag untuk mencegah notifikasi login saat pemuatan awal
+let salesChartInstance = null; // Menyimpan instance Chart.js
+let currentPeriodFilter = 12; // Default 12 Bulan (1 Tahun)
 
 // GANTI DENGAN KONFIGURASI FIREBASE ASLI ANDA
 const firebaseConfig = {
@@ -23,29 +35,23 @@ const firebaseConfig = {
 const app = firebase.initializeApp(firebaseConfig);
 const db = app.firestore();
 const auth = app.auth();
-// -----------------------------------------------------------------
-// BAGIAN 2: VARIABEL GLOBAL & DEKLARASI DOM
-// -----------------------------------------------------------------
 
-// 🔥 KONFIGURASI CLOUDINARY 🔥
-const CLOUDINARY_CLOUD_NAME = "daw7yn6jp";
-const CLOUDINARY_UPLOAD_PRESET = "dakata-upload-preset";
-const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
-
-let currentUser = null;
-let isRegisterMode = false;
-let editingProductId = null;
-let currentPeriodFilter = 12; // Default 12 Bulan (1 Tahun)
+// -----------------------------------------------------------------
+// BAGIAN 2: DEKLARASI VARIABEL DOM
+// -----------------------------------------------------------------
 
 // 🔥 DEKLARASI VARIABEL DOM UTAMA 🔥
 let productListDiv,
   mainBanner,
+  productListTitleElement,
   authBtn,
   authModal,
   authForm,
   authTitle,
   authSubmitBtn,
   toggleAuthMode,
+  toggleAuthLink,
+  adminRegisterInfo,
   closeModalBtn,
   authError,
   uploadBtn,
@@ -61,6 +67,11 @@ let productListDiv,
   sellerControls,
   sellerGreeting;
 
+// 🔥 VARIABEL INPUT AUTH KHUSUS REGISTER 🔥
+let authRoleGroup, authRoleInput;
+let authPhoneInput, authAddressInput;
+let authPhoneGroup, authAddressGroup; // Container div
+
 // 🔥 DEKLARASI VARIABEL DETAIL PRODUK 🔥
 let productDetailView,
   productListWrapperElement,
@@ -71,18 +82,15 @@ let productDetailView,
   detailProductImage,
   detailShopNameText,
   detailOwnerMessage,
-  // 🔥 VARIABEL KUANTITAS 🔥
   qtyDecrementBtn,
   qtyIncrementBtn,
   productQuantityInput,
   detailStockInfo,
-  quantityControlsWrapper; // <-- DIPISAHKAN OLEH KOMA DARI DETAILSTOCKINFO
+  quantityControlsWrapper;
 
-// 🔥 VARIABEL BARU UNTUK CROPPER 🔥
-let cropperInstance;
-let imageToCrop; // Elemen <img> di modal crop
+// 🔥 VARIABEL UNTUK CROPPER 🔥
+let imageToCrop;
 let cropModal, closeCropModalBtn, applyCropBtn;
-let croppedFileBlob = null; // Menyimpan hasil crop sebelum upload
 
 // 🔥 DEKLARASI VARIABEL MANAGEMENT 🔥
 let manageBtn,
@@ -93,30 +101,29 @@ let manageBtn,
   transactionHistory,
   productListWrapper;
 
-// 🔥 VARIABEL BARU UNTUK TOGGLE SANDI LOGIN 🔥
+// 🔥 DEKLARASI VARIABEL ADMIN 🔥
+let adminBtn, adminView, customerListTableBody, addUserBtn;
+
+// 🔥 VARIABEL TOGGLE SANDI 🔥
 let authPasswordInput,
   toggleAuthPasswordBtn,
   authEyeIconOpen,
   authEyeIconClosed;
 
-// 🔥 DEKLARASI VARIABEL GRAFIK 🔥
+// 🔥 DEKLARASI VARIABEL GRAFIK & PROFIL 🔥
 let salesChartCanvas;
-let salesChartInstance; // Deklarasi untuk menyimpan instansi chart
+let profileBtn, profileModal, closeProfileModalBtn;
 
-// 🔥 DEKLARASI VARIABEL PROFIL 🔥
-let profileBtn,
-  profileModal,
-  closeProfileModalBtn,
-  updateShopForm,
-  shopNameInput,
-  shopNameError,
-  shopNameSubmitBtn,
-  updatePasswordForm,
-  newPasswordInput,
-  passwordError,
-  passwordSubmitBtn;
+// 🔥 VARIABEL PROFIL TOKO & KONTAK 🔥
+let updateShopForm, shopNameInput, shopNameError, shopNameSubmitBtn;
+let updateContactForm,
+  profilePhoneInput,
+  profileAddressInput,
+  contactSubmitBtn,
+  contactError;
 
-// 🔥 DEKLARASI VARIABEL BARU UNTUK TOGGLE SANDI 🔥
+// 🔥 VARIABEL PROFIL SANDI 🔥
+let updatePasswordForm, newPasswordInput, passwordError, passwordSubmitBtn;
 let togglePasswordBtn, eyeIconOpen, eyeIconClosed;
 
 // 🔥 HELPER LOADING ANIMATION 🔥
@@ -133,39 +140,107 @@ function setLoading(buttonElement, isLoading, originalText, loadingText) {
     buttonElement.classList.remove("flex", "items-center", "justify-center");
   }
 }
+
 // -----------------------------------------------------------------
 // BAGIAN 3: FUNGSI UTAMA (MEMUAT & MENAMPILKAN PRODUK)
 // -----------------------------------------------------------------
-
-// 🔥 FUNGSI PEMBANTU: Mendapatkan data penjual dari Firestore 🔥
 async function getSellerData(uid) {
   try {
     const doc = await db.collection("sellers").doc(uid).get();
+
     if (doc.exists) {
-      return doc.data();
+      const data = doc.data();
+
+      return {
+        shopName: data.shopName,
+        role: data.role || "biasa",
+        phone: data.phone || "",
+        address: data.address || "",
+      };
     } else {
-      // Buat dokumen baru jika tidak ada (untuk user lama)
       const defaultShopName =
         currentUser.email.split("@")[0].charAt(0).toUpperCase() +
         currentUser.email.split("@")[0].slice(1) +
         " Store";
-      await db.collection("sellers").doc(uid).set({
+
+      const newSellerData = {
         email: currentUser.email,
         shopName: defaultShopName,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
-      return { shopName: defaultShopName };
+        role: "biasa",
+        phone: "",
+        address: "",
+      };
+
+      await db.collection("sellers").doc(uid).set(newSellerData);
+
+      return {
+        shopName: defaultShopName,
+        role: "biasa",
+        phone: "",
+        address: "",
+      };
     }
   } catch (error) {
     console.error("Error fetching seller data:", error);
-    return { shopName: "Toko Rahasia" };
+    return {
+      shopName: "Toko Rahasia",
+      role: "biasa",
+      phone: "",
+      address: "",
+    };
   }
+}
+
+function renderProductList(products) {
+  if (!productListDiv) return;
+
+  productListDiv.innerHTML = "";
+  const currentUserId = currentUser ? currentUser.uid : null;
+
+  if (products.length === 0) {
+    const emptyMessage = currentUserId
+      ? 'Anda belum menambahkan produk apa pun. Gunakan tombol "Upload Produk" untuk memulai.'
+      : "Belum ada produk dalam koleksi ini. Silakan masuk sebagai penjual untuk menambahkan item baru.";
+
+    productListDiv.innerHTML = `
+            <div class="text-center py-10 col-span-full">
+                <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 1.1.9 2 2 2h12a2 2 0 002-2V7m-4 5h4m-4 0v4m-4-4v4m-4-4v4" />
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">Belum ada produk</h3>
+                <p class="mt-1 text-sm text-gray-500">${emptyMessage}</p>
+            </div>
+        `;
+    return;
+  }
+
+  productListDiv.className =
+    "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6";
+
+  products.forEach((product) => {
+    const productElement = createProductCard(product);
+    productListDiv.appendChild(productElement);
+  });
 }
 
 async function loadProducts() {
   if (!productListDiv) return;
 
   try {
+    // 🔥 LOGIKA PENGGANTIAN JUDUL 🔥
+    if (
+      typeof productListTitleElement !== "undefined" &&
+      productListTitleElement
+    ) {
+      if (currentUser) {
+        productListTitleElement.textContent = "Daftar Produk";
+      } else {
+        productListTitleElement.textContent = "Pilihan Produk";
+      }
+    }
+    // -----------------------------------------------------------
+
     productListDiv.innerHTML = "";
 
     const loadingMessageElement = document.createElement("div");
@@ -176,18 +251,32 @@ async function loadProducts() {
       '<p class="text-lg text-gray-500">Memuat katalog produk...</p><div class="mt-3 h-2 w-1/4 bg-gray-200 rounded animate-pulse mx-auto"></div>';
     productListDiv.appendChild(loadingMessageElement);
 
-    const snapshot = await db.collection("products").get();
+    let productsRef = db.collection("products").orderBy("createdAt", "desc");
+
+    if (currentUser && currentUser.uid) {
+      productsRef = productsRef.where("ownerId", "==", currentUser.uid);
+      console.log(
+        "DEBUG: Mode Penjual. Filter produk berdasarkan UID:",
+        currentUser.uid
+      );
+    } else {
+      console.log("DEBUG: Mode Publik. Memuat semua produk.");
+    }
+
+    const snapshot = await productsRef.get();
 
     const currentLoadingMessage = document.getElementById("loading-message");
     if (currentLoadingMessage) currentLoadingMessage.remove();
 
     if (snapshot.empty) {
-      productListDiv.innerHTML =
-        '<p class="text-center col-span-full text-xl py-10 text-gray-500 italic">Belum ada produk dalam koleksi ini. Silakan tambahkan item baru.</p>';
+      const emptyMessage = currentUser
+        ? "Anda belum menambahkan produk apa pun."
+        : "Saat ini, belum ada produk yang tersedia. Silakan cek lagi nanti.";
+
+      productListDiv.innerHTML = `<p class="text-center col-span-full text-xl py-10 text-gray-500 italic">${emptyMessage}</p>`;
       return;
     }
 
-    // PENGAMBILAN DATA PENJUAL YANG EFISIEN
     const products = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
@@ -206,11 +295,13 @@ async function loadProducts() {
     });
 
     await Promise.all(sellerPromises);
-    // AKHIR PENGAMBILAN DATA PENJUAL
+
+    // 🔥 FIX: Mengubah grid-cols-1 menjadi grid-cols-2 sebagai default untuk mobile/small screens
+    productListDiv.className =
+      "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6";
 
     products.forEach((product) => {
-      product.shopName = sellerNamesMap[product.ownerId] || "Toko Unknown"; // Suntikkan nama toko
-
+      product.shopName = sellerNamesMap[product.ownerId] || "Toko Unknown";
       const productElement = createProductCard(product);
       productListDiv.appendChild(productElement);
     });
@@ -221,49 +312,56 @@ async function loadProducts() {
   }
 }
 
-// 🔥 FUNGSI BARU: Mengatur tampilan saat kembali ke daftar produk 🔥
 function handleBackToProductsClick() {
   if (productDetailView) productDetailView.classList.add("hidden");
-  if (managementView) managementView.classList.add("hidden"); // Pastikan Management View tersembunyi
+  if (managementView) managementView.classList.add("hidden");
+  if (adminView) adminView.classList.add("hidden");
 
-  // Tampilkan kembali Daftar Produk
   if (productListWrapperElement)
     productListWrapperElement.classList.remove("hidden");
 
-  // LOGIKA KONTROL BANNER: Banner hanya muncul jika user BUKAN penjual
-  // Asumsi: sellerControls adalah elemen unik yang terlihat hanya oleh penjual.
   const isSellerLoggedIn = currentUser && sellerControls;
 
   if (isSellerLoggedIn) {
-    // Jika Penjual, pastikan Banner disembunyikan
     if (mainBanner) mainBanner.classList.add("hidden");
   } else {
-    // Jika Pembeli/Belum Login, tampilkan Banner
     if (mainBanner) mainBanner.classList.remove("hidden");
   }
 
-  // Muat ulang produk
+  if (manageBtn) {
+    manageBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM13 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2zM13 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2z" />
+        </svg>
+        Management
+    `;
+  }
+
+  if (adminBtn) {
+    adminBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+        </svg>
+        Admin (Pelanggan)
+    `;
+  }
+
   loadProducts();
 }
 
-// 🔥 FUNGSI BARU: Mengelola penambahan/pengurangan kuantitas 🔥
 function handleQuantityChange(increment) {
   if (!productQuantityInput || !detailStockInfo) return;
 
   let currentQty = parseInt(productQuantityInput.value);
-
-  // Ambil stok dari detailStockInfo (Contoh: "Stok: 100")
   const maxStockText = detailStockInfo.textContent.match(/Stok: (\d+)/);
   const maxStock = maxStockText ? parseInt(maxStockText[1]) : 1000;
 
   let newQty = currentQty + (increment ? 1 : -1);
 
-  // Batasan minimal (1)
   if (newQty < 1) {
     newQty = 1;
   }
 
-  // Batasan maksimal (Stok)
   if (newQty > maxStock) {
     newQty = maxStock;
     if (typeof Swal !== "undefined") {
@@ -281,20 +379,16 @@ function handleQuantityChange(increment) {
 
   productQuantityInput.value = newQty;
 
-  // Nonaktifkan tombol '-' jika Qty = 1
   if (qtyDecrementBtn) {
     qtyDecrementBtn.disabled = newQty === 1;
   }
-  // Nonaktifkan tombol '+' jika Qty = Max Stock
   if (qtyIncrementBtn) {
     qtyIncrementBtn.disabled = newQty >= maxStock;
   }
 }
 
-// 🔥 FUNGSI BARU: Menampilkan detail produk saat card diklik 🔥
 function handleProductCardClick(e) {
   const card = e.currentTarget;
-  // Jika yang diklik adalah tombol edit/hapus, abaikan
   if (
     e.target.classList.contains("edit-btn") ||
     e.target.classList.contains("delete-btn")
@@ -305,22 +399,18 @@ function handleProductCardClick(e) {
   const productId = card.dataset.id;
   if (!productId) return;
 
-  // Sembunyikan daftar produk, tampilkan detail view
   if (productListWrapperElement)
     productListWrapperElement.classList.add("hidden");
-  if (managementView && !managementView.classList.contains("hidden"))
-    managementView.classList.add("hidden");
-
-  // 🔥 PERUBAHAN BARU: Sembunyikan Banner Utama 🔥
+  if (managementView) managementView.classList.add("hidden");
+  if (adminView) adminView.classList.add("hidden");
   if (mainBanner) mainBanner.classList.add("hidden");
 
   if (productDetailView) productDetailView.classList.remove("hidden");
 
   loadProductDetails(productId);
 }
-// 🔥 FUNGSI BARU: Memuat data detail produk 🔥
+
 async function loadProductDetails(productId) {
-  // Reset tampilan
   detailProductName.textContent = "Memuat...";
   detailProductPrice.textContent = "Rp 0";
   detailProductDescription.textContent = "Sedang memuat deskripsi...";
@@ -330,16 +420,14 @@ async function loadProductDetails(productId) {
   if (detailOwnerMessage) detailOwnerMessage.classList.add("hidden");
 
   if (mainBanner) mainBanner.classList.add("hidden");
-  // Reset Kuantitas ke 1 dan aktifkan/nonaktifkan tombol
+
   if (productQuantityInput) productQuantityInput.value = 1;
   if (qtyDecrementBtn) qtyDecrementBtn.disabled = true;
   if (qtyIncrementBtn) qtyIncrementBtn.disabled = false;
 
-  // Tampilkan info stok default
   if (detailStockInfo)
     detailStockInfo.textContent = "Stok: Sedang diperiksa...";
 
-  // Dapatkan Elemen Tombol Aksi (untuk disembunyikan)
   const actionButtons = document.getElementById("detail-action-buttons");
 
   try {
@@ -352,7 +440,6 @@ async function loadProductDetails(productId) {
 
     const product = productDoc.data();
 
-    // Ambil nama toko
     const sellerData = await getSellerData(product.ownerId);
     const shopName = sellerData.shopName || "Toko Rahasia";
 
@@ -361,61 +448,46 @@ async function loadProductDetails(productId) {
         ? product.harga
         : parseInt(product.harga) || 0;
     const isOwner = currentUser && product.ownerId === currentUser.uid;
-    const stok = product.stock !== undefined ? product.stock : 1000; // Menggunakan field 'stock'
+    const stok = product.stock !== undefined ? product.stock : 1000;
 
     detailProductName.textContent = product.nama;
     detailProductPrice.textContent = `Rp ${price.toLocaleString("id-ID")}`;
     detailProductDescription.textContent =
       product.deskripsi || "Tidak ada deskripsi tersedia.";
 
-    // **Mengganti placeholder gambar dengan yang lebih baik**
     detailProductImage.src =
       product.imageUrl || "https://picsum.photos/600/400?grayscale&blur=2";
     detailProductImage.alt = product.nama;
 
     detailShopNameText.textContent = shopName;
 
-    // 🔥 KONTROL RESPONSIF (PEMILIK vs PEMBELI) 🔥
-
     if (isOwner) {
-      // Tampilkan pesan jika user adalah pemilik
       if (detailOwnerMessage) {
         detailOwnerMessage.textContent =
           "Anda adalah pemilik produk ini. Fitur beli/keranjang dinonaktifkan.";
         detailOwnerMessage.classList.remove("hidden");
       }
 
-      // 1. Sembunyikan Tombol Beli/Keranjang
       if (actionButtons) actionButtons.classList.add("hidden");
-
-      // 2. Sembunyikan Kontrol Kuantitas
       if (quantityControlsWrapper)
         quantityControlsWrapper.classList.add("hidden");
-
-      // 3. Sembunyikan Info Stok
       if (detailStockInfo) detailStockInfo.classList.add("hidden");
     } else {
-      // Tampilkan kembali elemen untuk pembeli
       if (detailOwnerMessage) detailOwnerMessage.classList.add("hidden");
 
-      // 1. Tampilkan Tombol Beli/Keranjang
       if (actionButtons) actionButtons.classList.remove("hidden");
-
-      // 2. Tampilkan Kontrol Kuantitas
       if (quantityControlsWrapper)
         quantityControlsWrapper.classList.remove("hidden");
 
-      // 3. Tampilkan Info Stok dan update nilainya
       if (detailStockInfo) detailStockInfo.classList.remove("hidden");
-      if (detailStockInfo) detailStockInfo.textContent = `Stok: ${stok}`; // Update teks stok
+      if (detailStockInfo) detailStockInfo.textContent = `Stok: ${stok}`;
 
-      // Kontrol tombol kuantitas berdasarkan stok (hanya untuk pembeli)
       if (stok <= 0) {
         if (qtyIncrementBtn) qtyIncrementBtn.disabled = true;
         if (productQuantityInput) productQuantityInput.value = 0;
       } else {
         if (qtyIncrementBtn) qtyIncrementBtn.disabled = false;
-        if (productQuantityInput) productQuantityInput.value = 1; // Kembali ke 1
+        if (productQuantityInput) productQuantityInput.value = 1;
       }
     }
   } catch (error) {
@@ -427,11 +499,11 @@ async function loadProductDetails(productId) {
     if (detailStockInfo) detailStockInfo.textContent = "Stok: Tidak diketahui";
   }
 }
+
 function createProductCard(product) {
   const card = document.createElement("div");
-  // KEY CHANGE: flex flex-col h-full untuk tampilan card yang seragam
   card.className =
-    "product-card bg-white rounded-xl shadow-lg hover:shadow-xl transition duration-300 overflow-hidden flex flex-col h-full cursor-pointer border border-gray-100";
+    "product-card bg-white rounded-xl shadow-lg hover:shadow-xl transition duration-300 overflow-hidden flex flex-col h-full cursor-pointer border border-gray-100 flex-shrink-0";
 
   card.dataset.id = product.id;
 
@@ -443,7 +515,6 @@ function createProductCard(product) {
   const isOwner = currentUser && product.ownerId === currentUser.uid;
   const shopName = product.shopName || "Toko Terpercaya";
 
-  // Kontrol Penjual (Tombol Edit/Hapus)
   const ownerControls = isOwner
     ? `
         <div class="mt-3 flex space-x-2 border-t border-gray-100 pt-3">
@@ -453,7 +524,6 @@ function createProductCard(product) {
     `
     : "";
 
-  // Tombol Beli/Keranjang (Hanya jika bukan pemilik)
   const cartButton = isOwner
     ? ""
     : `
@@ -462,7 +532,6 @@ function createProductCard(product) {
       </button>
   `;
 
-  // Tampilan Nama Toko (Hanya jika bukan pemilik)
   const shopNameDisplay = isOwner
     ? ""
     : `
@@ -526,14 +595,12 @@ function createProductCard(product) {
 `;
 
   if (isOwner) {
-    // Pastikan event listener dipasang pada tombol yang benar
     const deleteBtn = card.querySelector(".delete-btn");
     const editBtn = card.querySelector(".edit-btn");
     if (deleteBtn) deleteBtn.addEventListener("click", handleDeleteProduct);
     if (editBtn) editBtn.addEventListener("click", handleEditClick);
   }
 
-  // Event listener untuk Detail Produk tetap sama
   card.addEventListener("click", handleProductCardClick);
 
   return card;
@@ -543,60 +610,343 @@ function createProductCard(product) {
 // BAGIAN 4: FUNGSI AUTENTIKASI (LOGIN/REGISTER)
 // -----------------------------------------------------------------
 
+/**
+ * 🔥🔥 FUNGSI KRUSIAL: MENGATUR TAMPILAN KE MODE LOGIN 🔥🔥
+ */ function setAuthModeToLogin() {
+  if (authTitle) authTitle.textContent = "Masuk ke Akun Anda";
+  if (authSubmitBtn) {
+    authSubmitBtn.textContent = "Masuk";
+    authSubmitBtn.setAttribute("data-action", "login");
+  }
+
+  // 🔥 PENYESUAIAN KRUSIAL: Atur teks toggle link untuk mode LOGIN (Hubungi Admin)
+  if (toggleAuthLink) toggleAuthLink.textContent = "Hubungi Admin";
+
+  // Logika Event Listener (asumsi Anda memiliki setAuthModeToRegister untuk beralih mode)
+  // Perhatikan: Karena Anda mengubah fungsi toggleAuthLink menjadi link WhatsApp
+  // Logika di bawah ini mungkin sudah tidak relevan jika toggleAuthLink hanya
+  // membuka WhatsApp di mode login. Saya akan mengembalikan logika aslinya untuk berjaga-jaga.
+
+  // if (toggleAuthMode) toggleAuthMode.removeEventListener("click", setAuthModeToLogin); // Baris ini tidak diperlukan
+  // if (toggleAuthMode) toggleAuthMode.addEventListener("click", setAuthModeToRegister); // Ini adalah event listener saat di mode Login
+
+  // Sembunyikan field registrasi tambahan
+  if (authPhoneGroup) authPhoneGroup.classList.add("hidden");
+  if (authAddressGroup) authAddressGroup.classList.add("hidden");
+  if (authRoleGroup) authRoleGroup.classList.add("hidden");
+  if (adminRegisterInfo) adminRegisterInfo.classList.add("hidden");
+  if (authModal) authModal.classList.remove("is-admin-register");
+
+  // Atur validasi input agar tidak wajib
+  if (authPhoneInput) authPhoneInput.removeAttribute("required");
+  if (authAddressInput) authAddressInput.removeAttribute("required");
+  if (authPasswordInput)
+    authPasswordInput.setAttribute("placeholder", "Sandi (minimal 6 karakter)");
+}
+
+/**
+ * 🔥🔥 FUNGSI KRUSIAL: MENGATUR TAMPILAN KE MODE REGISTER 🔥🔥
+ */
+function setAuthModeToRegister(isCalledByAdmin = false) {
+  if (authTitle)
+    authTitle.textContent = isCalledByAdmin
+      ? "Daftarkan User Baru (Admin Mode)"
+      : "Daftar Akun Penjual Baru";
+
+  if (authSubmitBtn) {
+    authSubmitBtn.textContent = "Daftar";
+    authSubmitBtn.setAttribute("data-action", "register");
+  }
+
+  if (toggleAuthLink) toggleAuthLink.textContent = "Kembali ke Masuk";
+  if (toggleAuthMode)
+    toggleAuthMode.removeEventListener("click", setAuthModeToRegister);
+  if (toggleAuthMode)
+    toggleAuthMode.addEventListener("click", setAuthModeToLogin);
+
+  // Tampilkan field registrasi tambahan
+  if (authPhoneGroup) authPhoneGroup.classList.remove("hidden");
+  if (authAddressGroup) authAddressGroup.classList.remove("hidden");
+
+  // Atur validasi input agar wajib
+  if (authPhoneInput) authPhoneInput.setAttribute("required", "required");
+  if (authAddressInput) authAddressInput.setAttribute("required", "required");
+  if (authPasswordInput)
+    authPasswordInput.setAttribute(
+      "placeholder",
+      "Sandi (minimal 6 karakter) *Wajib"
+    );
+
+  if (isCalledByAdmin) {
+    if (authRoleGroup) authRoleGroup.classList.remove("hidden");
+    if (adminRegisterInfo) adminRegisterInfo.classList.remove("hidden");
+    if (authModal) authModal.classList.add("is-admin-register");
+  } else {
+    if (authRoleGroup) authRoleGroup.classList.add("hidden");
+    if (adminRegisterInfo) adminRegisterInfo.classList.add("hidden");
+    if (authModal) authModal.classList.remove("is-admin-register");
+  }
+}
+function displayAuthError(message) {
+  if (authError) {
+    authError.textContent = message;
+    authError.classList.remove("hidden");
+  }
+}
+
+/**
+ * Menangani error yang dilempar oleh Firebase Authentication
+ * @param {Object} error Objek error dari Firebase
+ */
+function handleAuthFirebaseError(error) {
+  let errorMessage = "Terjadi kesalahan yang tidak terduga.";
+  console.error("Firebase Auth Error:", error);
+
+  switch (error.code) {
+    case "auth/user-not-found":
+    case "auth/wrong-password":
+    case "auth/invalid-login-credentials": // 🔥 KRUSIAL: Menambahkan error baru
+      errorMessage =
+        "Email atau sandi yang Anda masukkan salah. Mohon periksa kembali.";
+      break;
+    case "auth/invalid-email":
+      errorMessage = "Format email tidak valid.";
+      break;
+    case "auth/user-disabled":
+      errorMessage = "Akun Anda telah dinonaktifkan.";
+      break;
+    case "auth/too-many-requests":
+      errorMessage = "Terlalu banyak permintaan login. Coba lagi sebentar.";
+      break;
+    case "auth/email-already-in-use":
+      errorMessage = "Email ini sudah terdaftar. Coba Masuk.";
+      break;
+    default:
+      // Pesan umum untuk error lain yang tidak terdeteksi
+      errorMessage = `Gagal login. Periksa koneksi atau kredensial Anda. (Kode: ${error.code.replace(
+        "auth/",
+        ""
+      )})`;
+      break;
+  }
+
+  displayAuthError(errorMessage);
+}
 async function handleSubmitAuth(e) {
   e.preventDefault();
-  authError.classList.add("hidden");
 
-  const email = document.getElementById("auth-email").value;
-  const password = document.getElementById("auth-password").value;
+  // Pastikan error disembunyikan di awal
+  if (authError) authError.classList.add("hidden");
 
-  const originalText = isRegisterMode ? "Daftar" : "Masuk";
+  const new_user_email = document.getElementById("auth-email").value;
+  const new_user_password = document.getElementById("auth-password").value;
 
-  setLoading(
-    authSubmitBtn,
-    true,
-    originalText,
-    isRegisterMode ? "Mendaftar..." : "Masuk..."
-  );
+  const phone = authPhoneInput ? authPhoneInput.value : "";
+  const address = authAddressInput ? authAddressInput.value : "";
+  const action = authSubmitBtn.getAttribute("data-action") || "login";
+  const isRegister = action === "register";
+  const originalText = isRegister ? "Daftar" : "Masuk";
+  const loadingText = isRegister ? "Mendaftarkan..." : "Masuk...";
+  let roleToAssign = "biasa";
+  const isRegisterByAdmin =
+    isRegister &&
+    authRoleInput &&
+    authRoleGroup &&
+    !authRoleGroup.classList.contains("hidden");
+
+  if (isRegisterByAdmin) {
+    roleToAssign = authRoleInput.value;
+  }
+
+  if (isRegisterByAdmin && !currentUser) {
+    displayAuthError("Error: Admin harus login untuk mendaftarkan user baru.");
+    return;
+  }
+
+  if (!new_user_email || !new_user_password) {
+    displayAuthError("Email dan sandi tidak boleh kosong.");
+    return;
+  }
+
+  setLoading(authSubmitBtn, true, originalText, loadingText);
 
   try {
-    if (isRegisterMode) {
-      const userCredential = await auth.createUserWithEmailAndPassword(
-        email,
-        password
-      );
-      // Buat dokumen user di Firestore dengan nama toko default
-      const defaultShopName =
-        email.split("@")[0].charAt(0).toUpperCase() +
-        email.split("@")[0].slice(1) +
-        " Store";
-      await db.collection("sellers").doc(userCredential.user.uid).set({
-        email: email,
-        shopName: defaultShopName,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
-    } else {
-      await auth.signInWithEmailAndPassword(email, password);
-    }
+    if (isRegister) {
+      if (isRegisterByAdmin) {
+        // --- LOGIKA REGISTRASI OLEH ADMIN ---
+        const admin_password_input = await Swal.fire({
+          title: "Verifikasi Admin",
+          text: "Masukkan sandi Admin Anda untuk memverifikasi pendaftaran user baru.",
+          input: "password",
+          inputAttributes: { autocapitalize: "off" },
+          showCancelButton: true,
+          confirmButtonText: "Verifikasi & Daftar",
+          showLoaderOnConfirm: true,
+          preConfirm: (adminPassword) => {
+            if (!adminPassword) {
+              Swal.showValidationMessage("Sandi Admin tidak boleh kosong");
+            }
+            return adminPassword;
+          },
+          allowOutsideClick: () => !Swal.isLoading(),
+        });
 
-    authModal.classList.add("hidden");
+        if (!admin_password_input.isConfirmed) {
+          setLoading(authSubmitBtn, false, originalText);
+          return;
+        }
+
+        const adminPassword = admin_password_input.value;
+        const adminEmail = currentUser.email;
+
+        // 🔥 FIX 1: Verifikasi Sandi Admin SEBELUM mendaftarkan user baru
+        try {
+          await auth.signInWithEmailAndPassword(adminEmail, adminPassword);
+        } catch (authError) {
+          if (
+            authError.code === "auth/wrong-password" ||
+            authError.code === "auth/invalid-login-credentials"
+          ) {
+            displayAuthError(
+              "Verifikasi Gagal: Sandi Admin yang dimasukkan salah."
+            );
+            setLoading(authSubmitBtn, false, originalText);
+            return; // Hentikan proses jika verifikasi gagal
+          }
+          throw authError;
+        }
+
+        // Langkah 1: Pendaftaran User Baru (Ini akan mengubah sesi ke user baru)
+        await auth.createUserWithEmailAndPassword(
+          new_user_email,
+          new_user_password
+        );
+        const newUser = auth.currentUser;
+
+        // Langkah 2: Inisialisasi data penjual di Firestore (User Baru)
+        const defaultShopName =
+          new_user_email.split("@")[0].charAt(0).toUpperCase() +
+          new_user_email.split("@")[0].slice(1) +
+          " Store";
+
+        await db.collection("sellers").doc(newUser.uid).set({
+          email: new_user_email,
+          shopName: defaultShopName,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
+          role: roleToAssign,
+          phone: phone,
+          address: address,
+        });
+
+        // 🔥 FIX 2: Mengembalikan Sesi ke Admin
+        // 1. Sign out dari user baru
+        await auth.signOut();
+        // 2. Sign in kembali sebagai Admin (menggunakan sandi terverifikasi)
+        await auth.signInWithEmailAndPassword(adminEmail, adminPassword);
+
+        if (authModal) authModal.classList.add("hidden");
+        if (authForm) authForm.reset();
+        setAuthModeToLogin(); // Reset mode
+
+        Swal.fire({
+          icon: "success",
+          title: "Pendaftaran Berhasil!",
+          text: `Akun ${new_user_email} (Role: ${roleToAssign}) berhasil dibuat. Sesi Admin telah dikembalikan.`,
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 4000,
+        });
+
+        loadCustomerList();
+      } else {
+        // --- LOGIKA PENDAFTARAN BIASA ---
+        const userCredential = await auth.createUserWithEmailAndPassword(
+          new_user_email,
+          new_user_password
+        );
+        const user = userCredential.user;
+
+        const defaultShopName =
+          new_user_email.split("@")[0].charAt(0).toUpperCase() +
+          new_user_email.split("@")[0].slice(1) +
+          " Store";
+
+        await db.collection("sellers").doc(user.uid).set({
+          email: new_user_email,
+          shopName: defaultShopName,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
+          role: "biasa",
+          phone: phone,
+          address: address,
+        });
+
+        if (authModal) authModal.classList.add("hidden");
+        if (authForm) authForm.reset();
+        setAuthModeToLogin();
+
+        Swal.fire({
+          icon: "success",
+          title: "Pendaftaran Berhasil!",
+          text: `Selamat datang, ${defaultShopName}.`,
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 3000,
+        });
+      }
+    } else {
+      // --- LOGIKA LOGIN ---
+      const userCredential = await auth.signInWithEmailAndPassword(
+        new_user_email,
+        new_user_password
+      );
+
+      if (userCredential.user) {
+        await db.collection("sellers").doc(userCredential.user.uid).update({
+          lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+
+      if (authModal) authModal.classList.add("hidden");
+      if (authForm) authForm.reset();
+      // onAuthStateChanged akan menangani pembaruan UI lainnya
+    }
   } catch (error) {
-    console.error("Auth Error:", error.code, error.message);
-    authError.textContent = `Gagal: ${error.message}`;
-    authError.classList.remove("hidden");
+    // Panggilan fungsi penanganan error yang disarankan
+    handleAuthFirebaseError(error);
   } finally {
     setLoading(authSubmitBtn, false, originalText);
   }
 }
-
 // Update UI berdasarkan status Auth (PENTING)
 auth.onAuthStateChanged(async (user) => {
   if (user) {
     currentUser = user;
     const sellerData = await getSellerData(user.uid);
-    const shopName = sellerData.shopName || user.email.split("@")[0];
 
-    // SEMBUNYIKAN BANNER UTAMA SAAT LOGIN
+    if (!sellerData) {
+      auth.signOut();
+      return;
+    }
+
+    const shopName = sellerData.shopName || user.email.split("@")[0];
+    const userRole = sellerData.role;
+
+    if (!isInitialLoad) {
+      Swal.fire({
+        icon: "success",
+        title: "Selamat Datang!",
+        text: `Anda berhasil masuk sebagai ${shopName}.`,
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+        timer: 3000,
+      });
+    }
+
     if (mainBanner) mainBanner.classList.add("hidden");
 
     // --- TAMPILAN HEADER (Login/Logout & Profil) ---
@@ -608,17 +958,41 @@ auth.onAuthStateChanged(async (user) => {
     );
     authBtn.classList.add("bg-red-500", "text-white", "hover:bg-red-600");
 
-    if (profileBtn) profileBtn.classList.remove("hidden"); // Tampilkan tombol profil
+    if (profileBtn) profileBtn.classList.remove("hidden");
 
     // --- TAMPILAN SELLER CONTROLS CARD ---
     if (sellerControls) {
       sellerControls.classList.remove("hidden");
-      sellerGreeting.textContent = `Halo, ${shopName}!`; // Sapa dengan nama toko
+      sellerGreeting.textContent = `Halo, ${shopName}!`;
     }
 
-    // PASTIKAN TAMPILAN PRODUK MUNCUL DAN MANAGEMENT TERSEMBUNYI SAAT LOGIN
-    if (productListWrapper) productListWrapper.classList.remove("hidden");
+    // LOGIKA KHUSUS ADMIN (BERDASARKAN ROLE)
+    if (adminBtn) {
+      if (userRole === "admin") {
+        adminBtn.classList.remove("hidden");
+        if (addUserBtn) addUserBtn.classList.remove("hidden");
+
+        // 🔥 FIX BUG TOMBOL ADMIN:
+        // Saat Admin login/re-auth, pastikan teks tombol kembali ke default
+        adminBtn.textContent = "Admin (Pelanggan)";
+
+        // Pastikan Admin View tersembunyi, dan Produk View aktif
+        if (adminView) adminView.classList.add("hidden");
+        if (productListWrapper) productListWrapper.classList.remove("hidden");
+      } else {
+        adminBtn.classList.add("hidden");
+        if (adminView) adminView.classList.add("hidden");
+        if (addUserBtn) addUserBtn.classList.add("hidden");
+      }
+    }
+
+    // Pastikan Management dan Admin View tersembunyi
     if (managementView) managementView.classList.add("hidden");
+    if (adminView) adminView.classList.add("hidden");
+
+    // Pastikan productListWrapper terlihat, karena ini adalah default home screen
+    if (productListWrapper) productListWrapper.classList.remove("hidden");
+
     if (manageBtn)
       manageBtn.innerHTML = `
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -627,14 +1001,12 @@ auth.onAuthStateChanged(async (user) => {
         Management
     `;
 
-    // Hapus instansi grafik lama (jika ada) saat status auth berubah
     if (salesChartInstance) {
       salesChartInstance.destroy();
     }
   } else {
     currentUser = null;
 
-    // TAMPILKAN KEMBALI BANNER UTAMA SAAT LOGOUT
     if (mainBanner) mainBanner.classList.remove("hidden");
 
     // --- TAMPILAN HEADER (Masuk) ---
@@ -642,28 +1014,30 @@ auth.onAuthStateChanged(async (user) => {
     authBtn.classList.remove("bg-red-500", "text-white", "hover:bg-red-600");
     authBtn.classList.add("bg-gold-accent", "text-navy-blue", "hover:bg-white");
 
-    if (profileBtn) profileBtn.classList.add("hidden"); // Sembunyikan tombol profil
+    if (profileBtn) profileBtn.classList.add("hidden");
 
     // --- SEMBUNYIKAN SELLER CONTROLS CARD & MANAGEMENT VIEW ---
     if (sellerControls) sellerControls.classList.add("hidden");
     if (managementView) managementView.classList.add("hidden");
+    if (adminView) adminView.classList.add("hidden");
+    if (adminBtn) adminBtn.classList.add("hidden");
+    if (addUserBtn) addUserBtn.classList.add("hidden");
 
-    // Daftar produk tetap tampil untuk semua user
     if (productListWrapper) productListWrapper.classList.remove("hidden");
   }
 
+  isInitialLoad = false;
   loadProducts();
 });
 
 // -----------------------------------------------------------------
 // BAGIAN 5: FUNGSI KONTROL PRODUK OLEH PEMILIK (UPLOAD, EDIT, & HAPUS)
 // -----------------------------------------------------------------
-
 function handleEditClick(e) {
   e.stopPropagation();
   const productId = e.currentTarget.dataset.id;
   editingProductId = productId;
-  croppedFileBlob = null; // Pastikan reset blob saat edit
+  croppedFileBlob = null;
 
   uploadModalTitle.textContent = "Edit Produk";
   uploadSubmitBtn.textContent = "Simpan Perubahan";
@@ -682,7 +1056,6 @@ function handleEditClick(e) {
         document.getElementById("product-harga").value = product.harga;
         document.getElementById("product-desc").value = product.deskripsi;
 
-        // Asumsi ada input stock di HTML
         const stockInput = document.getElementById("product-stock");
         if (stockInput) stockInput.value = product.stock || 0;
 
@@ -702,12 +1075,11 @@ function handleEditClick(e) {
     });
 }
 
-// 🔥 FUNGSI PEMBANTU BARU: Mengunggah File/Blob ke Cloudinary 🔥
 async function uploadImageToCloudinary(fileOrBlob) {
   const formData = new FormData();
   formData.append("file", fileOrBlob);
   formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-  formData.append("folder", `dakata_shop/${currentUser.uid}`); // Tambahkan folder
+  formData.append("folder", `dakata_shop/${currentUser.uid}`);
 
   try {
     const response = await fetch(CLOUDINARY_URL, {
@@ -727,7 +1099,6 @@ async function uploadImageToCloudinary(fileOrBlob) {
     throw error;
   }
 }
-
 async function handleSubmitProduct(e) {
   e.preventDefault();
   uploadError.classList.add("hidden");
@@ -747,8 +1118,11 @@ async function handleSubmitProduct(e) {
   const deskripsi = document.getElementById("product-desc").value;
   const stock = parseInt(document.getElementById("product-stock").value || 0);
 
-  // File dari input (hanya jika user memilih file baru tanpa melalui crop)
   const fileFromInput = productImageFile.files[0];
+  const fileToProcess = croppedFileBlob || fileFromInput;
+
+  // Ambil URL gambar lama dari pratinjau sebelum set loading
+  const oldImageUrl = isEditing ? imagePreview.src : null; // Digunakan jika user tidak mengupload file baru
 
   if (isNaN(harga) || harga <= 0) {
     uploadError.textContent = "Harga harus berupa angka positif.";
@@ -762,11 +1136,16 @@ async function handleSubmitProduct(e) {
     return;
   }
 
-  // LOGIKA BARU UNTUK MEMERIKSA FILE/BLOB (Prioritaskan blob hasil crop)
-  const fileToProcess = croppedFileBlob || fileFromInput;
-
   if (!isEditing && !fileToProcess) {
     uploadError.textContent = "Anda harus memilih foto produk.";
+    uploadError.classList.remove("hidden");
+    return;
+  }
+
+  // Jika mengedit, dan tidak ada file baru/crop, pastikan ada URL gambar lama
+  if (isEditing && !fileToProcess && !oldImageUrl) {
+    uploadError.textContent =
+      "Gagal mendapatkan gambar lama. Harap upload ulang gambar.";
     uploadError.classList.remove("hidden");
     return;
   }
@@ -777,18 +1156,22 @@ async function handleSubmitProduct(e) {
     let imageUrl;
 
     if (fileToProcess) {
-      // 🔥 GUNAKAN FUNGSI PEMBANTU UNTUK UPLOAD BLOB/FILE 🔥
+      // Jika ada file baru (crop atau dari input), upload ke Cloudinary
       imageUrl = await uploadImageToCloudinary(fileToProcess);
-      croppedFileBlob = null; // Reset setelah berhasil diupload
+      croppedFileBlob = null;
     } else if (isEditing) {
-      imageUrl = imagePreview.src;
+      // Jika mengedit dan TIDAK ADA file baru, gunakan URL gambar lama
+      imageUrl = oldImageUrl; // Menggunakan variabel yang sudah diambil di awal
+    } else {
+      // Seharusnya tidak terjadi karena sudah dicek di atas, tapi untuk keamanan
+      throw new Error("Produk baru memerlukan gambar.");
     }
 
     const productData = {
       nama: nama,
       harga: harga,
       deskripsi: deskripsi,
-      stock: stock, // Tambahkan stok
+      stock: stock,
       ownerId: currentUser.uid,
     };
 
@@ -804,12 +1187,16 @@ async function handleSubmitProduct(e) {
       await db.collection("products").add(productData);
     }
 
+    // --- RESET UI SETELAH BERHASIL ---
     uploadForm.reset();
+
+    // 🔥 PENTING: Bersihkan pratinjau gambar dan sembunyikan
+    imagePreview.src = "";
     imagePreviewContainer.classList.add("hidden");
+
     uploadModal.classList.add("hidden");
     editingProductId = null;
     uploadModalTitle.textContent = "Upload Produk Baru";
-    // Penting: Kembalikan atribut required setelah upload berhasil
     productImageFile.setAttribute("required", "required");
 
     loadProducts();
@@ -824,6 +1211,7 @@ async function handleSubmitProduct(e) {
     });
   } catch (error) {
     console.error("Error submit produk: ", error);
+    // Jika error terjadi setelah upload gambar, pastikan error ditangkap
     uploadError.textContent = `Gagal memproses produk: ${error.message}. Cek Cloudinary API atau koneksi Firestore.`;
     uploadError.classList.remove("hidden");
   } finally {
@@ -885,7 +1273,6 @@ async function handleDeleteProduct(e) {
 // -----------------------------------------------------------------
 // BAGIAN 6: FUNGSI MANAGEMENT (RIWAYAT TRANSAKSI & SALDO)
 // -----------------------------------------------------------------
-
 function toggleManagementView() {
   if (!currentUser) return;
 
@@ -893,6 +1280,17 @@ function toggleManagementView() {
     // Tampilkan Management View
     managementView.classList.remove("hidden");
     productListWrapper.classList.add("hidden");
+    if (adminView) adminView.classList.add("hidden");
+
+    if (adminBtn) {
+      adminBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+            </svg>
+            Admin (Pelanggan)
+        `;
+    }
+
     manageBtn.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V3zm2 4v1h10V7H5zm0 3v1h10v-1H5zm0 3v1h10v-1H5z" clip-rule="evenodd" />
@@ -919,7 +1317,6 @@ async function loadTransactionHistory() {
 
   transactionHistory.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-500">Memuat riwayat transaksi...</td></tr>`;
 
-  // Filter 12 bulan terakhir
   const today = new Date();
   const startDate = new Date();
   startDate.setMonth(today.getMonth() - currentPeriodFilter);
@@ -927,9 +1324,8 @@ async function loadTransactionHistory() {
   startDate.setHours(0, 0, 0, 0);
 
   // --- SIMULASI DATA TRANSAKSI INTERNAL ---
-  // Catatan: Dalam aplikasi nyata, ini akan ditarik dari koleksi 'transactions' yang difilter berdasarkan currentUser.uid
+  // (Data simulasi tetap sama seperti di segmen Anda)
   const simulatedTransactions = [
-    // Desember 2025
     {
       id: "TX007",
       product: "Smart Watch",
@@ -944,8 +1340,6 @@ async function loadTransactionHistory() {
       status: "Completed",
       date: "2025-12-01",
     },
-
-    // November 2025
     {
       id: "TX003",
       product: "Sepatu Lari Sport",
@@ -967,8 +1361,6 @@ async function loadTransactionHistory() {
       status: "Completed",
       date: "2025-11-28",
     },
-
-    // Oktober 2025
     {
       id: "TX006",
       product: "Power Bank",
@@ -983,8 +1375,6 @@ async function loadTransactionHistory() {
       status: "Completed",
       date: "2025-10-15",
     },
-
-    // September 2025
     {
       id: "TX011",
       product: "Kemeja",
@@ -1001,18 +1391,15 @@ async function loadTransactionHistory() {
     },
   ];
 
-  // FILTER DATA BERDASARKAN currentPeriodFilter (Sekarang 12)
   const filteredTransactions = simulatedTransactions.filter((tx) => {
     const txDate = new Date(tx.date);
     return txDate >= startDate && txDate <= today;
   });
 
-  // Inisialisasi penghitung
   let saldo = 0;
   let terjual = 0;
   let totalTx = 0;
 
-  // DATA GRAFIK: Mengelompokkan penjualan berdasarkan Periode (Bulan/Tahun)
   const salesByPeriod = {};
   const rows = [];
 
@@ -1057,7 +1444,6 @@ async function loadTransactionHistory() {
         `);
   });
 
-  // Update Statistik
   totalSaldo.textContent = `Rp ${saldo.toLocaleString("id-ID")}`;
   totalTerjual.textContent = terjual;
   totalTransaksi.textContent = totalTx;
@@ -1076,7 +1462,6 @@ function renderSalesChart(salesData) {
   const rawLabels = Object.keys(salesData).sort();
   const chartLabels = rawLabels.map((period) => {
     const [year, month] = period.split("-");
-    // Konversi angka bulan ke nama bulan (opsional, tapi lebih user-friendly)
     const monthNames = [
       "Jan",
       "Feb",
@@ -1095,7 +1480,6 @@ function renderSalesChart(salesData) {
   });
   const chartValues = rawLabels.map((period) => salesData[period]);
 
-  // HAPUS GRAFIK LAMA JIKA ADA
   if (salesChartInstance) {
     salesChartInstance.destroy();
   }
@@ -1105,7 +1489,6 @@ function renderSalesChart(salesData) {
     return;
   }
 
-  // RENDERING GRAFIK MENGGUNAKAN CHART.JS
   const ctx = salesChartCanvas.getContext("2d");
   salesChartInstance = new Chart(ctx, {
     type: "bar",
@@ -1132,10 +1515,10 @@ function renderSalesChart(salesData) {
           ticks: {
             callback: function (value) {
               if (value >= 1000000) {
-                return "Rp " + (value / 1000000).toFixed(1) + "Jt"; // Diubah M -> Jt
+                return "Rp " + (value / 1000000).toFixed(1) + "Jt";
               }
               if (value === 0) return "Rp 0";
-              return "Rp " + (value / 1000).toFixed(0) + "k"; // Ditambahkan toFixed(0)
+              return "Rp " + (value / 1000).toFixed(0) + "k";
             },
           },
         },
@@ -1165,26 +1548,283 @@ function renderSalesChart(salesData) {
 }
 
 // -----------------------------------------------------------------
+// BAGIAN 6.5: FUNGSI ADMIN (DAFTAR PELANGGAN)
+// -----------------------------------------------------------------
+
+function toggleAdminView() {
+  if (!currentUser) return;
+
+  if (!adminView || !productListWrapper || !adminBtn) {
+    console.error(
+      "Error DOM: Salah satu elemen admin/produk tidak ditemukan (adminView, productListWrapper, atau adminBtn)."
+    );
+    return;
+  }
+
+  getSellerData(currentUser.uid)
+    .then((sellerData) => {
+      if (sellerData.role !== "admin") return;
+
+      if (adminView.classList.contains("hidden")) {
+        adminView.classList.remove("hidden");
+        productListWrapper.classList.add("hidden");
+
+        if (managementView && !managementView.classList.contains("hidden")) {
+          managementView.classList.add("hidden");
+          if (manageBtn) {
+            manageBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM13 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2zM13 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2z" />
+                    </svg>
+                    Management
+                `;
+          }
+        }
+
+        adminBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V3zm2 4v1h10V7H5zm0 3v1h10v-1H5zm0 3v1h10v-1H5z" clip-rule="evenodd" />
+                </svg>
+                Lihat Produk
+            `;
+
+        loadCustomerList();
+      } else {
+        adminView.classList.add("hidden");
+        productListWrapper.classList.remove("hidden");
+
+        adminBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+                </svg>
+                Admin (Pelanggan)
+            `;
+      }
+    })
+    .catch((error) => {
+      console.error("Error checking role for Admin View:", error);
+    });
+}
+
+async function loadCustomerList() {
+  if (!currentUser || !customerListTableBody) return;
+
+  const sellerData = await getSellerData(currentUser.uid);
+  if (sellerData.role !== "admin") {
+    customerListTableBody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-red-500">Akses Ditolak. Hanya Admin yang dapat melihat daftar ini.</td></tr>`;
+    return;
+  }
+
+  customerListTableBody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-gray-500">Memuat data pelanggan...</td></tr>`;
+
+  try {
+    const snapshot = await db.collection("sellers").get();
+
+    if (snapshot.empty) {
+      customerListTableBody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-gray-500">Belum ada user yang terdaftar.</td></tr>`;
+      return;
+    }
+
+    let rowCounter = 1;
+    const rows = snapshot.docs.map((doc) => {
+      const uid = doc.id;
+      const data = doc.data();
+      const shopName = data.shopName || "-";
+      const email = data.email || "Email Tidak Diketahui";
+
+      const userRole = data.role || "biasa";
+      const phone = data.phone || "-";
+      const address = data.address || "-";
+
+      const lastLogin = data.lastLogin
+        ? new Date(data.lastLogin.toDate()).toLocaleString()
+        : "-";
+
+      const isDakata = userRole === "admin";
+      const isSelf = currentUser.uid === uid;
+
+      const deleteButton =
+        isDakata || isSelf
+          ? '<button class="text-red-300 cursor-not-allowed text-xs" disabled>Hapus</button>'
+          : `<button data-uid="${uid}" data-email="${email}" class="delete-user-btn text-red-600 hover:text-red-800 font-semibold text-xs">Hapus</button>`;
+
+      const rowClass = isDakata ? "bg-blue-50/50 font-bold" : "";
+
+      return `
+                <tr class="${rowClass}">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${rowCounter++}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${email}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${shopName}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${userRole}</td>
+                    
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${phone}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${address}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lastLogin}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        ${deleteButton}
+                    </td>
+                </tr>
+            `;
+    });
+
+    customerListTableBody.innerHTML = rows.join("");
+
+    document.querySelectorAll(".delete-user-btn").forEach((button) => {
+      button.addEventListener("click", handleDeleteUser);
+    });
+  } catch (error) {
+    console.error("Error loading customer list:", error);
+    customerListTableBody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-red-500">Gagal memuat daftar pelanggan.</td></tr>`;
+  }
+}
+
+async function handleDeleteUser(e) {
+  e.stopPropagation();
+
+  const deleteBtn = e.currentTarget;
+  const uidToDelete = deleteBtn.dataset.uid;
+  const emailToDelete = deleteBtn.dataset.email;
+
+  if (!currentUser || !uidToDelete) return;
+
+  const result = await Swal.fire({
+    title: `Hapus User ${emailToDelete}?`,
+    html: `
+            Anda yakin ingin menghapus user ini? Tindakan ini tidak bisa dibatalkan!
+            <ul class="text-left mt-3 list-disc ml-5 space-y-1 text-sm text-gray-600">
+                <li>Data Toko di Firestore akan dihapus.</li>
+                <li>Semua produk user ini akan dihapus.</li>
+                <li class="font-bold text-red-600">⚠️ User record di Authentication TIDAK akan terhapus oleh sistem ini.</li>
+            </ul>
+        `,
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#3085d6",
+    confirmButtonText: "Ya, Hapus Data Toko!",
+    cancelButtonText: "Batal",
+  });
+
+  if (result.isConfirmed) {
+    const originalHtml = deleteBtn.innerHTML;
+    setLoading(deleteBtn, true, originalHtml, "Menghapus...");
+
+    try {
+      await db.collection("sellers").doc(uidToDelete).delete();
+
+      const productsSnapshot = await db
+        .collection("products")
+        .where("ownerId", "==", uidToDelete)
+        .get();
+      const batch = db.batch();
+      productsSnapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+      await batch.commit();
+
+      Swal.fire({
+        title: "Data Dihapus!",
+        html: `
+                    Data Toko dan ${productsSnapshot.size} produk milik <b>${emailToDelete}</b> berhasil dihapus dari database.
+                    <br><br>
+                    <span class="font-bold text-red-600">⚠️ LANGKAH AKHIR WAJIB:</span>
+                    <p class="text-sm mt-1">Hapus user <b>${emailToDelete}</b> dari **Firebase Authentication Console** Anda secara manual.</p>
+                `,
+        icon: "success",
+      });
+
+      loadCustomerList();
+    } catch (error) {
+      setLoading(deleteBtn, false, originalHtml);
+      Swal.fire(
+        "Gagal!",
+        "Gagal menghapus data. Periksa aturan Firebase atau koneksi.",
+        "error"
+      );
+      console.error("Error deleting user data: ", error);
+    }
+  }
+}
+
+// -----------------------------------------------------------------
 // BAGIAN 7: FUNGSI PENGATURAN PROFIL & AKUN
 // -----------------------------------------------------------------
 
+function togglePasswordVisibility(inputElement, openIcon, closedIcon) {
+  const isPassword = inputElement.getAttribute("type") === "password";
+  inputElement.setAttribute("type", isPassword ? "text" : "password");
+
+  if (isPassword) {
+    openIcon.classList.remove("hidden");
+    closedIcon.classList.add("hidden");
+  } else {
+    openIcon.classList.add("hidden");
+    closedIcon.classList.remove("hidden");
+  }
+}
+
+function handleToggleAuthPasswordClick() {
+  togglePasswordVisibility(
+    authPasswordInput,
+    authEyeIconOpen,
+    authEyeIconClosed
+  );
+}
+
+function handleToggleProfilePasswordClick() {
+  togglePasswordVisibility(newPasswordInput, eyeIconOpen, eyeIconClosed);
+}
+
+/**
+ * Membuka modal profil dan mengisi data penjual
+ */
 async function openProfileModal() {
   if (!currentUser) return;
 
-  const sellerData = await getSellerData(currentUser.uid);
-  if (shopNameInput) shopNameInput.value = sellerData.shopName || "";
+  try {
+    const sellerData = await getSellerData(currentUser.uid);
 
-  if (shopNameError) shopNameError.classList.add("hidden");
-  if (passwordError) passwordError.classList.add("hidden");
-  if (newPasswordInput) newPasswordInput.value = "";
-  if (profileModal) profileModal.classList.remove("hidden");
+    if (!sellerData) return;
 
-  // Reset ikon mata saat modal dibuka
-  if (newPasswordInput) newPasswordInput.setAttribute("type", "password");
-  if (eyeIconOpen) eyeIconOpen.classList.add("hidden");
-  if (eyeIconClosed) eyeIconClosed.classList.remove("hidden");
+    // 2. Isi input nama toko
+    if (shopNameInput) shopNameInput.value = sellerData.shopName || "";
+
+    // 3. Isi input Nomor HP dan Alamat
+    // CATATAN: profilePhoneInput dan profileAddressInput HARUS sudah diinisialisasi di DOMContentLoaded
+    if (profilePhoneInput) {
+      profilePhoneInput.value = sellerData.phone || "";
+    }
+    if (profileAddressInput) {
+      profileAddressInput.value = sellerData.address || "";
+    }
+
+    // 4. Reset tampilan error dan input password
+    if (shopNameError) shopNameError.classList.add("hidden");
+    if (passwordError) passwordError.classList.add("hidden");
+    if (contactError) contactError.classList.add("hidden");
+    if (newPasswordInput) newPasswordInput.value = "";
+
+    // 5. Tampilkan modal
+    if (profileModal) profileModal.classList.remove("hidden");
+
+    // 6. Atur tampilan password (sembunyikan)
+    if (newPasswordInput) newPasswordInput.setAttribute("type", "password");
+    if (eyeIconOpen) eyeIconOpen.classList.add("hidden");
+    if (eyeIconClosed) eyeIconClosed.classList.remove("hidden");
+
+    // 7. OPSIONAL: Tampilkan info role di modal
+    const profileRoleDisplay = document.getElementById("profile-role-display");
+    if (profileRoleDisplay) {
+      profileRoleDisplay.textContent = `Role Anda: ${sellerData.role.toUpperCase()}`;
+    }
+  } catch (error) {
+    console.error("Error membuka modal profil:", error);
+  }
 }
 
+/**
+ * Menangani update Nama Toko
+ */
 async function handleUpdateShopName(e) {
   e.preventDefault();
   if (shopNameError) shopNameError.classList.add("hidden");
@@ -1218,7 +1858,7 @@ async function handleUpdateShopName(e) {
       showConfirmButton: false,
       timer: 3000,
     });
-    loadProducts(); // Muat ulang produk untuk update nama toko di card
+    loadProducts();
   } catch (error) {
     console.error("Error updating shop name:", error);
     if (shopNameError) {
@@ -1230,6 +1870,77 @@ async function handleUpdateShopName(e) {
   }
 }
 
+/**
+ * Menangani update Nomor HP dan Alamat.
+ */
+async function handleUpdateContact(e) {
+  e.preventDefault();
+
+  if (contactError) contactError.classList.add("hidden");
+
+  // Pastikan variabel DOM sudah terinisialisasi
+  if (!profilePhoneInput || !profileAddressInput || !contactSubmitBtn) {
+    console.error("Error DOM: Input kontak tidak terinisialisasi.");
+    return;
+  }
+
+  const newPhone = profilePhoneInput.value.trim();
+  const newAddress = profileAddressInput.value.trim();
+
+  if (!currentUser) return;
+
+  if (newPhone.length < 5) {
+    if (contactError) {
+      contactError.textContent = "Nomor HP minimal 5 digit.";
+      contactError.classList.remove("hidden");
+    }
+    return;
+  }
+  if (newAddress.length < 5) {
+    if (contactError) {
+      contactError.textContent = "Alamat lengkap minimal 5 karakter.";
+      contactError.classList.remove("hidden");
+    }
+    return;
+  }
+
+  const originalText = "Simpan Kontak & Alamat";
+  setLoading(contactSubmitBtn, true, originalText, "Menyimpan...");
+
+  try {
+    const updateData = {
+      phone: newPhone,
+      address: newAddress,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    };
+
+    await db.collection("sellers").doc(currentUser.uid).update(updateData);
+
+    profilePhoneInput.value = newPhone;
+    profileAddressInput.value = newAddress;
+
+    Swal.fire({
+      icon: "success",
+      title: "Kontak & Alamat Diperbarui!",
+      toast: true,
+      position: "top-end",
+      showConfirmButton: false,
+      timer: 3000,
+    });
+  } catch (error) {
+    console.error("Error updating contact and address:", error);
+    if (contactError) {
+      contactError.textContent = `Gagal update kontak: ${error.message}`;
+      contactError.classList.remove("hidden");
+    }
+  } finally {
+    setLoading(contactSubmitBtn, false, originalText);
+  }
+}
+
+/**
+ * Menangani Ganti Sandi Akun
+ */
 async function handleUpdatePassword(e) {
   e.preventDefault();
   if (passwordError) passwordError.classList.add("hidden");
@@ -1249,7 +1960,6 @@ async function handleUpdatePassword(e) {
   try {
     await currentUser.updatePassword(newPassword);
 
-    // Jika berhasil, logout user untuk keamanan
     await auth.signOut();
     if (profileModal) profileModal.classList.add("hidden");
 
@@ -1285,22 +1995,18 @@ async function handleUpdatePassword(e) {
   }
 }
 
-// 🔥 FUNGSI BARU: Menerapkan Hasil Crop Gambar 🔥
 function handleCropApply() {
   if (!cropperInstance) return;
 
-  // 1. Ambil kanvas dari hasil cropping (misalnya 600x600)
   const croppedCanvas = cropperInstance.getCroppedCanvas({
     width: 600,
     height: 600,
   });
 
-  // 2. Konversi kanvas menjadi Blob (file baru)
   croppedCanvas.toBlob(
     (blob) => {
-      croppedFileBlob = blob; // Simpan blob ke variabel global (di Bagian 2)
+      croppedFileBlob = blob;
 
-      // 3. Tampilkan preview menggunakan data URL dari blob baru
       const reader = new FileReader();
       reader.onload = (event) => {
         if (imagePreview) {
@@ -1312,24 +2018,22 @@ function handleCropApply() {
       };
       reader.readAsDataURL(blob);
 
-      // 4. Tutup modal dan hancurkan cropper
       if (cropModal) cropModal.classList.add("hidden");
       if (cropperInstance) cropperInstance.destroy();
       cropperInstance = null;
 
-      // Atur input file menjadi tidak wajib (karena kita sudah punya blob)
       if (productImageFile) productImageFile.removeAttribute("required");
     },
     "image/jpeg",
     0.9
-  ); // Format JPEG dengan kualitas 90%
+  );
 }
 // -----------------------------------------------------------------
 // BAGIAN 8: EKSEKUSI AWAL DAN EVENT LISTENERS
 // -----------------------------------------------------------------
 
 document.addEventListener("DOMContentLoaded", () => {
-  // INISIALISASI SEMUA VARIABEL DOM DI SINI
+  // --- INISIALISASI SEMUA VARIABEL DOM ---
   productListDiv = document.getElementById("product-list");
   mainBanner = document.getElementById("main-banner");
   authBtn = document.getElementById("auth-btn");
@@ -1337,9 +2041,25 @@ document.addEventListener("DOMContentLoaded", () => {
   authForm = document.getElementById("auth-form");
   authTitle = document.getElementById("auth-title");
   authSubmitBtn = document.getElementById("auth-submit-btn");
-  toggleAuthMode = document.getElementById("toggle-auth-mode");
   closeModalBtn = document.getElementById("close-modal-btn");
   authError = document.getElementById("auth-error");
+
+  productListTitleElement = document.getElementById("product-list-header");
+
+  // INISIALISASI VARIABEL AUTH TAMBAHAN
+  toggleAuthMode = document.getElementById("toggle-auth-mode");
+  toggleAuthLink = document.getElementById("toggle-auth-link");
+  adminRegisterInfo = document.getElementById("admin-register-info");
+
+  // INISIALISASI INPUT ROLE
+  authRoleGroup = document.getElementById("auth-role-group");
+  authRoleInput = document.getElementById("auth-role");
+
+  // INISIALISASI INPUT BARU (NOMOR HP & ALAMAT PADA FORM REGISTRASI)
+  authPhoneInput = document.getElementById("auth-phone");
+  authAddressInput = document.getElementById("auth-address");
+  authPhoneGroup = document.getElementById("auth-phone-group");
+  authAddressGroup = document.getElementById("auth-address-group");
 
   uploadBtn = document.getElementById("upload-btn");
   uploadModal = document.getElementById("upload-modal");
@@ -1350,21 +2070,19 @@ document.addEventListener("DOMContentLoaded", () => {
   uploadSubmitBtn = document.getElementById("upload-submit-btn");
 
   productImageFile = document.getElementById("product-image-file");
-  // 🔥 Diperlukan untuk preview setelah crop/edit 🔥
   imagePreview = document.getElementById("image-preview");
   imagePreviewContainer = document.getElementById("image-preview-container");
 
   sellerControls = document.getElementById("seller-controls");
   sellerGreeting = document.getElementById("seller-greeting");
 
-  // 🔥 INISIALISASI VARIABEL CROPPER BARU 🔥
+  // INISIALISASI VARIABEL CROPPER
   imageToCrop = document.getElementById("image-to-crop");
   cropModal = document.getElementById("crop-modal");
   closeCropModalBtn = document.getElementById("close-crop-modal-btn");
   applyCropBtn = document.getElementById("apply-crop-btn");
-  // ------------------------------------------
 
-  // 🔥 INISIALISASI VARIABEL DETAIL PRODUK 🔥
+  // INISIALISASI VARIABEL DETAIL PRODUK
   productDetailView = document.getElementById("product-detail-view");
   productListWrapperElement = document.getElementById("product-list-wrapper");
   backToProductsBtn = document.getElementById("back-to-products-btn");
@@ -1377,15 +2095,14 @@ document.addEventListener("DOMContentLoaded", () => {
   detailShopNameText = document.getElementById("detail-shop-name-text");
   detailOwnerMessage = document.getElementById("detail-owner-message");
 
-  // 🔥 INISIALISASI VARIABEL KUANTITAS BARU (SOLUSI UNTUK TOMBOL + / -) 🔥
+  // INISIALISASI VARIABEL KUANTITAS
   qtyDecrementBtn = document.getElementById("qty-decrement");
   qtyIncrementBtn = document.getElementById("qty-increment");
   productQuantityInput = document.getElementById("product-quantity");
   detailStockInfo = document.getElementById("detail-stock-info");
   quantityControlsWrapper = document.getElementById("detail-qty-control");
-  // -------------------------------------------------
 
-  // 🔥 INISIALISASI VARIABEL TOGGLE SANDI LOGIN (PASTIKAN ADA) 🔥
+  // INISIALISASI VARIABEL TOGGLE SANDI LOGIN
   authPasswordInput = document.getElementById("auth-password");
   toggleAuthPasswordBtn = document.getElementById(
     "toggle-auth-password-visibility"
@@ -1403,31 +2120,50 @@ document.addEventListener("DOMContentLoaded", () => {
   productListWrapper = document.getElementById("product-list-wrapper");
   salesChartCanvas = document.getElementById("salesChart");
 
-  // INISIALISASI VARIABEL PROFIL BARU
+  // INISIALISASI VARIABEL ADMIN BARU
+  adminBtn = document.getElementById("admin-btn");
+  adminView = document.getElementById("admin-view");
+  customerListTableBody = document.getElementById("customer-list-table-body");
+  addUserBtn = document.getElementById("add-user-btn");
+
+  // INISIALISASI VARIABEL PROFIL
   profileBtn = document.getElementById("profile-btn");
   profileModal = document.getElementById("profile-modal");
   closeProfileModalBtn = document.getElementById("close-profile-modal-btn");
+
+  // INISIALISASI FORM NAMA TOKO
   updateShopForm = document.getElementById("update-shop-form");
   shopNameInput = document.getElementById("shop-name");
   shopNameError = document.getElementById("shop-name-error");
   shopNameSubmitBtn = document.getElementById("shop-name-submit-btn");
+
+  // INISIALISASI FORM KONTAK BARU
+  updateContactForm = document.getElementById("update-contact-form"); // Form baru
+  profilePhoneInput = document.getElementById("profile-phone");
+  profileAddressInput = document.getElementById("profile-address");
+  contactSubmitBtn = document.getElementById("contact-submit-btn"); // Button submit kontak
+  // contactError = document.getElementById("contact-error"); // Elemen error kontak
+
+  // INISIALISASI FORM SANDI
   updatePasswordForm = document.getElementById("update-password-form");
   newPasswordInput = document.getElementById("new-password");
   passwordError = document.getElementById("password-error");
   passwordSubmitBtn = document.getElementById("password-submit-btn");
 
-  // 🔥 INISIALISASI VARIABEL TOGGLE SANDI 🔥
+  // INISIALISASI VARIABEL TOGGLE SANDI
   togglePasswordBtn = document.getElementById("toggle-password-visibility");
   eyeIconOpen = document.getElementById("eye-icon-open");
   eyeIconClosed = document.getElementById("eye-icon-closed");
 
+  // -----------------------------------------------------------------
   // --- EVENT LISTENERS ---
+  // -----------------------------------------------------------------
 
   // 1. Produk Upload/Edit
   if (uploadBtn) {
     uploadBtn.addEventListener("click", () => {
       editingProductId = null;
-      croppedFileBlob = null; // Reset blob saat membuka modal upload baru
+      croppedFileBlob = null;
       uploadModalTitle.textContent = "Upload Produk Baru";
       uploadSubmitBtn.textContent = "Simpan Produk";
       if (uploadForm) uploadForm.reset();
@@ -1441,50 +2177,39 @@ document.addEventListener("DOMContentLoaded", () => {
     closeUploadModalBtn.addEventListener("click", () => {
       uploadModal.classList.add("hidden");
       editingProductId = null;
-      croppedFileBlob = null; // Reset blob saat menutup modal
+      croppedFileBlob = null;
       uploadModalTitle.textContent = "Upload Produk Baru";
       uploadSubmitBtn.textContent = "Simpan Produk";
       if (productImageFile)
         productImageFile.setAttribute("required", "required");
+      uploadForm.reset();
+      imagePreviewContainer.classList.add("hidden");
     });
   }
   if (uploadForm) uploadForm.addEventListener("submit", handleSubmitProduct);
 
-  // 🔥 1.1. Event Listener CROPPER (Disesuaikan dengan Debugging) 🔥
+  // 1.1. Event Listener CROPPER
   if (productImageFile) {
     productImageFile.addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (file) {
-        console.log("1. File dipilih. Memulai FileReader...");
-        // Hapus preview lama agar tidak misleading
         if (imagePreviewContainer)
           imagePreviewContainer.classList.add("hidden");
 
         const reader = new FileReader();
         reader.onload = (event) => {
-          console.log("2. Gambar berhasil dimuat oleh FileReader.");
-
           if (imageToCrop) {
             imageToCrop.src = event.target.result;
-            console.log(
-              "3. imageToCrop (img element) berhasil disetel src-nya."
-            );
           } else {
-            console.error(
-              "ERROR: Elemen #image-to-crop tidak ditemukan (NULL)!"
-            );
-            return; // Hentikan proses jika elemen tidak ada
+            return;
           }
 
           if (cropModal) {
             cropModal.classList.remove("hidden");
-            console.log("4. cropModal berhasil ditampilkan.");
           } else {
-            console.error("ERROR: Elemen #crop-modal tidak ditemukan (NULL)!");
-            return; // Hentikan proses jika elemen tidak ada
+            return;
           }
 
-          // Inisialisasi Cropper.js (setelah gambar dimuat)
           setTimeout(() => {
             if (typeof Cropper === "undefined") {
               console.error("ERROR: Cropper.js library tidak dimuat!");
@@ -1493,13 +2218,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (cropperInstance) cropperInstance.destroy();
 
-            // Pastikan imageToCrop sudah ada di DOM sebelum inisialisasi
             if (imageToCrop) {
               cropperInstance = new Cropper(imageToCrop, {
                 aspectRatio: 1,
                 viewMode: 1,
               });
-              console.log("5. Cropper.js berhasil diinisialisasi.");
             }
           }, 100);
         };
@@ -1507,40 +2230,35 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         if (imagePreviewContainer)
           imagePreviewContainer.classList.add("hidden");
-        console.log("File selection dibatalkan.");
       }
     });
   }
 
-  // 🔥 1.2. Event Listener untuk Crop Modal 🔥
+  // 1.2. Event Listener untuk Crop Modal
   if (closeCropModalBtn) {
     closeCropModalBtn.addEventListener("click", () => {
       if (cropModal) cropModal.classList.add("hidden");
       if (cropperInstance) cropperInstance.destroy();
-      if (productImageFile) productImageFile.value = ""; // Kosongkan input file
-      croppedFileBlob = null; // Batalkan crop
+      if (productImageFile) productImageFile.value = "";
+      croppedFileBlob = null;
     });
   }
 
   if (applyCropBtn) {
     applyCropBtn.addEventListener("click", handleCropApply);
   }
-  // ------------------------------------------
-
   // 2. Autentikasi
   if (authBtn) {
     authBtn.addEventListener("click", () => {
       if (!currentUser) {
+        setAuthModeToLogin();
         authModal.classList.remove("hidden");
 
-        // 🔥 Reset Sandi Login saat modal dibuka 🔥
         if (authPasswordInput)
           authPasswordInput.setAttribute("type", "password");
         if (authEyeIconOpen) authEyeIconOpen.classList.add("hidden");
         if (authEyeIconClosed) authEyeIconClosed.classList.remove("hidden");
-        // ------------------------------------------
       } else {
-        // 🔥 PENYESUAIAN LOGOUT DENGAN KONFIRMASI SWEETALERT2 🔥
         Swal.fire({
           title: "Yakin ingin keluar?",
           text: "Anda harus login lagi untuk mengakses fitur penjual.",
@@ -1552,10 +2270,21 @@ document.addEventListener("DOMContentLoaded", () => {
           cancelButtonText: "Batal",
         }).then((result) => {
           if (result.isConfirmed) {
-            // Jika pengguna menekan "Ya, Keluar!"
             auth
               .signOut()
               .then(() => {
+                // 🔥 FIX BUG RESET TAMPILAN ADMIN SETELAH LOGOUT
+                if (adminView) adminView.classList.add("hidden"); // Sembunyikan Admin View
+                if (managementView) managementView.classList.add("hidden"); // Sembunyikan Management View
+                if (productListWrapperElement)
+                  productListWrapperElement.classList.remove("hidden"); // Tampilkan Produk
+
+                // Reset teks tombol Admin ke default
+                if (adminBtn) adminBtn.textContent = "Admin (Pelanggan)";
+                // Reset teks tombol Manage (jika diperlukan)
+                if (manageBtn) manageBtn.textContent = "Management";
+                // --- END FIX ---
+
                 Swal.fire({
                   icon: "success",
                   title: "Sampai Jumpa!",
@@ -1576,7 +2305,6 @@ document.addEventListener("DOMContentLoaded", () => {
               });
           }
         });
-        // -----------------------------------------------------
       }
     });
   }
@@ -1586,25 +2314,63 @@ document.addEventListener("DOMContentLoaded", () => {
       authError.classList.add("hidden");
     });
   }
-  if (toggleAuthMode) {
-    toggleAuthMode.addEventListener("click", () => {
-      isRegisterMode = !isRegisterMode;
-      if (isRegisterMode) {
-        authTitle.textContent = "Daftar Akun Penjual";
-        authSubmitBtn.textContent = "Daftar";
-        toggleAuthMode.textContent = "Sudah punya akun? Masuk!";
-      } else {
-        authTitle.textContent = "Masuk Penjual";
-        authSubmitBtn.textContent = "Masuk";
-        toggleAuthMode.textContent = "Belum punya akun? Daftar sekarang!";
+
+  // EVENT LISTENER KRUSIAL UNTUK LOGIN/DAFTAR
+  if (authForm) authForm.addEventListener("submit", handleSubmitAuth);
+
+  // 2.1. Event Listener untuk Toggle Mode di dalam modal (Hubungi Admin/Login)
+  if (toggleAuthLink) {
+    toggleAuthLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      const currentAction = authSubmitBtn.getAttribute("data-action");
+
+      if (currentAction === "login") {
+        const adminNumber = "6281234567890";
+        const message = encodeURIComponent(
+          "Halo Admin, saya tertarik untuk mendaftar sebagai penjual di platform Anda. Bisakah Anda membantu saya mendaftar?"
+        );
+
+        const whatsappUrl = `https://wa.me/${adminNumber}?text=${message}`;
+        window.open(whatsappUrl, "_blank");
+
+        // 🔥 FIX: Sembunyikan modal setelah membuka WhatsApp
+        if (authModal) {
+          authModal.classList.add("hidden");
+        }
+
+        // Opsional: Reset form dan set mode kembali ke login untuk berjaga-jaga
+        if (authForm) {
+          authForm.reset();
+        }
+        // Asumsi setAuthModeToLogin() tersedia dan memastikan tampilan login
+        setAuthModeToLogin();
       }
     });
   }
-  if (authForm) authForm.addEventListener("submit", handleSubmitAuth);
+  // 2.2. Event Listener untuk Tombol 'Tambah User' Admin
+  if (addUserBtn) {
+    addUserBtn.addEventListener("click", () => {
+      getSellerData(currentUser.uid)
+        .then((sellerData) => {
+          if (sellerData.role !== "admin") return;
+
+          setAuthModeToRegister(true);
+          if (authModal) authModal.classList.remove("hidden");
+        })
+        .catch((error) => {
+          console.error("Error accessing add user:", error);
+        });
+    });
+  }
 
   // 3. Management
   if (manageBtn) {
     manageBtn.addEventListener("click", toggleManagementView);
+  }
+
+  // 3.1. Admin
+  if (adminBtn) {
+    adminBtn.addEventListener("click", toggleAdminView);
   }
 
   // 4. Profil
@@ -1616,14 +2382,23 @@ document.addEventListener("DOMContentLoaded", () => {
       profileModal.classList.add("hidden");
     });
   }
+
+  // 4.1. Update Nama Toko
   if (updateShopForm) {
     updateShopForm.addEventListener("submit", handleUpdateShopName);
   }
+
+  // 4.2. Update Kontak & Alamat 🔥 KRUSIAL BARU 🔥
+  if (updateContactForm) {
+    updateContactForm.addEventListener("submit", handleUpdateContact);
+  }
+
+  // 4.3. Update Sandi
   if (updatePasswordForm) {
     updatePasswordForm.addEventListener("submit", handleUpdatePassword);
   }
 
-  // 🔥 5. Toggle Password Visibility (Profile) 🔥
+  // 5. Toggle Password Visibility (Profile)
   if (togglePasswordBtn && newPasswordInput) {
     togglePasswordBtn.addEventListener("click", () => {
       const type =
@@ -1632,13 +2407,12 @@ document.addEventListener("DOMContentLoaded", () => {
           : "password";
       newPasswordInput.setAttribute("type", type);
 
-      // Toggle ikon mata
       eyeIconOpen.classList.toggle("hidden");
       eyeIconClosed.classList.toggle("hidden");
     });
   }
 
-  // 🔥 6. Toggle Password Visibility (Form Login) 🔥
+  // 6. Toggle Password Visibility (Form Login)
   if (toggleAuthPasswordBtn && authPasswordInput) {
     toggleAuthPasswordBtn.addEventListener("click", () => {
       const type =
@@ -1647,18 +2421,17 @@ document.addEventListener("DOMContentLoaded", () => {
           : "password";
       authPasswordInput.setAttribute("type", type);
 
-      // Toggle ikon mata
       authEyeIconOpen.classList.toggle("hidden");
       authEyeIconClosed.classList.toggle("hidden");
     });
   }
 
-  // 🔥 7. Event Listener untuk Tombol Kembali ke Daftar Produk (Detail View) 🔥
+  // 7. Tombol Kembali ke Daftar Produk (Detail View)
   if (backToProductsBtn) {
     backToProductsBtn.addEventListener("click", handleBackToProductsClick);
   }
 
-  // 🔥 8. Event Listener untuk Tombol Kuantitas Produk (Detail View) 🔥
+  // 8. Tombol Kuantitas Produk (Detail View)
   if (qtyIncrementBtn) {
     qtyIncrementBtn.addEventListener("click", () => handleQuantityChange(true));
   }
@@ -1668,27 +2441,12 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   }
 
-  // Inisialisasi awal: tombol decrement harus nonaktif jika kuantitas awal 1
   if (qtyDecrementBtn && productQuantityInput) {
     qtyDecrementBtn.disabled = parseInt(productQuantityInput.value) === 1;
   }
 
-  if (closeUploadModalBtn) {
-    closeUploadModalBtn.addEventListener("click", () => {
-      // Logika untuk menyembunyikan modal upload
-      uploadModal.classList.add("hidden");
-
-      // Opsional: Reset form dan tampilkan kembali tombol upload
-      uploadForm.reset();
-      imagePreviewContainer.classList.add("hidden");
-      productImageFile.setAttribute("required", "required");
-
-      // Reset mode editing
-      editingProductId = null;
-      uploadModalTitle.textContent = "Upload Produk Baru";
-      uploadSubmitBtn.textContent = "Simpan Produk";
-    });
+  // Panggil setAuthModeToLogin() secara default saat DOMContentLoaded
+  if (authSubmitBtn) {
+    setAuthModeToLogin();
   }
-
-  // loadProducts() dipanggil otomatis oleh auth.onAuthStateChanged
 });
