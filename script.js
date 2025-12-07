@@ -945,6 +945,9 @@ async function handleSubmitAuth(e) {
         if (authForm) authForm.reset();
         setAuthModeToLogin(); // Reset mode
 
+        // 🔥 KRUSIAL: Buka scroll setelah berhasil mendaftarkan dan mengembalikan sesi admin
+        toggleBodyScroll(false);
+
         Swal.fire({
           icon: "success",
           title: "Pendaftaran Berhasil!",
@@ -983,6 +986,9 @@ async function handleSubmitAuth(e) {
         if (authForm) authForm.reset();
         setAuthModeToLogin();
 
+        // 🔥 KRUSIAL: Buka scroll setelah berhasil daftar biasa
+        toggleBodyScroll(false);
+
         Swal.fire({
           icon: "success",
           title: "Pendaftaran Berhasil!",
@@ -1006,13 +1012,19 @@ async function handleSubmitAuth(e) {
         });
       }
 
+      // 🔥 KRUSIAL: Tutup modal dan BUKA SCROLL setelah login berhasil
       if (authModal) authModal.classList.add("hidden");
       if (authForm) authForm.reset();
+      toggleBodyScroll(false); // <--- INI SOLUSI UNTUK SCROLL MOBILE
+
       // onAuthStateChanged akan menangani pembaruan UI lainnya
     }
   } catch (error) {
     // Panggilan fungsi penanganan error yang disarankan
     handleAuthFirebaseError(error);
+
+    // 🔥 PENTING: Jika login gagal, modal tetap terbuka, tapi scroll tetap dikunci.
+    // Tidak perlu memanggil toggleBodyScroll(false) di sini.
   } finally {
     setLoading(authSubmitBtn, false, originalText);
   }
