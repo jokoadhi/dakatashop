@@ -817,14 +817,35 @@ function getCloudinaryPublicId(imageUrl) {
 function toggleBodyScroll(lockScroll) {
   if (lockScroll) {
     // Matikan scroll utama saat modal terbuka
+
+    // Simpan posisi scroll saat ini
+    // Ini membantu mencegah lompatan posisi ketika position: fixed diterapkan
+    // Ambil posisi scroll dari window, bukan document.body
+    currentScrollY = window.scrollY;
+
     document.body.style.overflow = "hidden";
     document.body.style.position = "fixed";
     document.body.style.width = "100%";
+    document.body.style.top = `-${currentScrollY}px`; // Posisikan body ke posisi scroll yang disimpan
+
+    // 🔥 KRUSIAL: Tambahkan ini untuk memastikan scroll HTML (PWA/Mobile) juga terkunci
+    document.documentElement.style.overflow = "hidden";
   } else {
     // Aktifkan kembali scroll utama saat modal tertutup
+
+    // Dapatkan posisi scroll yang disimpan
+    const scrollY = document.body.style.top;
+
     document.body.style.overflow = "";
     document.body.style.position = "";
     document.body.style.width = "";
+    document.body.style.top = "";
+
+    // 🔥 KRUSIAL: Buka juga scroll HTML
+    document.documentElement.style.overflow = "";
+
+    // Kembalikan window ke posisi scroll yang disimpan
+    window.scrollTo(0, parseInt(scrollY || "0") * -1);
   }
 }
 
