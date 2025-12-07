@@ -409,6 +409,7 @@ function handleProductCardClick(e) {
 
   loadProductDetails(productId);
 }
+
 async function loadProductDetails(productId) {
   // --- INISIALISASI TAMPILAN AWAL ---
   detailProductName.textContent = "Memuat...";
@@ -416,10 +417,15 @@ async function loadProductDetails(productId) {
   detailProductDescription.textContent = "Sedang memuat deskripsi...";
   detailShopNameText.textContent = "Toko Rahasia";
 
-  // 🔥 INISIALISASI ELEMEN ALAMAT
+  // 🔥 INISIALISASI ELEMEN ALAMAT TEKS
   const detailShopAddressText = document.getElementById(
     "detail-shop-address-text"
   );
+  // 💡 INISIALISASI ELEMEN WRAPPER/KONTAINER ALAMAT (Termasuk Ikon)
+  const detailShopAddressWrapper = document.getElementById(
+    "detail-shop-address-wrapper"
+  );
+
   if (detailShopAddressText)
     detailShopAddressText.textContent = "Memuat Alamat...";
 
@@ -445,7 +451,9 @@ async function loadProductDetails(productId) {
     if (!productDoc.exists) {
       detailProductName.textContent = "Produk Tidak Ditemukan";
       if (detailStockInfo) detailStockInfo.textContent = "Stok: N/A";
-      if (detailShopAddressText) detailShopAddressText.textContent = ""; // Kosongkan alamat jika produk tidak ditemukan
+      // ✅ LOGIKA: Sembunyikan wrapper jika produk tidak ditemukan
+      if (detailShopAddressWrapper)
+        detailShopAddressWrapper.classList.add("hidden");
       return;
     }
 
@@ -491,8 +499,12 @@ async function loadProductDetails(productId) {
       if (quantityControlsWrapper)
         quantityControlsWrapper.classList.add("hidden");
 
-      // 🔥 SEMBUNYIKAN/KOSONGKAN ALAMAT DI MODE PENJUAL
-      if (detailShopAddressText) detailShopAddressText.textContent = "";
+      // ✅ LOGIKA: SEMBUNYIKAN SELURUH BLOK ALAMAT (IKON + TEKS) DI MODE PENJUAL
+      if (detailShopAddressWrapper) {
+        detailShopAddressWrapper.classList.add("hidden");
+      }
+      // Kita tidak perlu lagi mengosongkan teksnya secara terpisah karena wrapper sudah disembunyikan:
+      // if (detailShopAddressText) detailShopAddressText.textContent = "";
 
       // Tampilkan Informasi Stok untuk Penjual
       if (detailStockInfo) {
@@ -503,12 +515,18 @@ async function loadProductDetails(productId) {
         detailStockInfo.classList.add("font-bold", "text-lg", "text-green-600");
       }
     } else {
-      // Pembeli (Bukan Pemilik Produk)
+      // Pembeli (Bukan Pemilik Produk / Publik)
       if (detailOwnerMessage) detailOwnerMessage.classList.add("hidden");
 
-      // 🔥 TAMPILKAN ALAMAT TOKO UNTUK PEMBELI
-      if (detailShopAddressText)
+      // ✅ LOGIKA: TAMPILKAN SELURUH BLOK ALAMAT (IKON + TEKS) UNTUK PEMBELI/PUBLIK
+      if (detailShopAddressWrapper) {
+        detailShopAddressWrapper.classList.remove("hidden");
+      }
+
+      // TAMPILKAN TEKS ALAMAT TOKO
+      if (detailShopAddressText) {
         detailShopAddressText.textContent = shopAddress;
+      }
 
       if (actionButtons) actionButtons.classList.remove("hidden");
       if (quantityControlsWrapper)
@@ -543,9 +561,10 @@ async function loadProductDetails(productId) {
     detailProductDescription.textContent = "Terjadi kesalahan koneksi.";
     detailProductImage.src =
       "https://via.placeholder.com/600x400.png?text=Error";
-    if (detailStockInfo) detailStockInfo.textContent = "Stok: Tidak diketahui";
-    if (detailShopAddressText)
-      detailShopAddressText.textContent = "Gagal memuat alamat.";
+    // Sembunyikan wrapper saat error
+    if (detailShopAddressWrapper) {
+      detailShopAddressWrapper.classList.add("hidden");
+    }
   }
 }
 
@@ -1911,24 +1930,68 @@ function handleToggleProfilePasswordClick() {
 /**
  * Membuka modal profil dan mengisi data penjual
  */
+/**
+ * Membuka modal profil dan mengisi data penjual
+ */
 async function openProfileModal() {
-  if (!currentUser) return;
+  if (!currentUser) {
+    console.error(
+      "DEBUG [Profile]: Pengguna belum login/currentUser tidak tersedia."
+    );
+    return;
+  }
 
   try {
+    // 0. Logging: Mulai pengambilan data
+    console.log(
+      `DEBUG [Profile]: Memulai pengambilan data penjual untuk UID: ${currentUser.uid}`
+    );
+
     const sellerData = await getSellerData(currentUser.uid);
 
-    if (!sellerData) return;
+    if (!sellerData) {
+      console.warn(
+        `DEBUG [Profile]: Data penjual untuk UID ${currentUser.uid} tidak ditemukan di Firestore.`
+      );
+      return;
+    }
+
+    // 1. Logging: Data berhasil diambil
+    console.log("DEBUG [Profile]: Data Penjual berhasil dimuat:", sellerData);
 
     // 2. Isi input nama toko
-    if (shopNameInput) shopNameInput.value = sellerData.shopName || "";
+    if (shopNameInput) {
+      shopNameInput.value = sellerData.shopName || "";
+      console.log(
+        `DEBUG [Profile]: Mengisi shopNameInput dengan: ${shopNameInput.value}`
+      );
+    } else {
+      console.error(
+        "DEBUG [Profile]: shopNameInput tidak ditemukan! Pastikan ID 'shop-name' sudah benar di DOMContentLoaded."
+      );
+    }
 
     // 3. Isi input Nomor HP dan Alamat
-    // CATATAN: profilePhoneInput dan profileAddressInput HARUS sudah diinisialisasi di DOMContentLoaded
     if (profilePhoneInput) {
       profilePhoneInput.value = sellerData.phone || "";
+      console.log(
+        `DEBUG [Profile]: Mengisi profilePhoneInput dengan: ${profilePhoneInput.value}`
+      );
+    } else {
+      console.error(
+        "DEBUG [Profile]: profilePhoneInput tidak ditemukan! Pastikan ID 'profile-phone' sudah benar di DOMContentLoaded."
+      );
     }
+
     if (profileAddressInput) {
       profileAddressInput.value = sellerData.address || "";
+      console.log(
+        `DEBUG [Profile]: Mengisi profileAddressInput dengan: ${profileAddressInput.value}`
+      );
+    } else {
+      console.error(
+        "DEBUG [Profile]: profileAddressInput tidak ditemukan! Pastikan ID 'profile-address' sudah benar di DOMContentLoaded."
+      );
     }
 
     // 4. Reset tampilan error dan input password
@@ -1948,7 +2011,9 @@ async function openProfileModal() {
     // 7. OPSIONAL: Tampilkan info role di modal
     const profileRoleDisplay = document.getElementById("profile-role-display");
     if (profileRoleDisplay) {
-      profileRoleDisplay.textContent = `Role Anda: ${sellerData.role.toUpperCase()}`;
+      profileRoleDisplay.textContent = `Role Anda: ${
+        sellerData.role ? sellerData.role.toUpperCase() : "N/A"
+      }`;
     }
   } catch (error) {
     console.error("Error membuka modal profil:", error);
@@ -2226,7 +2291,6 @@ function setAuthModeToRegister(isAdminMode = false) {
     if (adminRegisterInfo) adminRegisterInfo.classList.add("hidden");
   }
 }
-
 document.addEventListener("DOMContentLoaded", () => {
   // --- INISIALISASI SEMUA VARIABEL DOM ---
   productListDiv = document.getElementById("product-list");
@@ -2242,7 +2306,7 @@ document.addEventListener("DOMContentLoaded", () => {
   productListTitleElement = document.getElementById("product-list-header");
 
   // INISIALISASI VARIABEL AUTH TAMBAHAN
-  toggleAuthMode = document.getElementById("toggle-auth-mode"); // <-- DIBUTUHKAN UNTUK DISESUAIKAN
+  toggleAuthMode = document.getElementById("toggle-auth-mode");
   toggleAuthLink = document.getElementById("toggle-auth-link");
   adminRegisterInfo = document.getElementById("admin-register-info");
 
@@ -2326,18 +2390,18 @@ document.addEventListener("DOMContentLoaded", () => {
   profileModal = document.getElementById("profile-modal");
   closeProfileModalBtn = document.getElementById("close-profile-modal-btn");
 
-  // INISIALISASI FORM NAMA TOKO
+  // INISIALISASI FORM NAMA TOKO (Menggunakan ID HTML ASLI: shop-name)
   updateShopForm = document.getElementById("update-shop-form");
   shopNameInput = document.getElementById("shop-name");
   shopNameError = document.getElementById("shop-name-error");
   shopNameSubmitBtn = document.getElementById("shop-name-submit-btn");
 
-  // INISIALISASI FORM KONTAK BARU
+  // INISIALISASI FORM KONTAK BARU (Menggunakan ID HTML ASLI: profile-phone, profile-address)
   updateContactForm = document.getElementById("update-contact-form"); // Form baru
   profilePhoneInput = document.getElementById("profile-phone");
   profileAddressInput = document.getElementById("profile-address");
   contactSubmitBtn = document.getElementById("contact-submit-btn"); // Button submit kontak
-  // contactError = document.getElementById("contact-error"); // Elemen error kontak
+  contactError = document.getElementById("contact-error"); // Elemen error kontak
 
   // INISIALISASI FORM SANDI
   updatePasswordForm = document.getElementById("update-password-form");
@@ -2357,16 +2421,17 @@ document.addEventListener("DOMContentLoaded", () => {
   // 4. Profil (MODAL PROFIL)
   if (profileBtn) {
     profileBtn.addEventListener("click", () => {
-      // openProfileModal(); // Asumsi openProfileModal() tidak lagi digunakan atau sudah disederhanakan
-      profileModal.classList.remove("hidden");
+      // 🔥 KRUSIAL: Panggil openProfileModal untuk mengisi data
+      openProfileModal();
+      // openProfileModal() kini bertugas mengisi data dan membuka modal
+
       toggleBodyScroll(true); // <-- KUNCI SCROLL
-      // Anda bisa menambahkan logika lain di sini (misal: mengisi data profil)
     });
   }
 
   if (closeProfileModalBtn) {
     closeProfileModalBtn.addEventListener("click", () => {
-      profileModal.classList.add("hidden");
+      if (profileModal) profileModal.classList.add("hidden");
       toggleBodyScroll(false); // <-- BUKA SCROLL
     });
   }
@@ -2380,7 +2445,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
-  // ... (Update form dan toggle password event listeners) ...
+  // ... (Sisa event listeners tetap sama) ...
 
   // 1. Produk Upload/Edit (MODAL UPLOAD)
   if (uploadBtn) {
@@ -2547,10 +2612,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   if (closeModalBtn) {
     closeModalBtn.addEventListener("click", () => {
-      authModal.classList.add("hidden");
+      if (authModal) authModal.classList.add("hidden");
       toggleBodyScroll(false); // <-- BUKA SCROLL
 
-      authError.classList.add("hidden");
+      if (authError) authError.classList.add("hidden");
 
       // 🔥 PENTING: Reset ke mode Login saat modal ditutup
       setAuthModeToLogin();
@@ -2647,30 +2712,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 5. Toggle Password Visibility (Profile)
   if (togglePasswordBtn && newPasswordInput) {
-    togglePasswordBtn.addEventListener("click", () => {
-      const type =
-        newPasswordInput.getAttribute("type") === "password"
-          ? "text"
-          : "password";
-      newPasswordInput.setAttribute("type", type);
-
-      eyeIconOpen.classList.toggle("hidden");
-      eyeIconClosed.classList.toggle("hidden");
-    });
+    togglePasswordBtn.addEventListener(
+      "click",
+      handleToggleProfilePasswordClick
+    );
   }
 
   // 6. Toggle Password Visibility (Form Login)
   if (toggleAuthPasswordBtn && authPasswordInput) {
-    toggleAuthPasswordBtn.addEventListener("click", () => {
-      const type =
-        authPasswordInput.getAttribute("type") === "password"
-          ? "text"
-          : "password";
-      authPasswordInput.setAttribute("type", type);
-
-      authEyeIconOpen.classList.toggle("hidden");
-      authEyeIconClosed.classList.toggle("hidden");
-    });
+    toggleAuthPasswordBtn.addEventListener(
+      "click",
+      handleToggleAuthPasswordClick
+    );
   }
 
   // 7. Tombol Kembali ke Daftar Produk (Detail View)
