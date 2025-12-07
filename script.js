@@ -2099,9 +2099,71 @@ function handleCropApply() {
     0.9
   );
 }
+
 // -----------------------------------------------------------------
-// BAGIAN 2: EKSEKUSI AWAL DAN EVENT LISTENERS (KODE UTAMA ANDA)
+// BAGIAN 8: EKSEKUSI AWAL DAN EVENT LISTENERS (KODE UTAMA ANDA)
 // -----------------------------------------------------------------
+
+// ***************************************************************
+// ASUMSI: Fungsi setAuthModeToRegister/Login dan toggleBodyScroll()
+// serta semua fungsi handler (handleSubmitAuth, dll) sudah
+// didefinisikan di bagian kode Anda yang lain.
+// ***************************************************************
+
+/**
+ * [ASUMSI FUNGSI] Mengatur modal ke mode Login dan menonaktifkan mode admin.
+ */
+function setAuthModeToLogin() {
+  // Logika utama Login
+  authTitle.textContent = "Masuk Penjual";
+  authSubmitBtn.textContent = "Masuk";
+  authSubmitBtn.setAttribute("data-action", "login");
+
+  // Sembunyikan field registrasi tambahan
+  if (authPhoneGroup) authPhoneGroup.classList.add("hidden");
+  if (authAddressGroup) authAddressGroup.classList.add("hidden");
+  if (authRoleGroup) authRoleGroup.classList.add("hidden");
+
+  // Tampilkan tautan toggle mode ("Ingin daftar sebagai penjual?...")
+  if (toggleAuthMode) toggleAuthMode.classList.remove("hidden"); // <-- KRUSIAL: Ditampilkan
+  if (adminRegisterInfo) adminRegisterInfo.classList.add("hidden");
+
+  // Pastikan input sandi ditampilkan (jika Anda memiliki logika untuk menyembunyikannya)
+  // if (authPasswordGroup) authPasswordGroup.classList.remove("hidden");
+}
+
+/**
+ * [ASUMSI FUNGSI] Mengatur modal ke mode Register (Default/Admin).
+ * @param {boolean} isAdminMode - True jika mode admin register.
+ */
+function setAuthModeToRegister(isAdminMode = false) {
+  // Logika utama Register
+  authTitle.textContent = isAdminMode
+    ? "Daftarkan User Baru (Admin Mode)"
+    : "Daftar Penjual Baru";
+  authSubmitBtn.textContent = "Daftar";
+  authSubmitBtn.setAttribute("data-action", "register");
+
+  // Tampilkan field registrasi tambahan jika mode Admin
+  if (isAdminMode) {
+    if (authPhoneGroup) authPhoneGroup.classList.remove("hidden");
+    if (authAddressGroup) authAddressGroup.classList.remove("hidden");
+    if (authRoleGroup) authRoleGroup.classList.remove("hidden");
+
+    // 🔥 KRUSIAL: Sembunyikan tautan toggle mode saat Admin Register
+    if (toggleAuthMode) toggleAuthMode.classList.add("hidden");
+    if (adminRegisterInfo) adminRegisterInfo.classList.remove("hidden");
+  } else {
+    // Mode Register Biasa (Jika ada, sesuaikan)
+    if (authPhoneGroup) authPhoneGroup.classList.add("hidden"); // Contoh: disembunyikan di registrasi biasa
+    if (authAddressGroup) authAddressGroup.classList.add("hidden"); // Contoh: disembunyikan
+    if (authRoleGroup) authRoleGroup.classList.add("hidden"); // Contoh: disembunyikan
+
+    // Tampilkan tautan toggle mode saat Register Biasa
+    if (toggleAuthMode) toggleAuthMode.classList.remove("hidden");
+    if (adminRegisterInfo) adminRegisterInfo.classList.add("hidden");
+  }
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   // --- INISIALISASI SEMUA VARIABEL DOM ---
@@ -2118,7 +2180,7 @@ document.addEventListener("DOMContentLoaded", () => {
   productListTitleElement = document.getElementById("product-list-header");
 
   // INISIALISASI VARIABEL AUTH TAMBAHAN
-  toggleAuthMode = document.getElementById("toggle-auth-mode");
+  toggleAuthMode = document.getElementById("toggle-auth-mode"); // <-- DIBUTUHKAN UNTUK DISESUAIKAN
   toggleAuthLink = document.getElementById("toggle-auth-link");
   adminRegisterInfo = document.getElementById("admin-register-info");
 
@@ -2427,6 +2489,9 @@ document.addEventListener("DOMContentLoaded", () => {
       toggleBodyScroll(false); // <-- BUKA SCROLL
 
       authError.classList.add("hidden");
+
+      // 🔥 PENTING: Reset ke mode Login saat modal ditutup
+      setAuthModeToLogin();
     });
   }
 
@@ -2439,8 +2504,10 @@ document.addEventListener("DOMContentLoaded", () => {
       e.preventDefault();
       const currentAction = authSubmitBtn.getAttribute("data-action");
 
-      if (currentAction === "login") {
-        const adminNumber = "6285161065796";
+      // Logika ini mengasumsikan tautan toggleAuthLink selalu mengarah ke Hubungi Admin,
+      // karena mode registrasi user biasa dihilangkan.
+      if (currentAction === "login" || currentAction === "register") {
+        const adminNumber = "6285161065796"; // Ganti dengan nomor WhatsApp Admin yang valid
         const message = encodeURIComponent(
           "Halo Admin, saya tertarik untuk mendaftar sebagai penjual di platform Dakata Shop. Bisakah membantu saya mendaftar?"
         );
@@ -2458,9 +2525,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (authForm) {
           authForm.reset();
         }
-        // Asumsi setAuthModeToLogin() tersedia dan memastikan tampilan login
-        setAuthModeToLogin();
+        setAuthModeToLogin(); // Pastikan tampilan kembali ke login
       }
+
+      // JIKA DI MASA DEPAN ADA REGISTER BIASA LAGI, tambahkan logika toggle di sini.
     });
   }
   // 2.2. Event Listener untuk Tombol 'Tambah User' Admin
@@ -2470,10 +2538,16 @@ document.addEventListener("DOMContentLoaded", () => {
         .then((sellerData) => {
           if (sellerData.role !== "admin") return;
 
+          // 🔥 KRUSIAL: Atur modal ke mode register, dan aktifkan mode admin
           setAuthModeToRegister(true);
+
           if (authModal) {
             authModal.classList.remove("hidden");
             toggleBodyScroll(true); // <-- KUNCI SCROLL
+
+            // Tambahan: Kosongkan form saat mode Add User
+            if (authForm) authForm.reset();
+            if (authError) authError.classList.add("hidden");
           }
         })
         .catch((error) => {
@@ -2493,14 +2567,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // 4. Profil (EVENT YANG SUDAH DISESUAIKAN ADA DI ATAS)
-  // if (profileBtn) {
-  //   profileBtn.addEventListener("click", openProfileModal); // Baris ini diubah/dihapus
-  // }
-  // if (closeProfileModalBtn) {
-  //   closeProfileModalBtn.addEventListener("click", () => { // Baris ini diubah/dihapus
-  //     profileModal.classList.add("hidden");
-  //   });
-  // }
 
   // 4.1. Update Nama Toko
   if (updateShopForm) {

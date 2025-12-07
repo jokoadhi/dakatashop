@@ -50,7 +50,11 @@
           href="#"
           class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center"
         >
-          <span class="text-gold-accent mr-2">🛒</span> Dakata Shop
+          <img
+            src="logo.png"
+            alt="Logo Dakata Shop"
+            class="w-auto h-12 sm:h-18 mr-2"
+          />
         </a>
         <nav class="flex items-center space-x-2 sm:space-x-4">
           <button
@@ -819,16 +823,18 @@
     </footer>
     <div
       id="auth-modal"
-      class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-[100]"
+      class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-[100] p-3 sm:p-4"
     >
-      <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm relative p-8">
+      <div
+        class="bg-white rounded-xl shadow-2xl w-full max-w-xs sm:max-w-sm relative p-4 sm:p-6 max-h-[90vh] overflow-y-auto"
+      >
         <button
           id="close-modal-btn"
-          class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition duration-150"
+          class="absolute top-3 right-3 sm:top-4 sm:right-4 text-gray-400 hover:text-gray-700 transition duration-150"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            class="h-6 w-6"
+            class="h-5 w-5 sm:h-6 sm:w-6"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -843,17 +849,17 @@
         </button>
 
         <h3
-          class="text-3xl font-bold text-gray-900 mb-6 text-center"
+          class="text-2xl sm:text-3xl font-bold text-gray-900 mb-4 sm:mb-6 text-center"
           id="auth-title"
         >
           Masuk Penjual
         </h3>
 
-        <form id="auth-form" class="space-y-4">
+        <form id="auth-form" class="space-y-3 sm:space-y-4">
           <div>
             <label
               for="auth-email"
-              class="block text-sm font-medium text-gray-700"
+              class="block text-xs sm:text-sm font-medium text-gray-700"
               >Email</label
             >
             <input
@@ -861,14 +867,14 @@
               id="auth-email"
               placeholder="contoh@email.com"
               required
-              class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-yellow-500 focus:border-yellow-500"
+              class="mt-1 block w-full px-3 py-2 text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-yellow-500 focus:border-yellow-500"
             />
           </div>
 
           <div>
             <label
               for="auth-password"
-              class="block text-sm font-medium text-gray-700"
+              class="block text-xs sm:text-sm font-medium text-gray-700"
               >Kata Sandi</label
             >
             <div class="relative mt-1">
@@ -878,7 +884,7 @@
                 placeholder="Minimal 6 karakter"
                 required
                 minlength="6"
-                class="block w-full pr-10 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-yellow-500 focus:border-yellow-500"
+                class="block w-full pr-10 px-3 py-2 text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-yellow-500 focus:border-yellow-500"
               />
               <button
                 type="button"
@@ -938,63 +944,67 @@
             </div>
           </div>
 
-          <div id="auth-phone-group" class="mb-4 hidden">
+          <div id="auth-phone-group" class="hidden">
             <label
               for="auth-phone"
-              class="block text-sm font-medium text-gray-700"
+              class="block text-xs sm:text-sm font-medium text-gray-700"
               >Nomor HP</label
             >
             <input
               type="tel"
               id="auth-phone"
               name="phone"
-              class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-yellow-500 focus:border-yellow-500"
+              class="mt-1 block w-full px-3 py-2 text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-yellow-500 focus:border-yellow-500"
               placeholder="Contoh: 08123456789"
             />
           </div>
 
-          <div id="auth-address-group" class="mb-4 hidden">
+          <div id="auth-address-group" class="hidden">
             <label
               for="auth-address"
-              class="block text-sm font-medium text-gray-700"
+              class="block text-xs sm:text-sm font-medium text-gray-700"
               >Alamat Lengkap</label
             >
             <textarea
               id="auth-address"
               name="address"
-              rows="3"
-              class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-yellow-500 focus:border-yellow-500"
+              rows="2"
+              class="mt-1 block w-full px-3 py-2 text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-yellow-500 focus:border-yellow-500"
               placeholder="Masukkan alamat lengkap pelanggan"
             ></textarea>
           </div>
 
-          <div id="auth-role-group" class="mb-4 hidden">
+          <div id="auth-role-group" class="hidden">
             <label
               for="auth-role"
-              class="block text-sm font-medium text-gray-700"
+              class="block text-xs sm:text-sm font-medium text-gray-700"
               >Role Pengguna</label
             >
             <select
               id="auth-role"
               name="role"
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm"
+              class="mt-1 block w-full px-3 py-2 text-sm border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
             >
               <option value="biasa">Biasa (Penjual)</option>
               <option value="admin">Admin</option>
             </select>
           </div>
-          <p id="auth-error" class="text-red-500 text-sm hidden"></p>
+
+          <p id="auth-error" class="text-red-500 text-xs hidden"></p>
 
           <button
             type="submit"
             id="auth-submit-btn"
-            class="w-full bg-gold-accent text-navy-blue py-3 rounded-lg font-bold text-lg hover:bg-yellow-500 transition duration-300"
+            class="w-full bg-gold-accent text-navy-blue py-2 sm:py-3 rounded-lg font-bold text-sm sm:text-lg hover:bg-yellow-500 transition duration-300"
           >
             Masuk
           </button>
         </form>
 
-        <p id="toggle-auth-mode" class="text-center text-sm mt-4 text-gray-600">
+        <p
+          id="toggle-auth-mode"
+          class="text-center text-xs sm:text-sm mt-3 sm:mt-4 text-gray-600"
+        >
           Ingin daftar sebagai penjual?
           <button
             id="toggle-auth-link"
@@ -1006,7 +1016,7 @@
 
         <p
           id="admin-register-info"
-          class="text-center text-sm mt-2 text-red-500 hidden"
+          class="text-center text-xs mt-2 text-red-500 hidden"
         >
           *Mode Registrasi Admin
         </p>
