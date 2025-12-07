@@ -624,7 +624,6 @@
           </div>
         </div>
       </div>
-
       <div
         id="product-detail-view"
         class="container mx-auto p-3 sm:p-4 md:p-8 flex-grow hidden"
@@ -675,33 +674,59 @@
                 >
                   Loading Product...
                 </h1>
-                <div
-                  class="flex items-center space-x-2 text-sm font-medium text-gray-600"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    fill="currentColor"
-                    class="h-4 w-4 text-purple-600 bi bi-shop"
-                    viewBox="0 0 16 16"
+
+                <div class="space-y-1">
+                  <div
+                    class="grid grid-cols-[auto_1fr] gap-x-2 items-center text-sm font-medium text-gray-600"
                   >
-                    <path
-                      d="M2.97 1.35A1 1 0 0 1 3.73 1h8.54a1 1 0 0 1 .76.35l2.609 3.044A1.5 1.5 0 0 1 16 5.37v.255a2.375 2.375 0 0 1-4.25 1.458A2.37 2.37 0 0 1 9.875 8 2.37 2.37 0 0 1 8 7.083 2.37 2.37 0 0 1 6.125 8a2.37 2.37 0 0 1-1.875-.917A2.375 2.375 0 0 1 0 5.625V5.37a1.5 1.5 0 0 1 .361-.976zm1.78 4.275a1.375 1.375 0 0 0 2.75 0 .5.5 0 0 1 1 0 1.375 1.375 0 0 0 2.75 0 .5.5 0 0 1 1 0 1.375 1.375 0 1 0 2.75 0V5.37a.5.5 0 0 0-.12-.325L12.27 2H3.73L1.12 5.045A.5.5 0 0 0 1 5.37v.255a1.375 1.375 0 0 0 2.75 0 .5.5 0 0 1 1 0M1.5 8.5A.5.5 0 0 1 2 9v6h1v-5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v5h6V9a.5.5 0 0 1 1 0v6h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1V9a.5.5 0 0 1 .5-.5M4 15h3v-5H4zm5-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1zm3 0h-2v3h2z"
-                    />
-                  </svg>
-                  <p>Dijual oleh:</p>
-                  <span
-                    class="font-bold text-purple-700"
-                    id="detail-shop-name-text"
-                    >Toko Rahasia</span
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      fill="currentColor"
+                      class="h-4 w-4 text-purple-600 bi bi-shop flex-shrink-0"
+                      viewBox="0 0 16 16"
+                    >
+                      <path
+                        d="M2.97 1.35A1 1 0 0 1 3.73 1h8.54a1 1 0 0 1 .76.35l2.609 3.044A1.5 1.5 0 0 1 16 5.37v.255a2.375 2.375 0 0 1-4.25 1.458A2.37 2.37 0 0 1 9.875 8 2.37 2.37 0 0 1 8 7.083 2.37 2.37 0 0 1 6.125 8a2.37 2.37 0 0 1-1.875-.917A2.375 2.375 0 0 1 0 5.625V5.37a1.5 1.5 0 0 1 .361-.976zm1.78 4.275a1.375 1.375 0 0 0 2.75 0 .5.5 0 0 1 1 0 1.375 1.375 0 0 0 2.75 0 .5.5 0 0 1 1 0 1.375 1.375 0 1 0 2.75 0V5.37a.5.5 0 0 0-.12-.325L12.27 2H3.73L1.12 5.045A.5.5 0 0 0 1 5.37v.255a1.375 1.375 0 0 0 2.75 0 .5.5 0 0 1 1 0M1.5 8.5A.5.5 0 0 1 2 9v6h1v-5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v5h6V9a.5.5 0 0 1 1 0v6h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1V9a.5.5 0 0 1 .5-.5M4 15h3v-5H4zm5-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1zm3 0h-2v3h2z"
+                      />
+                    </svg>
+
+                    <span
+                      class="font-bold text-purple-700"
+                      id="detail-shop-name-text"
+                      >Toko Rahasia</span
+                    >
+                  </div>
+
+                  <div
+                    class="grid grid-cols-[auto_1fr] gap-x-2 items-start text-sm text-gray-700"
                   >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-4 w-4 text-red-400 mt-[2px] flex-shrink-0"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fill-rule="evenodd"
+                        d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+                        clip-rule="evenodd"
+                      />
+                    </svg>
+
+                    <p
+                      id="detail-shop-address-text"
+                      class="text-sm text-gray-500"
+                    >
+                      Memuat Alamat...
+                    </p>
+                  </div>
                 </div>
               </div>
-
               <div class="p-3 sm:p-4 bg-gray-50 rounded-lg shadow-inner mb-4">
                 <div
-                  class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4"
+                  class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2"
                 >
                   <p
                     id="detail-product-price"
@@ -743,15 +768,15 @@
                         +
                       </button>
                     </div>
-                    <p
-                      id="detail-stock-info"
-                      class="text-xs text-gray-500 whitespace-nowrap"
-                    >
-                      Stok: 0
-                    </p>
                   </div>
                 </div>
 
+                <p
+                  id="detail-stock-info"
+                  class="text-sm font-semibold text-gray-600 mt-2 mb-4"
+                >
+                  Stok: 0
+                </p>
                 <div
                   class="flex flex-col space-y-3 md:flex-row md:space-y-0 md:space-x-3 mt-4"
                   id="detail-action-buttons"

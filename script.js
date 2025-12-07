@@ -409,12 +409,20 @@ function handleProductCardClick(e) {
 
   loadProductDetails(productId);
 }
-
 async function loadProductDetails(productId) {
+  // --- INISIALISASI TAMPILAN AWAL ---
   detailProductName.textContent = "Memuat...";
   detailProductPrice.textContent = "Rp 0";
   detailProductDescription.textContent = "Sedang memuat deskripsi...";
   detailShopNameText.textContent = "Toko Rahasia";
+
+  // 🔥 INISIALISASI ELEMEN ALAMAT
+  const detailShopAddressText = document.getElementById(
+    "detail-shop-address-text"
+  );
+  if (detailShopAddressText)
+    detailShopAddressText.textContent = "Memuat Alamat...";
+
   detailProductImage.src =
     "https://via.placeholder.com/600x400.png?text=Memuat...";
   if (detailOwnerMessage) detailOwnerMessage.classList.add("hidden");
@@ -429,27 +437,35 @@ async function loadProductDetails(productId) {
     detailStockInfo.textContent = "Stok: Sedang diperiksa...";
 
   const actionButtons = document.getElementById("detail-action-buttons");
+  const quantityControlsWrapper = document.getElementById("detail-qty-control"); // Asumsi ID kontrol kuantitas adalah detail-qty-control
 
   try {
     const productDoc = await db.collection("products").doc(productId).get();
 
     if (!productDoc.exists) {
       detailProductName.textContent = "Produk Tidak Ditemukan";
+      if (detailStockInfo) detailStockInfo.textContent = "Stok: N/A";
+      if (detailShopAddressText) detailShopAddressText.textContent = ""; // Kosongkan alamat jika produk tidak ditemukan
       return;
     }
 
     const product = productDoc.data();
 
+    // Pastikan stok adalah angka
+    const stok = product.stock !== undefined ? parseInt(product.stock) : 1000;
+
     const sellerData = await getSellerData(product.ownerId);
     const shopName = sellerData.shopName || "Toko Rahasia";
+    // 🔥 AMBIL DATA ALAMAT
+    const shopAddress = sellerData.address || "Lokasi tidak tersedia.";
 
     const price =
       typeof product.harga === "number"
         ? product.harga
         : parseInt(product.harga) || 0;
     const isOwner = currentUser && product.ownerId === currentUser.uid;
-    const stok = product.stock !== undefined ? product.stock : 1000;
 
+    // --- UPDATE DATA PRODUK KE DOM ---
     detailProductName.textContent = product.nama;
     detailProductPrice.textContent = `Rp ${price.toLocaleString("id-ID")}`;
     detailProductDescription.textContent =
@@ -461,33 +477,64 @@ async function loadProductDetails(productId) {
 
     detailShopNameText.textContent = shopName;
 
+    // --- LOGIKA KEPEMILIKAN (PENJUAL) ---
     if (isOwner) {
+      // Penjual (Pemilik Produk)
       if (detailOwnerMessage) {
         detailOwnerMessage.textContent =
-          "Anda adalah pemilik produk ini. Fitur beli/keranjang dinonaktifkan.";
+          "Anda adalah pemilik produk ini. Hanya menampilkan informasi inventaris.";
         detailOwnerMessage.classList.remove("hidden");
       }
 
+      // Sembunyikan elemen pembelian
       if (actionButtons) actionButtons.classList.add("hidden");
       if (quantityControlsWrapper)
         quantityControlsWrapper.classList.add("hidden");
-      if (detailStockInfo) detailStockInfo.classList.add("hidden");
+
+      // 🔥 SEMBUNYIKAN/KOSONGKAN ALAMAT DI MODE PENJUAL
+      if (detailShopAddressText) detailShopAddressText.textContent = "";
+
+      // Tampilkan Informasi Stok untuk Penjual
+      if (detailStockInfo) {
+        detailStockInfo.classList.remove("hidden");
+        detailStockInfo.textContent = `Stok Saat Ini: ${
+          stok > 0 ? stok : "Habis"
+        }`;
+        detailStockInfo.classList.add("font-bold", "text-lg", "text-green-600");
+      }
     } else {
+      // Pembeli (Bukan Pemilik Produk)
       if (detailOwnerMessage) detailOwnerMessage.classList.add("hidden");
+
+      // 🔥 TAMPILKAN ALAMAT TOKO UNTUK PEMBELI
+      if (detailShopAddressText)
+        detailShopAddressText.textContent = shopAddress;
 
       if (actionButtons) actionButtons.classList.remove("hidden");
       if (quantityControlsWrapper)
         quantityControlsWrapper.classList.remove("hidden");
 
-      if (detailStockInfo) detailStockInfo.classList.remove("hidden");
-      if (detailStockInfo) detailStockInfo.textContent = `Stok: ${stok}`;
+      if (detailStockInfo) {
+        detailStockInfo.classList.remove("hidden");
+        detailStockInfo.textContent = `Stok: ${stok > 0 ? stok : "Habis"}`;
+        detailStockInfo.classList.remove(
+          "font-bold",
+          "text-lg",
+          "text-green-600"
+        );
+      }
 
+      // Kontrol Kuantitas untuk Pembeli
       if (stok <= 0) {
         if (qtyIncrementBtn) qtyIncrementBtn.disabled = true;
         if (productQuantityInput) productQuantityInput.value = 0;
+        if (productQuantityInput) productQuantityInput.disabled = true;
+        if (actionButtons) actionButtons.classList.add("hidden");
       } else {
         if (qtyIncrementBtn) qtyIncrementBtn.disabled = false;
         if (productQuantityInput) productQuantityInput.value = 1;
+        if (productQuantityInput) productQuantityInput.disabled = false;
+        if (actionButtons) actionButtons.classList.remove("hidden");
       }
     }
   } catch (error) {
@@ -497,6 +544,8 @@ async function loadProductDetails(productId) {
     detailProductImage.src =
       "https://via.placeholder.com/600x400.png?text=Error";
     if (detailStockInfo) detailStockInfo.textContent = "Stok: Tidak diketahui";
+    if (detailShopAddressText)
+      detailShopAddressText.textContent = "Gagal memuat alamat.";
   }
 }
 
