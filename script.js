@@ -732,6 +732,20 @@ function handleAuthFirebaseError(error) {
 
   displayAuthError(errorMessage);
 }
+
+function getCloudinaryPublicId(imageUrl) {
+  // ... (Implementasi logika ekstraksi Public ID) ...
+  if (!imageUrl || typeof imageUrl !== "string") return null;
+  const parts = imageUrl.split("/");
+  const uploadIndex = parts.indexOf("upload");
+  if (uploadIndex !== -1 && parts.length > uploadIndex + 1) {
+    const publicIdPath = parts.slice(uploadIndex + 2).join("/");
+    const publicId = publicIdPath.split(".").slice(0, -1).join(".");
+    return publicId;
+  }
+  return null;
+}
+
 async function handleSubmitAuth(e) {
   e.preventDefault();
 
@@ -1224,6 +1238,9 @@ async function handleDeleteProduct(e) {
 
   const deleteBtn = e.currentTarget;
   const productId = deleteBtn.dataset.id;
+  const originalHtml = deleteBtn.innerHTML;
+  const originalClassName = deleteBtn.className;
+
   if (!currentUser || !productId) {
     Swal.fire({
       icon: "error",
@@ -1233,12 +1250,21 @@ async function handleDeleteProduct(e) {
     return;
   }
 
-  const originalHtml = deleteBtn.innerHTML;
-  const originalClassName = deleteBtn.className;
+  // 1. Dapatkan data produk untuk URL gambar
+  let imageUrl = null;
+  try {
+    const productDoc = await db.collection("products").doc(productId).get();
+    if (productDoc.exists) {
+      imageUrl = productDoc.data().imageUrl;
+    }
+  } catch (error) {
+    Swal.fire("Gagal!", "Gagal mendapatkan data produk.", "error");
+    return;
+  }
 
   const result = await Swal.fire({
     title: "Hapus Produk?",
-    text: "Anda yakin ingin menghapus produk ini? Tindakan ini tidak dapat dibatalkan.",
+    text: "Anda yakin ingin menghapus produk ini? Tindakan ini tidak dapat dibatalkan, dan gambar terkait akan dihapus secara aman.",
     icon: "warning",
     showCancelButton: true,
     confirmButtonColor: "#d33",
@@ -1251,21 +1277,52 @@ async function handleDeleteProduct(e) {
     setLoading(deleteBtn, true, originalHtml, "Menghapus...");
 
     try {
+      const publicId = getCloudinaryPublicId(imageUrl);
+
+      if (publicId) {
+        // 💥 2. PANGGIL CLOUDFLARE WORKER UNTUK PENGHAPUSAN AMAN 💥
+        const workerUrl = "https://jolly-cell-829e.jokoadhikusumo.workers.dev"; // GANTI INI DENGAN URL ASLI ANDA
+
+        console.log(
+          `Mengirim permintaan penghapusan gambar ke Worker untuk Public ID: ${publicId}`
+        );
+
+        const deleteResponse = await fetch(workerUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ publicId: publicId }),
+        });
+
+        if (!deleteResponse.ok) {
+          const errorDetail = await deleteResponse.json();
+          // Jika Worker gagal menghapus, lemparkan error untuk membatalkan penghapusan Firestore
+          throw new Error(
+            `Worker Error: ${
+              errorDetail.message || "Gagal menghapus Cloudinary."
+            }`
+          );
+        }
+
+        console.log("Gambar Cloudinary berhasil dihapus via Worker.");
+      }
+
+      // 3. Hapus data dari Firestore (Hanya jika Worker berhasil)
       await db.collection("products").doc(productId).delete();
 
-      Swal.fire("Dihapus!", "Produk Anda berhasil dihapus.", "success");
-
+      Swal.fire(
+        "Dihapus!",
+        "Produk dan gambar terkait berhasil dihapus.",
+        "success"
+      );
       loadProducts();
     } catch (error) {
-      deleteBtn.innerHTML = originalHtml;
-      deleteBtn.className = originalClassName;
-
-      Swal.fire(
-        "Gagal!",
-        "Gagal menghapus produk. Pastikan Anda pemiliknya dan aturan Firebase sudah benar.",
-        "error"
-      );
-      console.error("Error deleting document: ", error);
+      console.error("Error menghapus produk:", error);
+      Swal.fire("Gagal!", `Gagal menghapus produk. ${error.message}`, "error");
+    } finally {
+      // 4. Reset loading state
+      setLoading(deleteBtn, false, originalHtml);
     }
   }
 }
