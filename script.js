@@ -2382,9 +2382,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const currentAction = authSubmitBtn.getAttribute("data-action");
 
       if (currentAction === "login") {
-        const adminNumber = "6281234567890";
+        const adminNumber = "6285161065796";
         const message = encodeURIComponent(
-          "Halo Admin, saya tertarik untuk mendaftar sebagai penjual di platform Anda. Bisakah Anda membantu saya mendaftar?"
+          "Halo Admin, saya tertarik untuk mendaftar sebagai penjual di platform Dakata Shop. Bisakah membantu saya mendaftar?"
         );
 
         const whatsappUrl = `https://wa.me/${adminNumber}?text=${message}`;
