@@ -67,6 +67,35 @@ let productListDiv,
   sellerControls,
   sellerGreeting;
 
+// Data yang akan dibawa dari Detail Produk ke Formulir Order
+let currentOrderQuantity = 1;
+let currentOrderSellerPhone = "";
+let currentOrderProductDetail = null;
+
+let cartView;
+let cartItemsContainer;
+let cartTotalPrice;
+let checkoutBtn;
+let backToProductsFromCartBtn;
+let productListView;
+
+// Variabel DOM baru
+let orderDetailView;
+let backToDetailBtn;
+let orderForm;
+let buyerNameInput;
+let buyerPhoneInput;
+let buyerAddressInput;
+let orderSubmitBtn;
+let orderError;
+let orderProductSummary;
+let orderTotalPrice;
+let buyNowBtn;
+let currentProductDetail = null;
+let currentSellerPhone = "";
+let isOrderSent = false;
+let isMultiItemCheckout = false;
+
 // 🔥 VARIABEL INPUT AUTH KHUSUS REGISTER 🔥
 let authRoleGroup, authRoleInput;
 let authPhoneInput, authAddressInput;
@@ -91,6 +120,13 @@ let productDetailView,
 // 🔥 VARIABEL UNTUK CROPPER 🔥
 let imageToCrop;
 let cropModal, closeCropModalBtn, applyCropBtn;
+
+// Struktur Data Keranjang
+let cart = []; // Array untuk menyimpan objek item { produkId, nama, harga, kuantitas }
+
+// Elemen DOM Keranjang
+let cartCount; // Badge jumlah item di header
+let addToCartBtn; // Tombol 'Masukkan Keranjang' di Detail View
 
 // 🔥 DEKLARASI VARIABEL MANAGEMENT 🔥
 let manageBtn,
@@ -190,6 +226,104 @@ async function getSellerData(uid) {
       address: "",
     };
   }
+}
+// Asumsi: cartItemsContainer, cartTotalPrice, handleRemoveFromCart sudah dideklarasikan global dan diinisialisasi
+function renderCartItems() {
+  if (!cartItemsContainer || !cartTotalPrice) return;
+
+  // 1. Kosongkan wadah dan cari kembali pesan 'Keranjang Kosong'
+  // NOTE: Jika emptyMessage dipindahkan ke luar container, cari di document.
+  const emptyMessage = document.getElementById("empty-cart-message");
+
+  cartItemsContainer.innerHTML = ""; // Bersihkan semua item lama dan pesan kosong
+
+  let totalBelanja = 0;
+
+  if (cart.length === 0) {
+    // Tampilkan pesan kosong jika keranjang benar-benar kosong
+    if (emptyMessage) {
+      cartItemsContainer.appendChild(emptyMessage);
+      emptyMessage.classList.remove("hidden");
+    }
+    cartTotalPrice.textContent = "Rp 0";
+
+    // Nonaktifkan tombol checkout
+    const checkoutBtn = document.getElementById("checkout-btn");
+    if (checkoutBtn) checkoutBtn.disabled = true;
+    return;
+  }
+
+  // Sembunyikan pesan kosong jika ada item (hanya perlu jika pesan kosong ada di DOM)
+  if (emptyMessage) emptyMessage.classList.add("hidden");
+
+  // Aktifkan tombol checkout
+  const checkoutBtn = document.getElementById("checkout-btn");
+  if (checkoutBtn) checkoutBtn.disabled = false;
+
+  // 2. Iterasi dan buat elemen HTML untuk setiap item
+  cart.forEach((item) => {
+    // Pastikan harga adalah angka
+    const itemPrice = Number(item.price) || 0;
+
+    const itemTotal = itemPrice * item.quantity;
+    totalBelanja += itemTotal;
+
+    // Gunakan URL gambar yang disimpan, dengan fallback
+    const imageSource = item.image || "https://via.placeholder.com/64";
+
+    const cartItemElement = document.createElement("div");
+    cartItemElement.className =
+      "flex items-center justify-between border-b pb-4 pt-4 first:pt-0";
+    cartItemElement.innerHTML = `
+            <div class="flex items-center space-x-4 flex-grow">
+                <img 
+                    src="${imageSource}" 
+                    alt="${item.nama}" 
+                    class="w-16 h-16 object-cover rounded-md flex-shrink-0"
+                >
+                <div class="flex-grow">
+                    <p class="font-semibold text-gray-800 line-clamp-2">${
+                      item.nama
+                    }</p>
+                    <p class="text-sm text-gray-500">${item.shopName}</p>
+                    <div class="flex items-center space-x-2 mt-1">
+                        <span class="text-sm font-bold text-red-600">Rp ${itemPrice.toLocaleString(
+                          "id-ID"
+                        )}</span>
+                        <span class="text-xs text-gray-400">x ${
+                          item.quantity
+                        }</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex flex-col items-end space-y-2 ml-4">
+                <span class="font-bold text-lg text-navy-blue whitespace-nowrap">
+                    Rp ${itemTotal.toLocaleString("id-ID")}
+                </span>
+                <button 
+                    data-id="${item.productId}" 
+                    class="remove-from-cart-btn text-xs font-semibold text-red-500 hover:text-red-700 transition duration-200"
+                >
+                    Hapus
+                </button>
+            </div>
+        `;
+    cartItemsContainer.appendChild(cartItemElement);
+  });
+
+  // 3. Perbarui Total Belanja
+  cartTotalPrice.textContent = `Rp ${totalBelanja.toLocaleString("id-ID")}`;
+
+  // 4. Pasang Listener Hapus
+  document.querySelectorAll(".remove-from-cart-btn").forEach((button) => {
+    // 🔥 Pastikan handleRemoveFromCart tersedia sebelum dipasang
+    if (typeof handleRemoveFromCart === "function") {
+      button.addEventListener("click", handleRemoveFromCart);
+    } else {
+      console.error("Fungsi handleRemoveFromCart belum terdefinisi!");
+    }
+  });
 }
 
 function renderProductList(products) {
@@ -296,14 +430,36 @@ async function loadProducts() {
 
     await Promise.all(sellerPromises);
 
-    // 🔥 FIX: Mengubah grid-cols-1 menjadi grid-cols-2 sebagai default untuk mobile/small screens
+    // FIX: Mengubah grid-cols-1 menjadi grid-cols-2 sebagai default untuk mobile/small screens
     productListDiv.className =
       "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6";
 
+    // ------------------------------------------------------
+    // 🔥 PERUBAHAN: Iterasi dan Tambahkan Listener Keranjang
+    // ------------------------------------------------------
     products.forEach((product) => {
       product.shopName = sellerNamesMap[product.ownerId] || "Toko Unknown";
+
+      // Asumsi: createProductCard(product) mengembalikan elemen HTML kartu
       const productElement = createProductCard(product);
       productListDiv.appendChild(productElement);
+
+      // --- PASANG LISTENER KERANJANG DI SINI ---
+
+      // 1. Dapatkan tombol Keranjang. (ID harus diset di fungsi createProductCard)
+      const cartButton = productElement.querySelector(
+        `#add-to-cart-${product.id}`
+      );
+
+      if (cartButton) {
+        cartButton.addEventListener("click", (e) => {
+          e.stopPropagation(); // Mencegah klik dari tombol memicu handleProductDetailClick
+
+          // 2. Panggil fungsi addToCart dengan produk ini dan kuantitas 1
+          addToCart(product, 1);
+        });
+      }
+      // ------------------------------------------
     });
   } catch (error) {
     console.error("Error memuat produk: ", error);
@@ -313,21 +469,30 @@ async function loadProducts() {
 }
 
 function handleBackToProductsClick() {
+  // 🔥 TAMBAHKAN PENYEMBUNYIAN CART VIEW
   if (productDetailView) productDetailView.classList.add("hidden");
   if (managementView) managementView.classList.add("hidden");
   if (adminView) adminView.classList.add("hidden");
 
+  // 🔥 SEMBUNYIKAN TAMPILAN KERANJANG
+  if (cartView) cartView.classList.add("hidden");
+
+  // Tampilkan daftar produk utama
   if (productListWrapperElement)
     productListWrapperElement.classList.remove("hidden");
 
   const isSellerLoggedIn = currentUser && sellerControls;
 
+  // Logika Menampilkan/Menyembunyikan Banner
   if (isSellerLoggedIn) {
+    // Penjual tidak perlu banner
     if (mainBanner) mainBanner.classList.add("hidden");
   } else {
+    // Pengguna publik/pembeli perlu banner (yang sempat disembunyikan di cartView)
     if (mainBanner) mainBanner.classList.remove("hidden");
   }
 
+  // Reset Tampilan Tombol Management
   if (manageBtn) {
     manageBtn.innerHTML = `
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -337,6 +502,7 @@ function handleBackToProductsClick() {
     `;
   }
 
+  // Reset Tampilan Tombol Admin
   if (adminBtn) {
     adminBtn.innerHTML = `
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -410,6 +576,11 @@ function handleProductCardClick(e) {
   loadProductDetails(productId);
 }
 
+// Asumsi variabel global di luar fungsi:
+// let currentProductDetail = null;
+// let currentSellerPhone = '';
+// const detailProductName = document.getElementById("detail-product-name"); // dan seterusnya...
+
 async function loadProductDetails(productId) {
   // --- INISIALISASI TAMPILAN AWAL ---
   detailProductName.textContent = "Memuat...";
@@ -417,11 +588,11 @@ async function loadProductDetails(productId) {
   detailProductDescription.textContent = "Sedang memuat deskripsi...";
   detailShopNameText.textContent = "Toko Rahasia";
 
-  // 🔥 INISIALISASI ELEMEN ALAMAT TEKS
+  // 🔥 INISIALISASI ELEMEN ALAMAT TEKS (Sudah ada di dalam fungsi)
   const detailShopAddressText = document.getElementById(
     "detail-shop-address-text"
   );
-  // 💡 INISIALISASI ELEMEN WRAPPER/KONTAINER ALAMAT (Termasuk Ikon)
+  // 💡 INISIALISASI ELEMEN WRAPPER/KONTAINER ALAMAT (Sudah ada di dalam fungsi)
   const detailShopAddressWrapper = document.getElementById(
     "detail-shop-address-wrapper"
   );
@@ -443,7 +614,11 @@ async function loadProductDetails(productId) {
     detailStockInfo.textContent = "Stok: Sedang diperiksa...";
 
   const actionButtons = document.getElementById("detail-action-buttons");
-  const quantityControlsWrapper = document.getElementById("detail-qty-control"); // Asumsi ID kontrol kuantitas adalah detail-qty-control
+  const quantityControlsWrapper = document.getElementById("detail-qty-control");
+
+  // Reset variabel global yang digunakan untuk pemesanan setiap kali produk baru dimuat
+  currentProductDetail = null;
+  currentSellerPhone = "";
 
   try {
     const productDoc = await db.collection("products").doc(productId).get();
@@ -451,7 +626,6 @@ async function loadProductDetails(productId) {
     if (!productDoc.exists) {
       detailProductName.textContent = "Produk Tidak Ditemukan";
       if (detailStockInfo) detailStockInfo.textContent = "Stok: N/A";
-      // ✅ LOGIKA: Sembunyikan wrapper jika produk tidak ditemukan
       if (detailShopAddressWrapper)
         detailShopAddressWrapper.classList.add("hidden");
       return;
@@ -466,12 +640,23 @@ async function loadProductDetails(productId) {
     const shopName = sellerData.shopName || "Toko Rahasia";
     // 🔥 AMBIL DATA ALAMAT
     const shopAddress = sellerData.address || "Lokasi tidak tersedia.";
+    // 🔥 AMBIL DATA PHONE PENJUAL
+    const sellerPhone = sellerData.phone || null;
 
     const price =
       typeof product.harga === "number"
         ? product.harga
         : parseInt(product.harga) || 0;
     const isOwner = currentUser && product.ownerId === currentUser.uid;
+
+    // 🔥 PENGISIAN VARIABEL GLOBAL UNTUK FUNGSI ORDER (handleMoveToOrderView)
+    currentProductDetail = {
+      ...product, // Salin semua data produk
+      id: productDoc.id,
+      price: price, // Pastikan harga sudah terformat sebagai angka
+      shopName: shopName,
+    };
+    currentSellerPhone = sellerPhone; // Simpan nomor telepon penjual
 
     // --- UPDATE DATA PRODUK KE DOM ---
     detailProductName.textContent = product.nama;
@@ -499,12 +684,10 @@ async function loadProductDetails(productId) {
       if (quantityControlsWrapper)
         quantityControlsWrapper.classList.add("hidden");
 
-      // ✅ LOGIKA: SEMBUNYIKAN SELURUH BLOK ALAMAT (IKON + TEKS) DI MODE PENJUAL
+      // Sembunyikan seluruh blok alamat di mode Penjual
       if (detailShopAddressWrapper) {
         detailShopAddressWrapper.classList.add("hidden");
       }
-      // Kita tidak perlu lagi mengosongkan teksnya secara terpisah karena wrapper sudah disembunyikan:
-      // if (detailShopAddressText) detailShopAddressText.textContent = "";
 
       // Tampilkan Informasi Stok untuk Penjual
       if (detailStockInfo) {
@@ -518,7 +701,7 @@ async function loadProductDetails(productId) {
       // Pembeli (Bukan Pemilik Produk / Publik)
       if (detailOwnerMessage) detailOwnerMessage.classList.add("hidden");
 
-      // ✅ LOGIKA: TAMPILKAN SELURUH BLOK ALAMAT (IKON + TEKS) UNTUK PEMBELI/PUBLIK
+      // TAMPILKAN SELURUH BLOK ALAMAT (IKON + TEKS) UNTUK PEMBELI/PUBLIK
       if (detailShopAddressWrapper) {
         detailShopAddressWrapper.classList.remove("hidden");
       }
@@ -543,11 +726,19 @@ async function loadProductDetails(productId) {
       }
 
       // Kontrol Kuantitas untuk Pembeli
-      if (stok <= 0) {
+      if (stok <= 0 || !sellerPhone) {
+        // Jika stok habis ATAU nomor penjual tidak ada, disable order
         if (qtyIncrementBtn) qtyIncrementBtn.disabled = true;
         if (productQuantityInput) productQuantityInput.value = 0;
         if (productQuantityInput) productQuantityInput.disabled = true;
         if (actionButtons) actionButtons.classList.add("hidden");
+
+        if (detailStockInfo) {
+          detailStockInfo.textContent = !sellerPhone
+            ? "Toko tidak menyediakan kontak order."
+            : "Stok: Habis";
+          detailStockInfo.classList.add("text-red-500");
+        }
       } else {
         if (qtyIncrementBtn) qtyIncrementBtn.disabled = false;
         if (productQuantityInput) productQuantityInput.value = 1;
@@ -575,12 +766,15 @@ function createProductCard(product) {
 
   card.dataset.id = product.id;
 
+  // Pastikan product.ownerId ada untuk item keranjang
+  const ownerId = product.ownerId || null;
+
   const price =
     typeof product.harga === "number"
       ? product.harga
       : parseInt(product.harga) || 0;
 
-  const isOwner = currentUser && product.ownerId === currentUser.uid;
+  const isOwner = currentUser && ownerId === currentUser.uid;
   const shopName = product.shopName || "Toko Terpercaya";
 
   const ownerControls = isOwner
@@ -592,10 +786,16 @@ function createProductCard(product) {
     `
     : "";
 
+  // 🔥 Tombol Keranjang: Tambahkan data-owner-id untuk referensi
   const cartButton = isOwner
     ? ""
     : `
-      <button class="w-full bg-yellow-400 text-gray-900 py-1.5 rounded-lg text-sm font-bold hover:bg-yellow-500 transition duration-200 shadow-sm">
+      <button 
+          type="button"
+          data-product-id="${product.id}"
+          data-owner-id="${ownerId}" 
+          class="add-to-cart-btn-list w-full bg-yellow-400 text-gray-900 py-1.5 rounded-lg text-sm font-bold hover:bg-yellow-500 transition duration-200 shadow-sm"
+      >
           Keranjang
       </button>
   `;
@@ -667,9 +867,29 @@ function createProductCard(product) {
     const editBtn = card.querySelector(".edit-btn");
     if (deleteBtn) deleteBtn.addEventListener("click", handleDeleteProduct);
     if (editBtn) editBtn.addEventListener("click", handleEditClick);
+  } else {
+    // 🔥 TAMBAHKAN LISTENER UNTUK TOMBOL KERANJANG DI LIST
+    const listCartBtn = card.querySelector(".add-to-cart-btn-list");
+    if (listCartBtn) {
+      listCartBtn.addEventListener("click", (e) => {
+        // Karena kita ada di loop createProductCard, kita dapat meneruskan objek produk lengkap
+        handleAddToCartFromList(product);
+      });
+    }
   }
 
-  card.addEventListener("click", handleProductCardClick);
+  // Listener untuk menampilkan detail produk (ditinggalkan karena sudah benar)
+  card.addEventListener("click", (e) => {
+    const targetClasses = e.target.classList;
+    if (
+      targetClasses.contains("edit-btn") ||
+      targetClasses.contains("delete-btn") ||
+      targetClasses.contains("add-to-cart-btn-list")
+    ) {
+      return;
+    }
+    handleProductCardClick(e);
+  });
 
   return card;
 }
@@ -1172,6 +1392,12 @@ auth.onAuthStateChanged(async (user) => {
   loadProducts();
 });
 
+function handleAddToCartFromList(product) {
+  // Memanggil fungsi addToCart dengan kuantitas default 1
+  // addToCart akan menangani pengambilan sellerPhone secara async dari product.ownerId
+  addToCart(product, 1);
+}
+
 // -----------------------------------------------------------------
 // BAGIAN 5: FUNGSI KONTROL PRODUK OLEH PEMILIK (UPLOAD, EDIT, & HAPUS)
 // -----------------------------------------------------------------
@@ -1459,42 +1685,79 @@ async function handleDeleteProduct(e) {
 // BAGIAN 6: FUNGSI MANAGEMENT (RIWAYAT TRANSAKSI & SALDO)
 // -----------------------------------------------------------------
 function toggleManagementView() {
+  // 1. Cek User Login
   if (!currentUser) return;
 
-  if (managementView.classList.contains("hidden")) {
-    // Tampilkan Management View
-    managementView.classList.remove("hidden");
-    productListWrapper.classList.add("hidden");
-    if (adminView) adminView.classList.add("hidden");
+  // 🔥 Pengecekan KRITIS untuk Error DOM (Disertai DEBUG Log)
+  // Menggunakan productListWrapperElement sesuai inisialisasi DOM Anda
+  if (!managementView || !productListWrapperElement || !manageBtn) {
+    console.error(
+      "Error DOM: Salah satu elemen manajemen tidak ditemukan (managementView, productListWrapperElement, atau manageBtn)."
+    );
+    // Tambahkan log detail untuk melacak variabel mana yang null
+    console.error(
+      "DEBUG Check: managementView:",
+      managementView,
+      "productListWrapperElement:",
+      productListWrapperElement,
+      "manageBtn:",
+      manageBtn
+    );
+    return;
+  }
 
-    if (adminBtn) {
-      adminBtn.innerHTML = `
+  // Asumsi: Kita perlu memverifikasi peran user sebelum menampilkan management view
+  // Jika getSellerData tidak dibutuhkan, Anda bisa menghapus .then().catch() ini
+  getSellerData(currentUser.uid)
+    .then((sellerData) => {
+      // Hanya izinkan akses jika role adalah seller atau admin
+      if (sellerData.role !== "seller" && sellerData.role !== "admin") return;
+
+      // 2. Logika Toggle View
+      if (managementView.classList.contains("hidden")) {
+        // --- MASUK KE TAMPILAN MANAGEMENT ---
+        managementView.classList.remove("hidden");
+        productListWrapperElement.classList.add("hidden"); // 🔥 DIGANTI
+
+        // Sembunyikan Admin View jika ada (adminView sudah diperiksa di inisialisasi)
+        if (adminView) adminView.classList.add("hidden");
+
+        // Atur Tombol Admin (kembalikan ke mode Admin/Pelanggan)
+        if (adminBtn) {
+          adminBtn.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
             </svg>
             Admin (Pelanggan)
         `;
-    }
+        }
 
-    manageBtn.innerHTML = `
+        // Ubah Teks Tombol Management menjadi 'Lihat Produk'
+        manageBtn.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V3zm2 4v1h10V7H5zm0 3v1h10v-1H5zm0 3v1h10v-1H5z" clip-rule="evenodd" />
             </svg>
             Lihat Produk
         `;
 
-    loadTransactionHistory();
-  } else {
-    // Tampilkan Produk View
-    managementView.classList.add("hidden");
-    productListWrapper.classList.remove("hidden");
-    manageBtn.innerHTML = `
+        loadTransactionHistory(); // Asumsi fungsi ini memuat data transaksi/grafik
+      } else {
+        // --- KELUAR DARI TAMPILAN MANAGEMENT (KEMBALI KE PRODUK) ---
+        managementView.classList.add("hidden");
+        productListWrapperElement.classList.remove("hidden"); // 🔥 DIGANTI
+
+        // Kembalikan Teks Tombol Management ke 'Management'
+        manageBtn.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM13 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2zM13 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2z" />
             </svg>
             Management
         `;
-  }
+      }
+    })
+    .catch((error) => {
+      console.error("Error checking role for Management View:", error);
+    });
 }
 
 async function loadTransactionHistory() {
@@ -1737,26 +2000,44 @@ function renderSalesChart(salesData) {
 // -----------------------------------------------------------------
 
 function toggleAdminView() {
+  // 1. Cek User Login
   if (!currentUser) return;
 
-  if (!adminView || !productListWrapper || !adminBtn) {
+  // 2. 🔥 PERBAIKAN: Gunakan nama variabel yang benar (productListWrapperElement)
+  //    dan pastikan semua elemen ditemukan sebelum melanjutkan.
+  //    Asumsi: productListWrapper yang ada di log error Anda merujuk ke productListWrapperElement.
+  if (!adminView || !productListWrapperElement || !adminBtn) {
     console.error(
-      "Error DOM: Salah satu elemen admin/produk tidak ditemukan (adminView, productListWrapper, atau adminBtn)."
+      "Error DOM: Salah satu elemen admin/produk tidak ditemukan (adminView, productListWrapperElement, atau adminBtn)."
+    );
+    // Tambahkan log detail untuk melacak variabel mana yang null
+    console.error(
+      "DEBUG Check: adminView:",
+      adminView,
+      "productListWrapperElement:",
+      productListWrapperElement,
+      "adminBtn:",
+      adminBtn
     );
     return;
   }
 
   getSellerData(currentUser.uid)
     .then((sellerData) => {
+      // 3. Cek Role Admin
       if (sellerData.role !== "admin") return;
 
+      // 4. Logika Toggle View
       if (adminView.classList.contains("hidden")) {
+        // --- MASUK KE TAMPILAN ADMIN ---
         adminView.classList.remove("hidden");
-        productListWrapper.classList.add("hidden");
+        productListWrapperElement.classList.add("hidden"); // 🔥 DIGANTI
 
+        // Sembunyikan Management View jika terbuka
         if (managementView && !managementView.classList.contains("hidden")) {
           managementView.classList.add("hidden");
           if (manageBtn) {
+            // Mengembalikan ikon manageBtn ke default (Lihat Produk)
             manageBtn.innerHTML = `
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                         <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM13 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2zM13 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2z" />
@@ -1766,6 +2047,7 @@ function toggleAdminView() {
           }
         }
 
+        // Ubah Teks Tombol Admin menjadi 'Lihat Produk'
         adminBtn.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V3zm2 4v1h10V7H5zm0 3v1h10v-1H5zm0 3v1h10v-1H5z" clip-rule="evenodd" />
@@ -1773,11 +2055,13 @@ function toggleAdminView() {
                 Lihat Produk
             `;
 
-        loadCustomerList();
+        loadCustomerList(); // Asumsi fungsi ini memuat data pelanggan
       } else {
+        // --- KELUAR DARI TAMPILAN ADMIN (KEMBALI KE PRODUK) ---
         adminView.classList.add("hidden");
-        productListWrapper.classList.remove("hidden");
+        productListWrapperElement.classList.remove("hidden"); // 🔥 DIGANTI
 
+        // Ubah Teks Tombol Admin kembali ke 'Admin (Pelanggan)'
         adminBtn.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                     <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
@@ -1930,9 +2214,8 @@ async function handleDeleteUser(e) {
     }
   }
 }
-
 // -----------------------------------------------------------------
-// BAGIAN 7: FUNGSI PENGATURAN PROFIL & AKUN
+// BAGIAN 7: FUNGSI PENGATURAN PROFIL & AKUN (Disesuaikan)
 // -----------------------------------------------------------------
 
 function togglePasswordVisibility(inputElement, openIcon, closedIcon) {
@@ -1960,9 +2243,373 @@ function handleToggleProfilePasswordClick() {
   togglePasswordVisibility(newPasswordInput, eyeIconOpen, eyeIconClosed);
 }
 
+// Fungsi Handler untuk Tombol 'Masukkan Keranjang' di Detail View
+// Fungsi Handler untuk Tombol 'Masukkan Keranjang' di Detail View
+function handleAddToCartFromDetail() {
+  const quantity = parseInt(productQuantityInput.value) || 1;
+
+  if (currentProductDetail && currentProductDetail.ownerId && quantity > 0) {
+    // Memanggil addToCart TANPA argumen sellerPhone. addToCart akan mengambilnya sendiri.
+    addToCart(currentProductDetail, quantity);
+  } else {
+    Swal.fire(
+      "Peringatan",
+      "Data produk tidak lengkap atau jumlah tidak valid.",
+      "warning"
+    );
+  }
+}
+
+function handleCartClick() {
+  // 1. Sembunyikan semua view utama lainnya
+  if (productDetailView) productDetailView.classList.add("hidden");
+  if (managementView) managementView.classList.add("hidden");
+  if (adminView) adminView.classList.add("hidden");
+  if (orderDetailView) orderDetailView.classList.add("hidden");
+
+  // Sembunyikan Daftar Produk dan Banner
+  if (productListWrapperElement)
+    productListWrapperElement.classList.add("hidden");
+  if (productListView) productListView.classList.add("hidden");
+  if (mainBanner) mainBanner.classList.add("hidden");
+
+  // 2. Tampilkan View Keranjang
+  if (cartView) {
+    cartView.classList.remove("hidden");
+    renderCartItems(); // PANGGIL FUNGSI RENDER ITEM KERANJANG DI SINI
+    window.scrollTo(0, 0); // Gulir ke atas
+  } else {
+    Swal.fire(
+      "Error",
+      "Tampilan Keranjang (cart-view) tidak ditemukan.",
+      "error"
+    );
+  }
+}
+
+function loadOrderSummaryFromCart(cartItems) {
+  // 1. Ambil elemen DOM
+  const summaryListWrapper = document.getElementById("order-product-summary");
+  const totalElement = document.getElementById("order-total-price");
+  const backButton = document.getElementById("back-to-detail-btn");
+
+  if (!summaryListWrapper || !totalElement || !backButton) {
+    console.error("Salah satu elemen DOM ringkasan pesanan tidak ditemukan.");
+    Swal.fire(
+      "Error",
+      "Komponen tampilan checkout tidak lengkap. Cek ID elemen HTML.",
+      "error"
+    );
+    return;
+  }
+
+  // 2. Kustomisasi Tampilan untuk Checkout Keranjang (Multi-Item)
+
+  // a. 🔥 HANYA PENTING: Panggil setupBackToButtonListener() yang akan mengatur teks dan handler.
+  //    Tidak perlu logika replace teks di sini, biarkan setupBackToButtonListener yang menangani.
+
+  // b. Inisialisasi variabel total
+  let grandTotal = 0;
+
+  // c. Buat wadah UL baru untuk daftar item
+  const ulList = document.createElement("ul");
+  ulList.className = "space-y-2 mt-2";
+
+  // --- 3. RENDER DAFTAR PRODUK ---
+
+  cartItems.forEach((item) => {
+    const itemPrice = Number(item.price) || 0;
+    const itemTotal = itemPrice * item.quantity;
+    grandTotal += itemTotal;
+
+    const itemElement = document.createElement("li");
+    itemElement.className =
+      "flex justify-between items-center text-sm border-b border-red-200/50 pb-1";
+    itemElement.innerHTML = `
+            <div class="flex flex-col">
+                <p class="font-semibold text-gray-800 line-clamp-1">${
+                  item.nama
+                }</p>
+                <p class="text-xs text-gray-500">${
+                  item.quantity
+                } x Rp ${itemPrice.toLocaleString("id-ID")}</p>
+            </div>
+            <span class="font-bold text-red-700 whitespace-nowrap ml-4">
+                Rp ${itemTotal.toLocaleString("id-ID")}
+            </span>
+        `;
+    ulList.appendChild(itemElement);
+  });
+
+  // 4. Ganti isi order-product-summary dengan daftar multi-item
+  summaryListWrapper.innerHTML = "";
+  summaryListWrapper.appendChild(ulList);
+
+  // 5. Perbarui Total Harga
+  const finalTotal = grandTotal;
+  totalElement.textContent = `Total: Rp ${finalTotal.toLocaleString("id-ID")}`;
+
+  console.log(
+    `Checkout multi-item berhasil dimuat. ${
+      cartItems.length
+    } produk. Total: Rp ${grandTotal.toLocaleString("id-ID")}`
+  );
+
+  // 🔥 PANGGIL FUNGSI SETUP LISTENER DI AKHIR (Ini sudah benar)
+  setupBackToButtonListener();
+}
+
+function handleBackToCartClick() {
+  // 1. Sembunyikan Detail Pesanan
+  if (orderDetailView) {
+    orderDetailView.classList.add("hidden");
+  }
+
+  // 2. Tampilkan Tampilan Keranjang
+  if (cartView) {
+    cartView.classList.remove("hidden");
+    renderCartItems(); // Render ulang
+  }
+
+  window.scrollTo(0, 0);
+}
+
+function setupBackToButtonListener() {
+  const backButton = document.getElementById("back-to-detail-btn");
+  if (!backButton) return;
+
+  // 1. Hapus listener lama dengan kloning/replace (cara paling efektif)
+  const newBackButton = backButton.cloneNode(true);
+  backButton.parentNode.replaceChild(newBackButton, backButton);
+
+  const finalBackButton = newBackButton;
+
+  // 2. Tentukan teks dan handler
+  let newText = "";
+  let newHandler = null;
+
+  if (isMultiItemCheckout) {
+    // Mode Multi-Item: Kembali ke Keranjang
+    newText = "Kembali ke Keranjang";
+    newHandler = handleBackToCartClick;
+  } else {
+    // Mode Single Item: Kembali ke Detail Produk
+    newText = "Kembali ke Detail Produk";
+
+    if (typeof handleBackToDetailClick === "function") {
+      newHandler = handleBackToDetailClick;
+    } else {
+      newHandler = () => {
+        if (productListView) productListView.classList.remove("hidden");
+        if (orderDetailView) orderDetailView.classList.add("hidden");
+        if (mainBanner) mainBanner.classList.remove("hidden");
+      };
+      console.warn(
+        "Peringatan: handleBackToDetailClick tidak terdefinisi. Menggunakan fallback."
+      );
+    }
+  }
+
+  // 3. Atur Teks (Mempertahankan SVG)
+  const svgMatch = finalBackButton.innerHTML.match(/<svg.*?>.*?<\/svg>/i);
+  const svgPart = svgMatch ? svgMatch[0] : "";
+
+  if (svgPart) {
+    finalBackButton.innerHTML = svgPart + " " + newText;
+  } else {
+    finalBackButton.textContent = newText;
+  }
+
+  // 4. Pasang Handler
+  if (typeof newHandler === "function") {
+    finalBackButton.addEventListener("click", newHandler);
+  } else {
+    console.error(
+      `Handler untuk mode ${
+        isMultiItemCheckout ? "Keranjang" : "Single Item"
+      } tidak valid.`
+    );
+    finalBackButton.addEventListener("click", () => {
+      Swal.fire("Error", "Fungsi kembali tidak ditemukan.", "error");
+    });
+  }
+}
+
 /**
- * Membuka modal profil dan mengisi data penjual
+ * Menangani klik pada tombol "Lanjutkan ke Checkout".
+ * Mengalihkan ke tampilan Order Detail.
  */
+function handleCheckoutClick() {
+  if (cart.length === 0) {
+    Swal.fire(
+      "Peringatan",
+      "Keranjang Anda kosong, tidak bisa melanjutkan ke checkout.",
+      "warning"
+    );
+    return;
+  }
+
+  if (!orderDetailView || typeof loadOrderSummaryFromCart !== "function") {
+    Swal.fire(
+      "Error",
+      "Fungsi checkout atau tampilan detail pesanan belum siap.",
+      "error"
+    );
+    return;
+  }
+
+  // 1. Sembunyikan semua view yang aktif (termasuk cartView)
+  if (productListView) productListView.classList.add("hidden");
+  if (productDetailView) productDetailView.classList.add("hidden");
+  if (managementView) managementView.classList.add("hidden");
+  if (adminView) adminView.classList.add("hidden");
+  if (productListWrapperElement)
+    productListWrapperElement.classList.add("hidden");
+  if (mainBanner) mainBanner.classList.add("hidden");
+  if (cartView) cartView.classList.add("hidden"); // Sembunyikan keranjang
+
+  // 🔥 SET FLAG UNTUK MULTI-ITEM CHECKOUT
+  isMultiItemCheckout = true;
+
+  // 2. Tampilkan Tampilan Detail Pesanan
+  orderDetailView.classList.remove("hidden");
+
+  // 3. Muat data pesanan dari item keranjang
+  loadOrderSummaryFromCart(cart);
+
+  window.scrollTo(0, 0);
+}
+
+/**
+ * Memperbarui badge jumlah item di header
+ */
+function updateCartCount() {
+  const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
+
+  if (cartCount) {
+    cartCount.textContent = totalItems;
+    if (totalItems > 0) {
+      cartCount.classList.remove("hidden");
+    } else {
+      cartCount.classList.add("hidden");
+    }
+  }
+}
+
+/**
+ * Menambahkan atau memperbarui item di keranjang
+ * @param {object} product - Detail produk (id, nama, harga, shopName, shopPhone, dll.)
+ * @param {number} quantity - Jumlah item yang ditambahkan
+ */
+// Fungsi ASYNC untuk menambahkan produk ke keranjang
+async function addToCart(product, quantity = 1) {
+  if (!product || !product.id || !product.ownerId) {
+    // Wajibkan ownerId
+    Swal.fire("Error", "Data produk atau pemilik tidak valid.", "error");
+    return;
+  }
+
+  const rawPrice = product.price || product.harga;
+  const productPrice = Number(rawPrice) || 0;
+
+  const productImageURL =
+    product.image || product.imageUrl || "https://via.placeholder.com/64";
+
+  // --- 1. TENTUKAN SHOP NAME DAN PHONE (ASYNC) ---
+  const shopNameSource = product.shopName || "Toko";
+  let finalSellerPhone = null;
+
+  try {
+    // Ambil data penjual dari ownerId
+    const sellerData = await getSellerData(product.ownerId);
+    finalSellerPhone = sellerData.phone || null; // Ambil nomor HP dari database
+  } catch (error) {
+    console.error(
+      "Gagal mengambil data penjual saat menambahkan ke keranjang:",
+      error
+    );
+    Swal.fire(
+      "Error",
+      "Gagal mendapatkan kontak penjual untuk item ini. Coba lagi.",
+      "error"
+    );
+    return;
+  }
+
+  if (!finalSellerPhone) {
+    Swal.fire(
+      "Peringatan",
+      "Nomor kontak penjual hilang. Tidak dapat menambahkan ke keranjang.",
+      "warning"
+    );
+    return;
+  }
+
+  // --- 2. LOGIKA KERANJANG ---
+  const existingItem = cart.find((item) => item.productId === product.id);
+
+  if (existingItem) {
+    existingItem.quantity += quantity;
+  } else {
+    // Jika item baru, masukkan ke keranjang
+    cart.push({
+      productId: product.id,
+      nama: product.nama,
+      price: productPrice,
+      shopName: shopNameSource,
+      // 🔥 SIMPAN NOMOR HP YANG SUDAH DIAMBIL DARI DATABASE
+      shopPhone: finalSellerPhone,
+      image: productImageURL,
+      quantity: quantity,
+    });
+  }
+
+  updateCartCount();
+
+  Swal.fire({
+    icon: "success",
+    title: "Ditambahkan ke Keranjang!",
+    text: `${product.nama} (x${quantity}) berhasil ditambahkan.`,
+    toast: true,
+    position: "top-end",
+    showConfirmButton: false,
+    timer: 1500,
+  });
+}
+
+function handleRemoveFromCart(e) {
+  e.stopPropagation();
+
+  const productIdToRemove = e.currentTarget.dataset.id;
+
+  if (!productIdToRemove) {
+    console.error("ID Produk tidak ditemukan untuk dihapus.");
+    return;
+  }
+
+  const initialLength = cart.length;
+  cart = cart.filter((item) => item.productId !== productIdToRemove);
+
+  if (cart.length < initialLength) {
+    updateCartCount();
+    renderCartItems();
+
+    Swal.fire({
+      icon: "info",
+      title: "Item Dihapus",
+      text: "Produk berhasil dikeluarkan dari keranjang.",
+      toast: true,
+      position: "top-end",
+      showConfirmButton: false,
+      timer: 1000,
+    });
+  } else {
+    console.warn(
+      `Gagal menghapus item: Produk ID ${productIdToRemove} tidak ditemukan di keranjang.`
+    );
+  }
+}
+
 /**
  * Membuka modal profil dan mengisi data penjual
  */
@@ -1975,11 +2622,6 @@ async function openProfileModal() {
   }
 
   try {
-    // 0. Logging: Mulai pengambilan data
-    console.log(
-      `DEBUG [Profile]: Memulai pengambilan data penjual untuk UID: ${currentUser.uid}`
-    );
-
     const sellerData = await getSellerData(currentUser.uid);
 
     if (!sellerData) {
@@ -1989,42 +2631,17 @@ async function openProfileModal() {
       return;
     }
 
-    // 1. Logging: Data berhasil diambil
-    console.log("DEBUG [Profile]: Data Penjual berhasil dimuat:", sellerData);
-
     // 2. Isi input nama toko
     if (shopNameInput) {
       shopNameInput.value = sellerData.shopName || "";
-      console.log(
-        `DEBUG [Profile]: Mengisi shopNameInput dengan: ${shopNameInput.value}`
-      );
-    } else {
-      console.error(
-        "DEBUG [Profile]: shopNameInput tidak ditemukan! Pastikan ID 'shop-name' sudah benar di DOMContentLoaded."
-      );
     }
 
     // 3. Isi input Nomor HP dan Alamat
     if (profilePhoneInput) {
       profilePhoneInput.value = sellerData.phone || "";
-      console.log(
-        `DEBUG [Profile]: Mengisi profilePhoneInput dengan: ${profilePhoneInput.value}`
-      );
-    } else {
-      console.error(
-        "DEBUG [Profile]: profilePhoneInput tidak ditemukan! Pastikan ID 'profile-phone' sudah benar di DOMContentLoaded."
-      );
     }
-
     if (profileAddressInput) {
       profileAddressInput.value = sellerData.address || "";
-      console.log(
-        `DEBUG [Profile]: Mengisi profileAddressInput dengan: ${profileAddressInput.value}`
-      );
-    } else {
-      console.error(
-        "DEBUG [Profile]: profileAddressInput tidak ditemukan! Pastikan ID 'profile-address' sudah benar di DOMContentLoaded."
-      );
     }
 
     // 4. Reset tampilan error dan input password
@@ -2100,7 +2717,242 @@ async function handleUpdateShopName(e) {
     setLoading(shopNameSubmitBtn, false, originalText);
   }
 }
+/**
+ * Fungsi untuk berpindah view dari Detail Produk ke Formulir Order
+ */
+function handleMoveToOrderView() {
+  // 1. Ambil data saat ini
+  const quantity = parseInt(productQuantityInput.value) || 1;
 
+  // 2. Simpan data yang akan digunakan saat submit
+  currentOrderQuantity = quantity;
+  currentOrderProductDetail = currentProductDetail;
+  currentOrderSellerPhone = currentSellerPhone;
+
+  if (!currentOrderProductDetail) {
+    Swal.fire("Error", "Detail produk tidak ditemukan.", "error");
+    return;
+  }
+
+  const { nama, price } = currentOrderProductDetail;
+  const total = price * quantity;
+
+  // Format harga
+  const formatIDR = (amount) =>
+    new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+
+  // 3. Isi ringkasan di Order View
+  if (orderProductSummary)
+    orderProductSummary.textContent = `${nama} (x ${quantity})`;
+  if (orderTotalPrice)
+    orderTotalPrice.textContent = `Total: ${formatIDR(total)}`;
+  if (orderError) orderError.classList.add("hidden");
+
+  // 4. Alihkan View
+  if (productDetailView) productDetailView.classList.add("hidden");
+  if (orderDetailView) orderDetailView.classList.remove("hidden");
+
+  // 🔥 SET FLAG UNTUK SINGLE ITEM CHECKOUT
+  isMultiItemCheckout = false;
+  setupBackToButtonListener(); // Update tombol kembali ke mode Detail Produk
+
+  // Pastikan input nama/alamat pembeli direset atau dikosongkan saat view dipindahkan
+  if (buyerNameInput) buyerNameInput.value = "";
+  if (buyerPhoneInput) buyerPhoneInput.value = "";
+  if (buyerAddressInput) buyerAddressInput.value = "";
+
+  window.scrollTo(0, 0);
+}
+/**
+ * Fungsi untuk kembali dari Formulir Order ke Tampilan Detail Produk (Mode Single Item Checkout).
+ */
+function handleBackToDetailClick() {
+  if (orderDetailView) {
+    orderDetailView.classList.add("hidden");
+  }
+
+  if (productDetailView) {
+    productDetailView.classList.remove("hidden");
+  }
+
+  window.scrollTo(0, 0);
+}
+/**
+ * Menangani submit formulir pesanan dan membuat link WhatsApp.
+ */
+function handleOrderSubmit(e) {
+  e.preventDefault();
+  if (orderError) orderError.classList.add("hidden");
+
+  // --- 1. AMBIL DAN VALIDASI INPUT BUYER ---
+  const buyerName = buyerNameInput ? buyerNameInput.value.trim() : "";
+  const buyerPhoneRaw = buyerPhoneInput ? buyerPhoneInput.value.trim() : "";
+  const buyerAddress = buyerAddressInput ? buyerAddressInput.value.trim() : "";
+
+  if (!buyerName || !buyerPhoneRaw || !buyerAddress) {
+    if (orderError) {
+      orderError.textContent = "Semua kolom harus diisi.";
+      orderError.classList.remove("hidden");
+    }
+    return;
+  }
+
+  // --- 2. TENTUKAN PRODUK DAN TOTAL ---
+  let orderItems = [];
+  let total = 0;
+
+  if (isMultiItemCheckout) {
+    // Mode Multi-Item (Checkout dari Keranjang)
+    orderItems = cart;
+    total = cart.reduce(
+      (sum, item) => sum + Number(item.price) * item.quantity,
+      0
+    );
+  } else {
+    // Mode Single Item (Beli Sekarang)
+    if (
+      !currentOrderProductDetail ||
+      !currentOrderSellerPhone ||
+      !currentOrderQuantity
+    ) {
+      Swal.fire(
+        "Error",
+        "Data produk/penjual hilang. Coba muat ulang halaman atau ulangi proses beli.",
+        "error"
+      );
+      return;
+    }
+    orderItems.push({
+      nama: currentOrderProductDetail.nama,
+      price: currentOrderProductDetail.price,
+      quantity: currentOrderQuantity,
+      shopName: currentOrderProductDetail.shopName,
+      shopPhone: currentOrderSellerPhone, // Ambil dari variabel global
+    });
+    total = currentOrderProductDetail.price * currentOrderQuantity;
+  }
+
+  // Pastikan keranjang/item tidak kosong
+  if (orderItems.length === 0) {
+    Swal.fire("Error", "Keranjang kosong. Tidak ada yang dipesan.", "warning");
+    return;
+  }
+
+  // --- 3. AMBIL DETAIL PENJUAL (UNTUK WHATSAPP) ---
+  const firstItem = orderItems[0];
+  const rawSellerPhone = firstItem.shopPhone;
+  const shopName = firstItem.shopName || "Penjual";
+
+  // --- 4. FORMAT NOMOR WHATSAPP ---
+  let finalPhone = "";
+  try {
+    if (!rawSellerPhone) {
+      throw new Error("Nomor telepon penjual tidak ditemukan.");
+    }
+
+    const cleanPhone = rawSellerPhone.replace(/[\s\+]/g, "");
+    const phoneDigits = cleanPhone.replace(/[^0-9]/g, "");
+
+    if (phoneDigits.startsWith("62")) {
+      finalPhone = phoneDigits;
+    } else if (phoneDigits.startsWith("0")) {
+      finalPhone = `62${phoneDigits.substring(1)}`;
+    } else {
+      finalPhone = `62${phoneDigits}`;
+    }
+  } catch (error) {
+    console.error("Error memproses nomor telepon penjual:", error.message);
+    Swal.fire(
+      "Error",
+      "Gagal memproses nomor WhatsApp penjual. Coba hubungi penjual secara manual.",
+      "error"
+    );
+    return;
+  }
+
+  if (finalPhone.length < 9) {
+    Swal.fire(
+      "Error",
+      "Nomor WhatsApp penjual tidak valid setelah pemrosesan.",
+      "error"
+    );
+    return;
+  }
+
+  // --- 5. FORMAT HARGA ---
+  const formatIDR = (amount) =>
+    new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+
+  // --- 6. SUSUN PESAN WHATSAPP ---
+  let itemDetails = orderItems
+    .map(
+      (item) =>
+        `* ${item.nama} (x${item.quantity}) - ${formatIDR(
+          item.price * item.quantity
+        )}`
+    )
+    .join("\n");
+
+  const message = `[PESANAN DAKATA SHOP]
+Halo ${shopName}, saya ingin membuat pesanan:
+
+*PRODUK:*
+${itemDetails}
+*Total Biaya:* ${formatIDR(total)}
+
+*DETAIL PEMBELI:*
+Nama: ${buyerName}
+No. HP: ${buyerPhoneRaw}
+Alamat: ${buyerAddress}
+
+Mohon konfirmasi ketersediaan produk dan instruksi pembayarannya. Terima kasih!`;
+
+  // --- 7. ARAHKAN KE WHATSAPP (PERBAIKAN NOTIFIKASI DAN RESET VIEW) ---
+  const encodedMessage = encodeURIComponent(message);
+  const whatsappUrl = `https://wa.me/${finalPhone}?text=${encodedMessage}`;
+
+  window.open(whatsappUrl, "_blank");
+
+  isOrderSent = true;
+
+  // 🔥 NOTIFIKASI MODAL STANDAR DENGAN CALLBACK .then()
+  Swal.fire({
+    icon: "success",
+    title: "Pesanan Berhasil Dibuat!",
+    text: "Anda telah diarahkan ke WhatsApp. Tekan 'Lanjutkan' untuk kembali ke toko.",
+    showConfirmButton: true, // Tampilkan tombol
+    confirmButtonText: "Lanjutkan",
+    allowOutsideClick: false, // Mencegah user menutup tanpa mengklik tombol
+  }).then((result) => {
+    // Logic RESET STATE dipindahkan ke dalam callback ini
+    if (result.isConfirmed) {
+      if (isMultiItemCheckout) {
+        cart = [];
+        updateCartCount();
+      }
+
+      // 🔥 RESET VIEW: Kembali ke daftar produk utama
+      handleBackToProductsClick();
+
+      // Pastikan orderDetailView disembunyikan
+      if (orderDetailView) orderDetailView.classList.add("hidden");
+    }
+  });
+  // ----------------------------------------------------
+
+  // --- 8. RESET STATE (DIHAPUS/TIDAK DIGUNAKAN LAGI) ---
+  // Logika reset state yang lama telah dipindahkan dan disempurnakan di dalam .then()
+}
 /**
  * Menangani update Nomor HP dan Alamat.
  */
@@ -2109,7 +2961,6 @@ async function handleUpdateContact(e) {
 
   if (contactError) contactError.classList.add("hidden");
 
-  // Pastikan variabel DOM sudah terinisialisasi
   if (!profilePhoneInput || !profileAddressInput || !contactSubmitBtn) {
     console.error("Error DOM: Input kontak tidak terinisialisasi.");
     return;
@@ -2260,74 +3111,17 @@ function handleCropApply() {
   );
 }
 
-// -----------------------------------------------------------------
-// BAGIAN 8: EKSEKUSI AWAL DAN EVENT LISTENERS (KODE UTAMA ANDA)
-// -----------------------------------------------------------------
-
-// ***************************************************************
-// ASUMSI: Fungsi setAuthModeToRegister/Login dan toggleBodyScroll()
-// serta semua fungsi handler (handleSubmitAuth, dll) sudah
-// didefinisikan di bagian kode Anda yang lain.
-// ***************************************************************
-
-/**
- * [ASUMSI FUNGSI] Mengatur modal ke mode Login dan menonaktifkan mode admin.
- */
-function setAuthModeToLogin() {
-  // Logika utama Login
-  authTitle.textContent = "Masuk Penjual";
-  authSubmitBtn.textContent = "Masuk";
-  authSubmitBtn.setAttribute("data-action", "login");
-
-  // Sembunyikan field registrasi tambahan
-  if (authPhoneGroup) authPhoneGroup.classList.add("hidden");
-  if (authAddressGroup) authAddressGroup.classList.add("hidden");
-  if (authRoleGroup) authRoleGroup.classList.add("hidden");
-
-  // Tampilkan tautan toggle mode ("Ingin daftar sebagai penjual?...")
-  if (toggleAuthMode) toggleAuthMode.classList.remove("hidden"); // <-- KRUSIAL: Ditampilkan
-  if (adminRegisterInfo) adminRegisterInfo.classList.add("hidden");
-
-  // Pastikan input sandi ditampilkan (jika Anda memiliki logika untuk menyembunyikannya)
-  // if (authPasswordGroup) authPasswordGroup.classList.remove("hidden");
-}
-
-/**
- * [ASUMSI FUNGSI] Mengatur modal ke mode Register (Default/Admin).
- * @param {boolean} isAdminMode - True jika mode admin register.
- */
-function setAuthModeToRegister(isAdminMode = false) {
-  // Logika utama Register
-  authTitle.textContent = isAdminMode
-    ? "Daftarkan User Baru (Admin Mode)"
-    : "Daftar Penjual Baru";
-  authSubmitBtn.textContent = "Daftar";
-  authSubmitBtn.setAttribute("data-action", "register");
-
-  // Tampilkan field registrasi tambahan jika mode Admin
-  if (isAdminMode) {
-    if (authPhoneGroup) authPhoneGroup.classList.remove("hidden");
-    if (authAddressGroup) authAddressGroup.classList.remove("hidden");
-    if (authRoleGroup) authRoleGroup.classList.remove("hidden");
-
-    // 🔥 KRUSIAL: Sembunyikan tautan toggle mode saat Admin Register
-    if (toggleAuthMode) toggleAuthMode.classList.add("hidden");
-    if (adminRegisterInfo) adminRegisterInfo.classList.remove("hidden");
-  } else {
-    // Mode Register Biasa (Jika ada, sesuaikan)
-    if (authPhoneGroup) authPhoneGroup.classList.add("hidden"); // Contoh: disembunyikan di registrasi biasa
-    if (authAddressGroup) authAddressGroup.classList.add("hidden"); // Contoh: disembunyikan
-    if (authRoleGroup) authRoleGroup.classList.add("hidden"); // Contoh: disembunyikan
-
-    // Tampilkan tautan toggle mode saat Register Biasa
-    if (toggleAuthMode) toggleAuthMode.classList.remove("hidden");
-    if (adminRegisterInfo) adminRegisterInfo.classList.add("hidden");
-  }
-}
 document.addEventListener("DOMContentLoaded", () => {
-  // --- INISIALISASI SEMUA VARIABEL DOM ---
+  // --- INISIALISASI SEMUA VARIABEL DOM (HANYA SEKALI) ---
+
+  // BAGIAN UTAMA
   productListDiv = document.getElementById("product-list");
   mainBanner = document.getElementById("main-banner");
+  productListTitleElement = document.getElementById("product-list-header");
+  productListWrapperElement = document.getElementById("product-list-wrapper");
+  productListView = document.getElementById("product-list-view"); // Asumsi ID wrapper utama list
+
+  // BAGIAN AUTHENTIKASI & MODAL
   authBtn = document.getElementById("auth-btn");
   authModal = document.getElementById("auth-modal");
   authForm = document.getElementById("auth-form");
@@ -2336,23 +3130,28 @@ document.addEventListener("DOMContentLoaded", () => {
   closeModalBtn = document.getElementById("close-modal-btn");
   authError = document.getElementById("auth-error");
 
-  productListTitleElement = document.getElementById("product-list-header");
-
-  // INISIALISASI VARIABEL AUTH TAMBAHAN
+  // Auth Tambahan
   toggleAuthMode = document.getElementById("toggle-auth-mode");
   toggleAuthLink = document.getElementById("toggle-auth-link");
   adminRegisterInfo = document.getElementById("admin-register-info");
 
-  // INISIALISASI INPUT ROLE
-  authRoleGroup = document.getElementById("auth-role-group");
-  authRoleInput = document.getElementById("auth-role");
-
-  // INISIALISASI INPUT BARU (NOMOR HP & ALAMAT PADA FORM REGISTRASI)
+  // Auth Input
   authPhoneInput = document.getElementById("auth-phone");
   authAddressInput = document.getElementById("auth-address");
   authPhoneGroup = document.getElementById("auth-phone-group");
   authAddressGroup = document.getElementById("auth-address-group");
+  authRoleGroup = document.getElementById("auth-role-group");
+  authRoleInput = document.getElementById("auth-role");
 
+  // Auth Password Visibility
+  authPasswordInput = document.getElementById("auth-password");
+  toggleAuthPasswordBtn = document.getElementById(
+    "toggle-auth-password-visibility"
+  );
+  authEyeIconOpen = document.getElementById("auth-eye-icon-open");
+  authEyeIconClosed = document.getElementById("auth-eye-icon-closed");
+
+  // BAGIAN UPLOAD & CROPPER
   uploadBtn = document.getElementById("upload-btn");
   uploadModal = document.getElementById("upload-modal");
   uploadForm = document.getElementById("upload-form");
@@ -2360,23 +3159,33 @@ document.addEventListener("DOMContentLoaded", () => {
   uploadError = document.getElementById("upload-error");
   uploadModalTitle = document.getElementById("upload-modal-title");
   uploadSubmitBtn = document.getElementById("upload-submit-btn");
-
   productImageFile = document.getElementById("product-image-file");
   imagePreview = document.getElementById("image-preview");
   imagePreviewContainer = document.getElementById("image-preview-container");
-
-  sellerControls = document.getElementById("seller-controls");
-  sellerGreeting = document.getElementById("seller-greeting");
-
-  // INISIALISASI VARIABEL CROPPER
   imageToCrop = document.getElementById("image-to-crop");
   cropModal = document.getElementById("crop-modal");
   closeCropModalBtn = document.getElementById("close-crop-modal-btn");
   applyCropBtn = document.getElementById("apply-crop-btn");
 
-  // INISIALISASI VARIABEL DETAIL PRODUK
+  // BAGIAN SELLER/ADMIN KONTROL & TAMPILAN
+  sellerControls = document.getElementById("seller-controls");
+  sellerGreeting = document.getElementById("seller-greeting");
+  manageBtn = document.getElementById("manage-btn");
+  managementView = document.getElementById("management-view");
+  adminBtn = document.getElementById("admin-btn");
+  adminView = document.getElementById("admin-view");
+  customerListTableBody = document.getElementById("customer-list-table-body");
+  addUserBtn = document.getElementById("add-user-btn");
+
+  // BAGIAN MANAGEMENT STATS & CHART
+  totalSaldo = document.getElementById("total-saldo");
+  totalTerjual = document.getElementById("total-terjual");
+  totalTransaksi = document.getElementById("total-transaksi");
+  transactionHistory = document.getElementById("transaction-history");
+  salesChartCanvas = document.getElementById("salesChart");
+
+  // BAGIAN DETAIL PRODUK
   productDetailView = document.getElementById("product-detail-view");
-  productListWrapperElement = document.getElementById("product-list-wrapper");
   backToProductsBtn = document.getElementById("back-to-products-btn");
   detailProductName = document.getElementById("detail-product-name");
   detailProductPrice = document.getElementById("detail-product-price");
@@ -2387,98 +3196,75 @@ document.addEventListener("DOMContentLoaded", () => {
   detailShopNameText = document.getElementById("detail-shop-name-text");
   detailOwnerMessage = document.getElementById("detail-owner-message");
 
-  // INISIALISASI VARIABEL KUANTITAS
+  // Detail Kuantitas
   qtyDecrementBtn = document.getElementById("qty-decrement");
   qtyIncrementBtn = document.getElementById("qty-increment");
   productQuantityInput = document.getElementById("product-quantity");
   detailStockInfo = document.getElementById("detail-stock-info");
   quantityControlsWrapper = document.getElementById("detail-qty-control");
 
-  // INISIALISASI VARIABEL TOGGLE SANDI LOGIN
-  authPasswordInput = document.getElementById("auth-password");
-  toggleAuthPasswordBtn = document.getElementById(
-    "toggle-auth-password-visibility"
+  // BAGIAN KERANJANG
+  cartBtn = document.getElementById("cart-btn");
+  cartView = document.getElementById("cart-view");
+  cartCount = document.getElementById("cart-count");
+  cartItemsContainer = document.getElementById("cart-items-container");
+  cartTotalPrice = document.getElementById("cart-total-price");
+  checkoutBtn = document.getElementById("checkout-btn");
+  backToProductsFromCartBtn = document.getElementById(
+    "back-to-products-from-cart"
   );
-  authEyeIconOpen = document.getElementById("auth-eye-icon-open");
-  authEyeIconClosed = document.getElementById("auth-eye-icon-closed");
+  addToCartBtn = document.getElementById("add-to-cart-btn");
 
-  // INISIALISASI VARIABEL MANAGEMENT & GRAFIK
-  manageBtn = document.getElementById("manage-btn");
-  managementView = document.getElementById("management-view");
-  totalSaldo = document.getElementById("total-saldo");
-  totalTerjual = document.getElementById("total-terjual");
-  totalTransaksi = document.getElementById("total-transaksi");
-  transactionHistory = document.getElementById("transaction-history");
-  productListWrapper = document.getElementById("product-list-wrapper");
-  salesChartCanvas = document.getElementById("salesChart");
+  // BAGIAN ORDER DETAIL (CHECKOUT)
+  orderDetailView = document.getElementById("order-detail-view");
+  backToDetailBtn = document.getElementById("back-to-detail-btn");
+  orderForm = document.getElementById("order-form");
+  buyerNameInput = document.getElementById("buyer-name");
+  buyerPhoneInput = document.getElementById("buyer-phone");
+  buyerAddressInput = document.getElementById("buyer-address");
+  orderSubmitBtn = document.getElementById("order-submit-btn");
+  orderError = document.getElementById("order-error");
+  orderProductSummary = document.getElementById("order-product-summary");
+  orderTotalPrice = document.getElementById("order-total-price");
+  buyNowBtn = document.getElementById("buy-now-btn"); // Tombol "Beli Sekarang" (Single Item)
 
-  // INISIALISASI VARIABEL ADMIN BARU
-  adminBtn = document.getElementById("admin-btn");
-  adminView = document.getElementById("admin-view");
-  customerListTableBody = document.getElementById("customer-list-table-body");
-  addUserBtn = document.getElementById("add-user-btn");
-
-  // INISIALISASI VARIABEL PROFIL
+  // BAGIAN PROFIL & FORM UPDATE
   profileBtn = document.getElementById("profile-btn");
   profileModal = document.getElementById("profile-modal");
   closeProfileModalBtn = document.getElementById("close-profile-modal-btn");
 
-  // INISIALISASI FORM NAMA TOKO (Menggunakan ID HTML ASLI: shop-name)
+  // Form Update
   updateShopForm = document.getElementById("update-shop-form");
   shopNameInput = document.getElementById("shop-name");
   shopNameError = document.getElementById("shop-name-error");
   shopNameSubmitBtn = document.getElementById("shop-name-submit-btn");
 
-  // INISIALISASI FORM KONTAK BARU (Menggunakan ID HTML ASLI: profile-phone, profile-address)
-  updateContactForm = document.getElementById("update-contact-form"); // Form baru
+  updateContactForm = document.getElementById("update-contact-form");
   profilePhoneInput = document.getElementById("profile-phone");
   profileAddressInput = document.getElementById("profile-address");
-  contactSubmitBtn = document.getElementById("contact-submit-btn"); // Button submit kontak
-  contactError = document.getElementById("contact-error"); // Elemen error kontak
+  contactSubmitBtn = document.getElementById("contact-submit-btn");
+  contactError = document.getElementById("contact-error");
 
-  // INISIALISASI FORM SANDI
   updatePasswordForm = document.getElementById("update-password-form");
   newPasswordInput = document.getElementById("new-password");
   passwordError = document.getElementById("password-error");
   passwordSubmitBtn = document.getElementById("password-submit-btn");
 
-  // INISIALISASI VARIABEL TOGGLE SANDI
+  // Profile Password Visibility
   togglePasswordBtn = document.getElementById("toggle-password-visibility");
   eyeIconOpen = document.getElementById("eye-icon-open");
   eyeIconClosed = document.getElementById("eye-icon-closed");
 
+  // --- AKHIR INISIALISASI DOM ---
+
+  // Panggil setAuthModeToLogin() secara default saat DOMContentLoaded
+  if (authSubmitBtn) {
+    setAuthModeToLogin();
+  }
+
   // -----------------------------------------------------------------
-  // --- EVENT LISTENERS (DENGAN KUNCI SCROLL) ---
+  // 🔥 EVENT LISTENERS 🔥
   // -----------------------------------------------------------------
-
-  // 4. Profil (MODAL PROFIL)
-  if (profileBtn) {
-    profileBtn.addEventListener("click", () => {
-      // 🔥 KRUSIAL: Panggil openProfileModal untuk mengisi data
-      openProfileModal();
-      // openProfileModal() kini bertugas mengisi data dan membuka modal
-
-      toggleBodyScroll(true); // <-- KUNCI SCROLL
-    });
-  }
-
-  if (closeProfileModalBtn) {
-    closeProfileModalBtn.addEventListener("click", () => {
-      if (profileModal) profileModal.classList.add("hidden");
-      toggleBodyScroll(false); // <-- BUKA SCROLL
-    });
-  }
-
-  // Penutupan Modal ketika klik di luar modal (backdrop)
-  if (profileModal) {
-    profileModal.addEventListener("click", (e) => {
-      if (e.target === profileModal) {
-        profileModal.classList.add("hidden");
-        toggleBodyScroll(false); // <-- BUKA SCROLL
-      }
-    });
-  }
-  // ... (Sisa event listeners tetap sama) ...
 
   // 1. Produk Upload/Edit (MODAL UPLOAD)
   if (uploadBtn) {
@@ -2608,15 +3394,13 @@ document.addEventListener("DOMContentLoaded", () => {
             auth
               .signOut()
               .then(() => {
-                // 🔥 FIX BUG RESET TAMPILAN ADMIN SETELAH LOGOUT
-                if (adminView) adminView.classList.add("hidden"); // Sembunyikan Admin View
-                if (managementView) managementView.classList.add("hidden"); // Sembunyikan Management View
+                // FIX BUG RESET TAMPILAN ADMIN SETELAH LOGOUT
+                if (adminView) adminView.classList.add("hidden");
+                if (managementView) managementView.classList.add("hidden");
                 if (productListWrapperElement)
-                  productListWrapperElement.classList.remove("hidden"); // Tampilkan Produk
+                  productListWrapperElement.classList.remove("hidden");
 
-                // Reset teks tombol Admin ke default
                 if (adminBtn) adminBtn.textContent = "Admin (Pelanggan)";
-                // Reset teks tombol Manage (jika diperlukan)
                 if (manageBtn) manageBtn.textContent = "Management";
                 // --- END FIX ---
 
@@ -2650,7 +3434,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (authError) authError.classList.add("hidden");
 
-      // 🔥 PENTING: Reset ke mode Login saat modal ditutup
+      // PENTING: Reset ke mode Login saat modal ditutup
       setAuthModeToLogin();
     });
   }
@@ -2664,10 +3448,8 @@ document.addEventListener("DOMContentLoaded", () => {
       e.preventDefault();
       const currentAction = authSubmitBtn.getAttribute("data-action");
 
-      // Logika ini mengasumsikan tautan toggleAuthLink selalu mengarah ke Hubungi Admin,
-      // karena mode registrasi user biasa dihilangkan.
       if (currentAction === "login" || currentAction === "register") {
-        const adminNumber = "6285161065796"; // Ganti dengan nomor WhatsApp Admin yang valid
+        const adminNumber = "6285161065796";
         const message = encodeURIComponent(
           "Halo Admin, saya tertarik untuk mendaftar sebagai penjual di platform Dakata Shop. Bisakah membantu saya mendaftar?"
         );
@@ -2675,20 +3457,15 @@ document.addEventListener("DOMContentLoaded", () => {
         const whatsappUrl = `https://wa.me/${adminNumber}?text=${message}`;
         window.open(whatsappUrl, "_blank");
 
-        // 🔥 FIX: Sembunyikan modal setelah membuka WhatsApp
+        // FIX: Sembunyikan modal setelah membuka WhatsApp
         if (authModal) {
           authModal.classList.add("hidden");
           toggleBodyScroll(false); // <-- BUKA SCROLL
         }
 
-        // Opsional: Reset form dan set mode kembali ke login untuk berjaga-jaga
-        if (authForm) {
-          authForm.reset();
-        }
-        setAuthModeToLogin(); // Pastikan tampilan kembali ke login
+        if (authForm) authForm.reset();
+        setAuthModeToLogin();
       }
-
-      // JIKA DI MASA DEPAN ADA REGISTER BIASA LAGI, tambahkan logika toggle di sini.
     });
   }
   // 2.2. Event Listener untuk Tombol 'Tambah User' Admin
@@ -2698,14 +3475,13 @@ document.addEventListener("DOMContentLoaded", () => {
         .then((sellerData) => {
           if (sellerData.role !== "admin") return;
 
-          // 🔥 KRUSIAL: Atur modal ke mode register, dan aktifkan mode admin
+          // KRUSIAL: Atur modal ke mode register, dan aktifkan mode admin
           setAuthModeToRegister(true);
 
           if (authModal) {
             authModal.classList.remove("hidden");
             toggleBodyScroll(true); // <-- KUNCI SCROLL
 
-            // Tambahan: Kosongkan form saat mode Add User
             if (authForm) authForm.reset();
             if (authError) authError.classList.add("hidden");
           }
@@ -2726,14 +3502,37 @@ document.addEventListener("DOMContentLoaded", () => {
     adminBtn.addEventListener("click", toggleAdminView);
   }
 
-  // 4. Profil (EVENT YANG SUDAH DISESUAIKAN ADA DI ATAS)
+  // 4. Profil (MODAL PROFIL)
+  if (profileBtn) {
+    profileBtn.addEventListener("click", () => {
+      openProfileModal();
+      toggleBodyScroll(true); // <-- KUNCI SCROLL
+    });
+  }
+
+  if (closeProfileModalBtn) {
+    closeProfileModalBtn.addEventListener("click", () => {
+      if (profileModal) profileModal.classList.add("hidden");
+      toggleBodyScroll(false); // <-- BUKA SCROLL
+    });
+  }
+
+  // Penutupan Modal ketika klik di luar modal (backdrop)
+  if (profileModal) {
+    profileModal.addEventListener("click", (e) => {
+      if (e.target === profileModal) {
+        profileModal.classList.add("hidden");
+        toggleBodyScroll(false); // <-- BUKA SCROLL
+      }
+    });
+  }
 
   // 4.1. Update Nama Toko
   if (updateShopForm) {
     updateShopForm.addEventListener("submit", handleUpdateShopName);
   }
 
-  // 4.2. Update Kontak & Alamat 🔥 KRUSIAL BARU 🔥
+  // 4.2. Update Kontak & Alamat
   if (updateContactForm) {
     updateContactForm.addEventListener("submit", handleUpdateContact);
   }
@@ -2778,8 +3577,40 @@ document.addEventListener("DOMContentLoaded", () => {
     qtyDecrementBtn.disabled = parseInt(productQuantityInput.value) === 1;
   }
 
-  // Panggil setAuthModeToLogin() secara default saat DOMContentLoaded
-  if (authSubmitBtn) {
-    setAuthModeToLogin();
+  // 9. Tombol Beli Sekarang (Detail View) -> Pindah ke Order Form
+  if (buyNowBtn) {
+    buyNowBtn.addEventListener("click", handleMoveToOrderView);
   }
+
+  // 10. Tombol Keranjang (Membuka Tampilan Keranjang)
+  if (cartBtn) {
+    cartBtn.addEventListener("click", handleCartClick);
+  }
+
+  // 10.1. Tombol Kembali ke Daftar Produk dari Keranjang
+  if (backToProductsFromCartBtn) {
+    backToProductsFromCartBtn.addEventListener(
+      "click",
+      handleBackToProductsClick
+    );
+  }
+
+  // 10.2. Tombol Tambah ke Keranjang (Detail View)
+  if (addToCartBtn) {
+    addToCartBtn.addEventListener("click", handleAddToCartFromDetail);
+  }
+
+  // 10.3. Tombol Lanjutkan ke Checkout (Dari Keranjang)
+  if (checkoutBtn) {
+    checkoutBtn.addEventListener("click", handleCheckoutClick);
+  }
+
+  // 11. Tombol Order Sekarang (Order Form Submit)
+  if (orderForm) {
+    orderForm.addEventListener("submit", handleOrderSubmit);
+  }
+
+  // 12. Tombol Kembali dari Order View (Mode Single Item)
+  // 🔥 DIHILANGKAN: Listener di sini akan ditimpa oleh setupBackToButtonListener()
+  // Biarkan setupBackToButtonListener() yang bertanggung jawab penuh atas tombol ini.
 });
