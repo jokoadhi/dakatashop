@@ -2100,7 +2100,7 @@ function handleCropApply() {
   );
 }
 // -----------------------------------------------------------------
-// BAGIAN 8: EKSEKUSI AWAL DAN EVENT LISTENERS
+// BAGIAN 2: EKSEKUSI AWAL DAN EVENT LISTENERS (KODE UTAMA ANDA)
 // -----------------------------------------------------------------
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -2227,40 +2227,38 @@ document.addEventListener("DOMContentLoaded", () => {
   eyeIconClosed = document.getElementById("eye-icon-closed");
 
   // -----------------------------------------------------------------
-  // --- EVENT LISTENERS ---
+  // --- EVENT LISTENERS (DENGAN KUNCI SCROLL) ---
   // -----------------------------------------------------------------
 
-  // 1. Tombol Pembuka Modal (profileBtn)
+  // 4. Profil (MODAL PROFIL)
   if (profileBtn) {
     profileBtn.addEventListener("click", () => {
+      // openProfileModal(); // Asumsi openProfileModal() tidak lagi digunakan atau sudah disederhanakan
       profileModal.classList.remove("hidden");
-      // KUNCI SCROLL
-      toggleBodyScroll(true);
+      toggleBodyScroll(true); // <-- KUNCI SCROLL
       // Anda bisa menambahkan logika lain di sini (misal: mengisi data profil)
     });
   }
 
-  // 2. Tombol Penutup Modal (closeProfileModalBtn)
   if (closeProfileModalBtn) {
     closeProfileModalBtn.addEventListener("click", () => {
       profileModal.classList.add("hidden");
-      // BUKA SCROLL
-      toggleBodyScroll(false);
+      toggleBodyScroll(false); // <-- BUKA SCROLL
     });
   }
 
-  // 3. Penutupan Modal ketika klik di luar modal (backdrop)
+  // Penutupan Modal ketika klik di luar modal (backdrop)
   if (profileModal) {
     profileModal.addEventListener("click", (e) => {
       if (e.target === profileModal) {
         profileModal.classList.add("hidden");
-        // BUKA SCROLL
-        toggleBodyScroll(false);
+        toggleBodyScroll(false); // <-- BUKA SCROLL
       }
     });
   }
+  // ... (Update form dan toggle password event listeners) ...
 
-  // 1. Produk Upload/Edit
+  // 1. Produk Upload/Edit (MODAL UPLOAD)
   if (uploadBtn) {
     uploadBtn.addEventListener("click", () => {
       editingProductId = null;
@@ -2271,12 +2269,18 @@ document.addEventListener("DOMContentLoaded", () => {
       if (imagePreviewContainer) imagePreviewContainer.classList.add("hidden");
       if (productImageFile)
         productImageFile.setAttribute("required", "required");
-      if (uploadModal) uploadModal.classList.remove("hidden");
+
+      if (uploadModal) {
+        uploadModal.classList.remove("hidden");
+        toggleBodyScroll(true); // <-- KUNCI SCROLL
+      }
     });
   }
   if (closeUploadModalBtn) {
     closeUploadModalBtn.addEventListener("click", () => {
-      uploadModal.classList.add("hidden");
+      if (uploadModal) uploadModal.classList.add("hidden");
+      toggleBodyScroll(false); // <-- BUKA SCROLL
+
       editingProductId = null;
       croppedFileBlob = null;
       uploadModalTitle.textContent = "Upload Produk Baru";
@@ -2289,7 +2293,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   if (uploadForm) uploadForm.addEventListener("submit", handleSubmitProduct);
 
-  // 1.1. Event Listener CROPPER
+  // 1.1. Event Listener CROPPER (MEMBUKA MODAL CROP)
   if (productImageFile) {
     productImageFile.addEventListener("change", (e) => {
       const file = e.target.files[0];
@@ -2307,6 +2311,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
           if (cropModal) {
             cropModal.classList.remove("hidden");
+            toggleBodyScroll(true); // <-- KUNCI SCROLL
           } else {
             return;
           }
@@ -2335,10 +2340,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // 1.2. Event Listener untuk Crop Modal
+  // 1.2. Event Listener untuk Crop Modal (MENUTUP MODAL CROP)
   if (closeCropModalBtn) {
     closeCropModalBtn.addEventListener("click", () => {
       if (cropModal) cropModal.classList.add("hidden");
+      toggleBodyScroll(false); // <-- BUKA SCROLL
+
       if (cropperInstance) cropperInstance.destroy();
       if (productImageFile) productImageFile.value = "";
       croppedFileBlob = null;
@@ -2348,12 +2355,17 @@ document.addEventListener("DOMContentLoaded", () => {
   if (applyCropBtn) {
     applyCropBtn.addEventListener("click", handleCropApply);
   }
-  // 2. Autentikasi
+
+  // 2. Autentikasi (MODAL AUTH)
   if (authBtn) {
     authBtn.addEventListener("click", () => {
       if (!currentUser) {
         setAuthModeToLogin();
-        authModal.classList.remove("hidden");
+
+        if (authModal) {
+          authModal.classList.remove("hidden");
+          toggleBodyScroll(true); // <-- KUNCI SCROLL
+        }
 
         if (authPasswordInput)
           authPasswordInput.setAttribute("type", "password");
@@ -2412,6 +2424,8 @@ document.addEventListener("DOMContentLoaded", () => {
   if (closeModalBtn) {
     closeModalBtn.addEventListener("click", () => {
       authModal.classList.add("hidden");
+      toggleBodyScroll(false); // <-- BUKA SCROLL
+
       authError.classList.add("hidden");
     });
   }
@@ -2437,6 +2451,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // 🔥 FIX: Sembunyikan modal setelah membuka WhatsApp
         if (authModal) {
           authModal.classList.add("hidden");
+          toggleBodyScroll(false); // <-- BUKA SCROLL
         }
 
         // Opsional: Reset form dan set mode kembali ke login untuk berjaga-jaga
@@ -2456,7 +2471,10 @@ document.addEventListener("DOMContentLoaded", () => {
           if (sellerData.role !== "admin") return;
 
           setAuthModeToRegister(true);
-          if (authModal) authModal.classList.remove("hidden");
+          if (authModal) {
+            authModal.classList.remove("hidden");
+            toggleBodyScroll(true); // <-- KUNCI SCROLL
+          }
         })
         .catch((error) => {
           console.error("Error accessing add user:", error);
@@ -2474,15 +2492,15 @@ document.addEventListener("DOMContentLoaded", () => {
     adminBtn.addEventListener("click", toggleAdminView);
   }
 
-  // 4. Profil
-  if (profileBtn) {
-    profileBtn.addEventListener("click", openProfileModal);
-  }
-  if (closeProfileModalBtn) {
-    closeProfileModalBtn.addEventListener("click", () => {
-      profileModal.classList.add("hidden");
-    });
-  }
+  // 4. Profil (EVENT YANG SUDAH DISESUAIKAN ADA DI ATAS)
+  // if (profileBtn) {
+  //   profileBtn.addEventListener("click", openProfileModal); // Baris ini diubah/dihapus
+  // }
+  // if (closeProfileModalBtn) {
+  //   closeProfileModalBtn.addEventListener("click", () => { // Baris ini diubah/dihapus
+  //     profileModal.classList.add("hidden");
+  //   });
+  // }
 
   // 4.1. Update Nama Toko
   if (updateShopForm) {

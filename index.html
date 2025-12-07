@@ -1014,16 +1014,18 @@
     </div>
     <div
       id="upload-modal"
-      class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-[100]"
+      class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-[100] p-2 sm:p-4"
     >
-      <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg relative p-8">
+      <div
+        class="bg-white rounded-xl shadow-2xl w-full max-w-xs sm:max-w-sm relative p-4 sm:p-5"
+      >
         <button
           id="close-upload-modal-btn"
-          class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition duration-150 z-50"
+          class="absolute top-3 right-3 sm:top-4 sm:right-4 text-gray-400 hover:text-gray-700 transition duration-150 z-50"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            class="h-6 w-6"
+            class="h-5 w-5 sm:h-6 sm:w-6"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -1037,57 +1039,57 @@
           </svg>
         </button>
         <h3
-          class="text-2xl font-bold mb-6 text-gray-900"
+          class="text-xl sm:text-2xl font-bold mb-4 text-gray-900"
           id="upload-modal-title"
         >
           Upload Produk Baru
         </h3>
 
-        <form id="upload-form" class="space-y-4">
+        <form id="upload-form" class="space-y-2 sm:space-y-3">
           <div>
             <label
               for="product-nama"
-              class="block text-sm font-medium text-gray-700"
+              class="block text-xs sm:text-sm font-medium text-gray-700"
               >Nama Produk</label
             >
             <input
               type="text"
               id="product-nama"
               required
-              class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              class="mt-1 block w-full px-3 py-2 text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           <div>
             <label
               for="product-harga"
-              class="block text-sm font-medium text-gray-700"
+              class="block text-xs sm:text-sm font-medium text-gray-700"
               >Harga (Rp)</label
             >
             <input
               type="number"
               id="product-harga"
               required
-              class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              class="mt-1 block w-full px-3 py-2 text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           <div>
             <label
               for="product-desc"
-              class="block text-sm font-medium text-gray-700"
+              class="block text-xs sm:text-sm font-medium text-gray-700"
               >Deskripsi</label
             >
             <textarea
               id="product-desc"
-              rows="3"
+              rows="2"
               required
-              class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              class="mt-1 block w-full px-3 py-2 text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
             ></textarea>
           </div>
 
           <div>
             <label
               for="product-stock"
-              class="block text-sm font-medium text-gray-700"
+              class="block text-xs sm:text-sm font-medium text-gray-700"
               >Stok Produk</label
             >
             <input
@@ -1096,13 +1098,13 @@
               value="1"
               min="0"
               required
-              class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              class="mt-1 block w-full px-3 py-2 text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           <div>
             <label
               for="product-image-file"
-              class="block text-sm font-medium text-gray-700"
+              class="block text-xs sm:text-sm font-medium text-gray-700"
               >Upload Foto Produk (Pilih File)</label
             >
             <input
@@ -1110,17 +1112,17 @@
               id="product-image-file"
               accept="image/*"
               required
-              class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              class="mt-1 block w-full text-xs sm:text-sm text-gray-500 file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             />
 
             <div
               id="image-preview-container"
-              class="mt-4 p-2 border border-gray-200 rounded-lg hidden"
+              class="mt-3 p-2 border border-gray-200 rounded-lg hidden"
             >
               <p class="text-xs text-gray-500 mb-1">Pratinjau:</p>
               <img
                 id="image-preview"
-                class="w-20 h-20 object-cover rounded-md border border-gray-300"
+                class="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-md border border-gray-300"
               />
             </div>
           </div>
@@ -1130,7 +1132,7 @@
           <button
             type="submit"
             id="upload-submit-btn"
-            class="w-full bg-green-600 text-white py-3 rounded-lg font-bold text-lg hover:bg-green-700 transition duration-300"
+            class="w-full bg-green-600 text-white py-2 sm:py-3 rounded-lg font-bold text-sm sm:text-lg hover:bg-green-700 transition duration-300 mt-4"
           >
             Simpan Produk
           </button>
@@ -1140,13 +1142,15 @@
 
     <div
       id="crop-modal"
-      class="fixed inset-0 bg-gray-900 bg-opacity-75 z-[101] flex items-center justify-center hidden"
+      class="fixed inset-0 bg-gray-900 bg-opacity-75 z-[101] flex items-center justify-center hidden p-2 sm:p-4"
     >
       <div
-        class="bg-white rounded-xl shadow-2xl w-full max-w-lg relative m-4 p-6"
+        class="bg-white rounded-xl shadow-2xl w-full max-w-xs sm:max-w-sm relative p-4 sm:p-6"
       >
-        <div class="flex justify-between items-center border-b pb-3 mb-4">
-          <h3 class="text-xl font-bold text-gray-800">
+        <div
+          class="flex justify-between items-center border-b pb-3 mb-3 sm:mb-4"
+        >
+          <h3 class="text-lg sm:text-xl font-bold text-gray-800">
             ✂️ Atur Gambar Produk (Crop)
           </h3>
           <button
@@ -1154,7 +1158,7 @@
             class="text-gray-500 hover:text-gray-700 transition duration-150"
           >
             <svg
-              class="h-6 w-6"
+              class="h-5 w-5 sm:h-6 sm:w-6"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -1169,7 +1173,9 @@
           </button>
         </div>
 
-        <div class="my-4 max-h-[400px] overflow-hidden">
+        <div
+          class="my-3 max-h-[300px] sm:max-h-[400px] overflow-hidden border border-gray-300 rounded-md"
+        >
           <img
             id="image-to-crop"
             src=""
@@ -1178,10 +1184,10 @@
           />
         </div>
 
-        <div class="flex justify-end pt-4 border-t">
+        <div class="flex justify-end pt-3 sm:pt-4 border-t">
           <button
             id="apply-crop-btn"
-            class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300 shadow-md"
+            class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg text-sm hover:bg-blue-700 transition duration-300 shadow-md"
           >
             Terapkan & Lanjutkan
           </button>
