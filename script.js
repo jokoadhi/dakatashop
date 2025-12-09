@@ -81,6 +81,9 @@ let checkoutBtn;
 let backToProductsFromCartBtn;
 let productListView;
 
+// Variabel untuk menyimpan semua data produk yang dimuat dari Firebase
+let ALL_PRODUCTS_CACHE = [];
+
 // Variabel DOM baru
 let orderDetailView;
 let backToDetailBtn;
@@ -98,7 +101,13 @@ let currentSellerPhone = "";
 let isOrderSent = false;
 let isMultiItemCheckout = false;
 
-let searchBtn, searchOverlay, searchInput, closeSearchBtn, mainNav, logoLink;
+let searchBtn,
+  searchOverlay,
+  searchInput,
+  closeSearchBtn,
+  mainNav,
+  logoLink,
+  executeSearchBtn;
 
 // 🔥 VARIABEL INPUT AUTH KHUSUS REGISTER 🔥
 let authRoleGroup, authRoleInput;
@@ -412,6 +421,7 @@ async function loadProducts() {
         : "Saat ini, belum ada produk yang tersedia. Silakan cek lagi nanti.";
 
       productListDiv.innerHTML = `<p class="text-center col-span-full text-xl py-10 text-gray-500 italic">${emptyMessage}</p>`;
+      ALL_PRODUCTS_CACHE = [];
       return;
     }
 
@@ -434,37 +444,27 @@ async function loadProducts() {
 
     await Promise.all(sellerPromises);
 
-    // FIX: Mengubah grid-cols-1 menjadi grid-cols-2 sebagai default untuk mobile/small screens
-    productListDiv.className =
-      "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6";
+    // ------------------------------------------------------------------
+    // 🔥 PERUBAHAN UTAMA: CACHING DAN KONVERSI KE PROPERTI 'nama' 🔥
+    // ------------------------------------------------------------------
+    ALL_PRODUCTS_CACHE = products.map((product) => {
+      const transformedProduct = {
+        ...product,
+        shopName: sellerNamesMap[product.ownerId] || "Toko Unknown",
+        // JIKA properti 'name' ada, pindahkan/fallback nilainya ke 'nama'.
+        // Jika sudah ada 'nama', gunakan 'nama'.
+        nama: product.nama || product.name,
+      };
 
-    // ------------------------------------------------------
-    // 🔥 PERUBAHAN: Iterasi dan Tambahkan Listener Keranjang
-    // ------------------------------------------------------
-    products.forEach((product) => {
-      product.shopName = sellerNamesMap[product.ownerId] || "Toko Unknown";
+      // Hapus properti 'name' yang lama (jika ada) untuk kebersihan
+      delete transformedProduct.name;
 
-      // Asumsi: createProductCard(product) mengembalikan elemen HTML kartu
-      const productElement = createProductCard(product);
-      productListDiv.appendChild(productElement);
-
-      // --- PASANG LISTENER KERANJANG DI SINI ---
-
-      // 1. Dapatkan tombol Keranjang. (ID harus diset di fungsi createProductCard)
-      const cartButton = productElement.querySelector(
-        `#add-to-cart-${product.id}`
-      );
-
-      if (cartButton) {
-        cartButton.addEventListener("click", (e) => {
-          e.stopPropagation(); // Mencegah klik dari tombol memicu handleProductDetailClick
-
-          // 2. Panggil fungsi addToCart dengan produk ini dan kuantitas 1
-          addToCart(product, 1);
-        });
-      }
-      // ------------------------------------------
+      return transformedProduct;
     });
+    // ------------------------------------------------------------------
+
+    // Panggil fungsi render yang baru untuk menampilkan semua produk dari cache
+    renderFilteredProducts(ALL_PRODUCTS_CACHE);
   } catch (error) {
     console.error("Error memuat produk: ", error);
     productListDiv.innerHTML =
@@ -1092,6 +1092,115 @@ function displayAuthError(message) {
     authError.textContent = message;
     authError.classList.remove("hidden");
   }
+}
+/**
+ * Menyaring produk berdasarkan query (Nama Produk, Name, Deskripsi, ATAU Nama Toko).
+ * Menggunakan pencarian multi-properti untuk fleksibilitas maksimal.
+ */
+function filterProducts(query) {
+  if (!ALL_PRODUCTS_CACHE.length) {
+    console.warn(
+      "Katalog produk belum dimuat sepenuhnya atau kosong. Filter dibatalkan."
+    );
+    renderFilteredProducts([]);
+    return;
+  }
+
+  const cleanQuery = query.toLowerCase().trim();
+  console.log(`DEBUG: Query Pencarian Bersih: "${cleanQuery}"`);
+
+  if (cleanQuery === "") {
+    renderFilteredProducts(ALL_PRODUCTS_CACHE);
+    return;
+  }
+
+  const filtered = ALL_PRODUCTS_CACHE.filter((product) => {
+    // 1. Dapatkan Nama Produk (Cek 'name' dan 'nama', gunakan salah satu)
+    let rawProductName = product.name || product.nama;
+    let productName = "";
+    if (rawProductName) {
+      productName = rawProductName.toLowerCase().trim();
+    }
+
+    // 2. Dapatkan Deskripsi Produk
+    let productDescription = "";
+    if (product.deskripsi) {
+      productDescription = product.deskripsi.toLowerCase().trim();
+    }
+
+    // 3. Dapatkan Nama Toko
+    let productShopName = "";
+    if (product.shopName) {
+      productShopName = product.shopName.toLowerCase().trim();
+    }
+
+    // 4. Lakukan Pencocokan (Menggunakan .includes() pada string yang bersih)
+    const nameMatch = productName.includes(cleanQuery);
+    const descriptionMatch = productDescription.includes(cleanQuery); // NEW: Pencarian di deskripsi
+    const shopMatch = productShopName.includes(cleanQuery);
+
+    // 5. Logika Kecocokan: Cocok jika salah satu properti mengandung query
+    const isMatch = nameMatch || descriptionMatch || shopMatch;
+
+    if (isMatch) {
+      console.log(
+        `DEBUG: Cocok ditemukan untuk: ${rawProductName}. Match di: ${
+          nameMatch ? "Nama | " : ""
+        } ${descriptionMatch ? "Deskripsi | " : ""} ${shopMatch ? "Toko" : ""}`
+      );
+    }
+
+    return isMatch;
+  });
+
+  console.log(
+    `DEBUG: Filter selesai. Hasil: ${filtered.length} produk ditemukan.`
+  );
+  renderFilteredProducts(filtered);
+}
+
+// ----------------------------------------------------
+
+/**
+ * Merender daftar produk yang telah difilter ke DOM.
+ * Fungsi ini menggunakan createProductCard() yang sudah ada.
+ * @param {Array<Object>} products - Daftar produk hasil filter.
+ */
+function renderFilteredProducts(products) {
+  if (!productListDiv) return; // Menggunakan productListDiv
+
+  productListDiv.innerHTML = "";
+
+  if (products.length === 0) {
+    // Tampilkan pesan jika tidak ada hasil
+    productListDiv.innerHTML = `<p class="text-center col-span-full text-xl py-10 text-gray-500 italic">Tidak ada produk yang cocok dengan pencarian Anda.</p>`;
+    // Reset grid class agar pesan di tengah
+    productListDiv.className = "grid grid-cols-1 gap-6";
+    return;
+  }
+
+  // Terapkan kelas grid yang benar
+  productListDiv.className =
+    "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6";
+
+  // Iterasi dan pasang kembali event listener Keranjang
+  products.forEach((product) => {
+    // Asumsi: createProductCard(product) mengembalikan elemen HTML kartu
+    const productElement = createProductCard(product);
+    productListDiv.appendChild(productElement); // Menggunakan productListDiv
+
+    // --- PASANG LISTENER KERANJANG ULANG ---
+    const cartButton = productElement.querySelector(
+      `#add-to-cart-${product.id}`
+    );
+    if (cartButton) {
+      cartButton.addEventListener("click", (e) => {
+        e.stopPropagation();
+        // Asumsi addToCart(product, quantity) ada
+        addToCart(product, 1);
+      });
+    }
+  });
 }
 
 /**
@@ -2981,18 +3090,44 @@ function closeSearchOverlay() {
 function handleSearchInputKeydown(event) {
   if (event.key === "Enter") {
     event.preventDefault(); // Mencegah form submit default jika ada
+
     const query = searchInput.value;
-    if (query.trim() !== "") {
-      // >>> LOGIKA PENCARIAN PRODUK DI SINI <<<
-      console.log(`Melakukan pencarian untuk: ${query}`);
 
-      // Contoh fungsionalitas: Anda bisa memanggil fungsi fetch/filter data produk di sini,
-      // lalu menutup overlay
+    // Pastikan fungsi filterProducts() tersedia di scope ini
+    if (typeof filterProducts === "function") {
+      // Memanggil fungsi filter yang sudah kita buat
+      filterProducts(query);
 
+      console.log(`Pencarian produk dijalankan untuk: ${query}`);
+
+      // Tutup overlay setelah pencarian selesai
       closeSearchOverlay();
-      // Setelah pencarian, Anda mungkin perlu memanggil fungsi
-      // untuk me-render hasil pencarian: renderProducts(query);
+    } else {
+      // Log jika fungsi filterProducts belum didefinisikan (untuk debugging)
+      console.error(
+        "ERROR: Fungsi filterProducts tidak ditemukan atau belum dideklarasikan."
+      );
     }
+  }
+}
+
+/**
+ * Mengeksekusi aksi pencarian saat tombol kaca pembesar diklik.
+ * Ini adalah wrapper untuk fungsi filtering utama.
+ */
+function executeSearchAction() {
+  if (searchInput) {
+    const query = searchInput.value;
+    console.log("Pencarian produk dijalankan untuk:", query);
+
+    // Asumsi: filterProducts adalah fungsi yang bertanggung jawab menyaring ALL_PRODUCTS_CACHE
+    // dan renderFilteredProducts.
+    filterProducts(query);
+
+    // Opsional: Tutup overlay setelah pencarian dieksekusi, kecuali di desktop
+    // if (searchOverlay) {
+    //    closeSearchOverlay();
+    // }
   }
 }
 
@@ -3324,6 +3459,7 @@ function handleCropApply() {
     0.9
   );
 }
+
 document.addEventListener("DOMContentLoaded", () => {
   // --- INISIALISASI SEMUA VARIABEL DOM (HANYA SEKALI) ---
 
@@ -3341,6 +3477,7 @@ document.addEventListener("DOMContentLoaded", () => {
   closeSearchBtn = document.getElementById("close-search-btn"); // Tombol X untuk menutup
   mainNav = document.getElementById("main-nav"); // Kontainer navigasi (perlu disembunyikan)
   logoLink = document.getElementById("logo-link"); // Link Logo (perlu disembunyikan)
+  executeSearchBtn = document.getElementById("execute-search-btn");
   // 🔥 AKHIR BAGIAN SEARCH OVERLAY 🔥
 
   // BAGIAN AUTHENTIKASI & MODAL
@@ -3487,20 +3624,18 @@ document.addEventListener("DOMContentLoaded", () => {
   if (authSubmitBtn) {
     setAuthModeToLogin();
   }
-
   // -----------------------------------------------------------------
   // 🔥 EVENT LISTENERS 🔥
   // -----------------------------------------------------------------
 
   // 0. Dark Mode Toggle
   if (themeToggle) {
-    // Cek apakah elemen ditemukan
-    // 🔥 PENTING: Gunakan event 'change' karena ini adalah checkbox.
     themeToggle.addEventListener("change", toggleTheme);
   }
 
-  // 🔥 0.1. Search Overlay Toggle 🔥
-  // Event Listener untuk tombol kaca pembesar
+  // 🔥 0.1. Search Overlay Toggle & Action 🔥
+
+  // Event Listener untuk tombol kaca pembesar (membuka overlay)
   if (searchBtn) {
     searchBtn.addEventListener("click", openSearchOverlay);
   }
@@ -3511,6 +3646,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // Event Listener untuk Enter pada input search
   if (searchInput) {
     searchInput.addEventListener("keydown", handleSearchInputKeydown);
+  }
+  // 🔥 KUNCI: Event Listener untuk klik pada ikon kaca pembesar (Memicu pencarian) 🔥
+  if (executeSearchBtn) {
+    executeSearchBtn.addEventListener("click", executeSearchAction);
   }
   // 🔥 END SEARCH OVERLAY 🔥
 
@@ -3528,14 +3667,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (uploadModal) {
         uploadModal.classList.remove("hidden");
-        toggleBodyScroll(true); // <-- KUNCI SCROLL
+        toggleBodyScroll(true);
       }
     });
   }
   if (closeUploadModalBtn) {
     closeUploadModalBtn.addEventListener("click", () => {
       if (uploadModal) uploadModal.classList.add("hidden");
-      toggleBodyScroll(false); // <-- BUKA SCROLL
+      toggleBodyScroll(false);
 
       editingProductId = null;
       croppedFileBlob = null;
@@ -3567,7 +3706,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
           if (cropModal) {
             cropModal.classList.remove("hidden");
-            toggleBodyScroll(true); // <-- KUNCI SCROLL
+            toggleBodyScroll(true);
           } else {
             return;
           }
@@ -3600,7 +3739,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (closeCropModalBtn) {
     closeCropModalBtn.addEventListener("click", () => {
       if (cropModal) cropModal.classList.add("hidden");
-      toggleBodyScroll(false); // <-- BUKA SCROLL
+      toggleBodyScroll(false);
 
       if (cropperInstance) cropperInstance.destroy();
       if (productImageFile) productImageFile.value = "";
@@ -3620,7 +3759,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (authModal) {
           authModal.classList.remove("hidden");
-          toggleBodyScroll(true); // <-- KUNCI SCROLL
+          toggleBodyScroll(true);
         }
 
         if (authPasswordInput)
@@ -3678,7 +3817,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (closeModalBtn) {
     closeModalBtn.addEventListener("click", () => {
       if (authModal) authModal.classList.add("hidden");
-      toggleBodyScroll(false); // <-- BUKA SCROLL
+      toggleBodyScroll(false);
 
       if (authError) authError.classList.add("hidden");
 
@@ -3708,7 +3847,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // FIX: Sembunyikan modal setelah membuka WhatsApp
         if (authModal) {
           authModal.classList.add("hidden");
-          toggleBodyScroll(false); // <-- BUKA SCROLL
+          toggleBodyScroll(false);
         }
 
         if (authForm) authForm.reset();
@@ -3728,7 +3867,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
           if (authModal) {
             authModal.classList.remove("hidden");
-            toggleBodyScroll(true); // <-- KUNCI SCROLL
+            toggleBodyScroll(true);
 
             if (authForm) authForm.reset();
             if (authError) authError.classList.add("hidden");
@@ -3754,14 +3893,14 @@ document.addEventListener("DOMContentLoaded", () => {
   if (profileBtn) {
     profileBtn.addEventListener("click", () => {
       openProfileModal();
-      toggleBodyScroll(true); // <-- KUNCI SCROLL
+      toggleBodyScroll(true);
     });
   }
 
   if (closeProfileModalBtn) {
     closeProfileModalBtn.addEventListener("click", () => {
       if (profileModal) profileModal.classList.add("hidden");
-      toggleBodyScroll(false); // <-- BUKA SCROLL
+      toggleBodyScroll(false);
     });
   }
 
@@ -3770,7 +3909,7 @@ document.addEventListener("DOMContentLoaded", () => {
     profileModal.addEventListener("click", (e) => {
       if (e.target === profileModal) {
         profileModal.classList.add("hidden");
-        toggleBodyScroll(false); // <-- BUKA SCROLL
+        toggleBodyScroll(false);
       }
     });
   }
@@ -3859,6 +3998,5 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // 12. Tombol Kembali dari Order View (Mode Single Item)
-  // 🔥 DIHILANGKAN: Listener di sini akan ditimpa oleh setupBackToButtonListener()
-  // Biarkan setupBackToButtonListener() yang bertanggung jawab penuh atas tombol ini.
+  // Tidak ada perubahan yang diperlukan di sini.
 });
