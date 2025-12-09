@@ -98,6 +98,8 @@ let currentSellerPhone = "";
 let isOrderSent = false;
 let isMultiItemCheckout = false;
 
+let searchBtn, searchOverlay, searchInput, closeSearchBtn, mainNav, logoLink;
+
 // 🔥 VARIABEL INPUT AUTH KHUSUS REGISTER 🔥
 let authRoleGroup, authRoleInput;
 let authPhoneInput, authAddressInput;
@@ -2923,6 +2925,77 @@ function handleBackToDetailClick() {
 
   window.scrollTo(0, 0);
 }
+
+// -----------------------------------------------------------------
+// 🔥 FUNGSI BARU UNTUK SEARCH OVERLAY 🔥
+// Catatan: Anda perlu menambahkan definisi fungsi ini di luar blok DOMContentLoaded
+// -----------------------------------------------------------------
+
+/**
+ * Membuka Search Overlay dengan animasi dan menyembunyikan navigasi.
+ */
+function openSearchOverlay() {
+  if (!searchOverlay || !mainNav || !logoLink) return;
+
+  // 1. Tambahkan kelas 'active' untuk memicu CSS transition (memanjang)
+  searchOverlay.classList.add("active");
+
+  // 2. Sembunyikan navigasi dan logo (fade out)
+  mainNav.style.opacity = "0";
+  logoLink.style.opacity = "0";
+
+  // 3. Fokus pada input setelah animasi memanjang selesai
+  setTimeout(() => {
+    // Sembunyikan secara fisik agar tidak mengganggu interaksi
+    mainNav.style.visibility = "hidden";
+    logoLink.style.visibility = "hidden";
+    searchInput.focus();
+  }, 400); // 400ms sesuai durasi transisi CSS
+}
+
+/**
+ * Menutup Search Overlay dengan animasi dan menampilkan kembali navigasi.
+ */
+function closeSearchOverlay() {
+  if (!searchOverlay || !mainNav || !logoLink) return;
+
+  // 1. Hapus kelas 'active' untuk memicu CSS transition (mengkerut)
+  searchOverlay.classList.remove("active");
+  searchInput.blur();
+
+  // 2. Tampilkan kembali navigasi dan logo (visibility & fade in)
+  mainNav.style.visibility = "visible";
+  logoLink.style.visibility = "visible";
+
+  // 3. Fade in setelah visibility diubah
+  setTimeout(() => {
+    mainNav.style.opacity = "1";
+    logoLink.style.opacity = "1";
+  }, 50);
+}
+
+/**
+ * Menangani penekanan tombol Enter pada input pencarian.
+ * @param {KeyboardEvent} event
+ */
+function handleSearchInputKeydown(event) {
+  if (event.key === "Enter") {
+    event.preventDefault(); // Mencegah form submit default jika ada
+    const query = searchInput.value;
+    if (query.trim() !== "") {
+      // >>> LOGIKA PENCARIAN PRODUK DI SINI <<<
+      console.log(`Melakukan pencarian untuk: ${query}`);
+
+      // Contoh fungsionalitas: Anda bisa memanggil fungsi fetch/filter data produk di sini,
+      // lalu menutup overlay
+
+      closeSearchOverlay();
+      // Setelah pencarian, Anda mungkin perlu memanggil fungsi
+      // untuk me-render hasil pencarian: renderProducts(query);
+    }
+  }
+}
+
 /**
  * Menangani submit formulir pesanan dan membuat link WhatsApp.
  */
@@ -3251,7 +3324,6 @@ function handleCropApply() {
     0.9
   );
 }
-
 document.addEventListener("DOMContentLoaded", () => {
   // --- INISIALISASI SEMUA VARIABEL DOM (HANYA SEKALI) ---
 
@@ -3261,6 +3333,15 @@ document.addEventListener("DOMContentLoaded", () => {
   productListTitleElement = document.getElementById("product-list-header");
   productListWrapperElement = document.getElementById("product-list-wrapper");
   productListView = document.getElementById("product-list-view"); // Asumsi ID wrapper utama list
+
+  // 🔥 BAGIAN SEARCH OVERLAY BARU 🔥
+  searchBtn = document.getElementById("search-btn"); // Tombol kaca pembesar di Header
+  searchOverlay = document.getElementById("search-overlay"); // Wrapper overlay yang memanjang
+  searchInput = document.getElementById("search-input"); // Input field di dalam overlay
+  closeSearchBtn = document.getElementById("close-search-btn"); // Tombol X untuk menutup
+  mainNav = document.getElementById("main-nav"); // Kontainer navigasi (perlu disembunyikan)
+  logoLink = document.getElementById("logo-link"); // Link Logo (perlu disembunyikan)
+  // 🔥 AKHIR BAGIAN SEARCH OVERLAY 🔥
 
   // BAGIAN AUTHENTIKASI & MODAL
   authBtn = document.getElementById("auth-btn");
@@ -3417,6 +3498,21 @@ document.addEventListener("DOMContentLoaded", () => {
     // 🔥 PENTING: Gunakan event 'change' karena ini adalah checkbox.
     themeToggle.addEventListener("change", toggleTheme);
   }
+
+  // 🔥 0.1. Search Overlay Toggle 🔥
+  // Event Listener untuk tombol kaca pembesar
+  if (searchBtn) {
+    searchBtn.addEventListener("click", openSearchOverlay);
+  }
+  // Event Listener untuk tombol tutup (X)
+  if (closeSearchBtn) {
+    closeSearchBtn.addEventListener("click", closeSearchOverlay);
+  }
+  // Event Listener untuk Enter pada input search
+  if (searchInput) {
+    searchInput.addEventListener("keydown", handleSearchInputKeydown);
+  }
+  // 🔥 END SEARCH OVERLAY 🔥
 
   // 1. Produk Upload/Edit (MODAL UPLOAD)
   if (uploadBtn) {

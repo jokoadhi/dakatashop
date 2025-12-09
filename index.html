@@ -52,11 +52,13 @@
   <body class="font-sans flex flex-col min-h-screen">
     <header class="shadow-lg sticky top-0 z-50 custom-header-bg">
       <div
-        class="container mx-auto px-4 sm:px-6 py-3 flex justify-between items-center"
+        class="container mx-auto px-4 sm:px-6 py-3 flex justify-between items-center relative"
+        id="header-content-container"
       >
         <a
           href="#"
-          class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center"
+          class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center z-10 transition-opacity duration-300"
+          id="logo-link"
         >
           <img
             src="logo.png"
@@ -64,7 +66,71 @@
             class="w-auto h-12 sm:h-18 mr-2"
           />
         </a>
-        <nav class="flex items-center space-x-2 sm:space-x-4">
+
+        <div id="search-overlay" class="search-overlay">
+          <div class="search-input-wrapper">
+            <input
+              type="text"
+              id="search-input"
+              placeholder="Cari produk di sini..."
+              class="w-full h-full p-2 sm:p-3 text-lg rounded-lg border-2 focus:outline-none"
+            />
+
+            <button id="execute-search-btn" class="execute-search-btn">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                fill="#1f2937"
+                opacity="0.6"
+                class="bi bi-search"
+                viewBox="0 0 16 16"
+              >
+                <path
+                  d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <button id="close-search-btn" class="close-search-btn">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              fill="currentColor"
+              class="bi bi-x"
+              viewBox="0 0 16 16"
+            >
+              <path
+                d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <nav
+          class="flex items-center space-x-2 sm:space-x-4 z-10 transition-opacity duration-300"
+          id="main-nav"
+        >
+          <button
+            id="search-btn"
+            class="text-white hover:text-gold-accent p-2 rounded-lg transition duration-300"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              fill="currentColor"
+              class="bi bi-search h-5 w-5 sm:h-6 sm:w-6"
+              viewBox="0 0 16 16"
+            >
+              <path
+                d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"
+              />
+            </svg>
+          </button>
+
           <div class="theme-switch-wrapper flex items-center">
             <label class="theme-switch" for="theme-checkbox">
               <input type="checkbox" id="theme-checkbox" />
@@ -88,6 +154,7 @@
               </div>
             </label>
           </div>
+
           <button
             id="profile-btn"
             class="hidden bg-gray-600 text-white font-bold p-2 rounded-lg text-xs sm:text-base hover:bg-gray-700 transition duration-300 shadow-md flex items-center justify-center"
