@@ -11,6 +11,8 @@
 
     <link rel="manifest" href="manifest.json" />
 
+    <link rel="stylesheet" href="style.css" />
+
     <script src="https://cdn.tailwindcss.com"></script>
 
     <script>
@@ -47,8 +49,8 @@
     />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
   </head>
-  <body class="bg-gray-50 font-sans flex flex-col min-h-screen">
-    <header class="bg-navy-blue shadow-lg sticky top-0 z-50">
+  <body class="font-sans flex flex-col min-h-screen">
+    <header class="shadow-lg sticky top-0 z-50 custom-header-bg">
       <div
         class="container mx-auto px-4 sm:px-6 py-3 flex justify-between items-center"
       >
@@ -63,6 +65,29 @@
           />
         </a>
         <nav class="flex items-center space-x-2 sm:space-x-4">
+          <div class="theme-switch-wrapper flex items-center">
+            <label class="theme-switch" for="theme-checkbox">
+              <input type="checkbox" id="theme-checkbox" />
+              <div class="slider round">
+                <span class="slider-handle">
+                  <svg class="sun-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                      d="M12 2.75a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0V3.5a.75.75 0 0 1 .75-.75zm6.18 6.18a.75.75 0 0 1 0 1.06l-1.06 1.06a.75.75 0 0 1-1.06 0 .75.75 0 0 1 0-1.06l1.06-1.06a.75.75 0 0 1 1.06 0zm-12.36 0a.75.75 0 0 1 1.06 0l1.06 1.06a.75.75 0 0 1 0 1.06.75.75 0 0 1-1.06 0L5.97 9.91a.75.75 0 0 1 0-1.06zM20.5 12a.75.75 0 0 1-.75.75H18a.75.75 0 0 1 0-1.5h1.75a.75.75 0 0 1 .75.75zm-16 0a.75.75 0 0 1-.75.75H3.5a.75.75 0 0 1 0-1.5h1.75a.75.75 0 0 1 .75.75zm12.36 4.97a.75.75 0 0 1 0 1.06l-1.06 1.06a.75.75 0 0 1-1.06 0 .75.75 0 0 1 0-1.06l1.06-1.06a.75.75 0 0 1 1.06 0zm-12.36 0a.75.75 0 0 1 1.06 0l1.06 1.06a.75.75 0 0 1 0 1.06.75.75 0 0 1-1.06 0l-1.06-1.06a.75.75 0 0 1 0-1.06zM12 16.25a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5a.75.75 0 0 1 .75-.75zM12 6a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"
+                    />
+                  </svg>
+                  <svg
+                    class="moon-icon"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path
+                      d="M12.001 2.72a9.75 9.75 0 0 0 9.475 11.233A6.002 6.002 0 0 1 12 18a6 6 0 0 1-8.5-4.475A9.75 9.75 0 0 0 12.001 2.72z"
+                    />
+                  </svg>
+                </span>
+              </div>
+            </label>
+          </div>
           <button
             id="profile-btn"
             class="hidden bg-gray-600 text-white font-bold p-2 rounded-lg text-xs sm:text-base hover:bg-gray-700 transition duration-300 shadow-md flex items-center justify-center"
@@ -128,10 +153,7 @@
     </header>
 
     <main class="flex-grow">
-      <section
-        id="main-banner"
-        class="bg-gray-200 py-12 sm:py-20 mb-8 border-b border-gray-300"
-      >
+      <section id="main-banner" class="py-12 sm:py-20 mb-8 border-b">
         <div class="container mx-auto px-6 text-center">
           <h1
             class="text-3xl sm:text-5xl font-extrabold text-gray-800 mb-3 sm:mb-4"

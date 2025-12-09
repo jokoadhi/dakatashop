@@ -21,6 +21,8 @@ let croppedFileBlob = null; // Menyimpan blob file gambar yang sudah di-crop
 let isInitialLoad = true; // Flag untuk mencegah notifikasi login saat pemuatan awal
 let salesChartInstance = null; // Menyimpan instance Chart.js
 let currentPeriodFilter = 12; // Default 12 Bulan (1 Tahun)
+let themeToggle;
+const STORAGE_KEY = "themePreference";
 
 // GANTI DENGAN KONFIGURASI FIREBASE ASLI ANDA
 const firebaseConfig = {
@@ -759,10 +761,49 @@ async function loadProductDetails(productId) {
   }
 }
 
+// --- Fungsi untuk Mendapatkan Warna Teks Chart Sesuai Tema ---
+function getChartTextColor() {
+  // Cek apakah body memiliki class 'dark-mode'
+  const isDarkMode = document.body.classList.contains("dark-mode");
+  return isDarkMode ? "#f3f4f6" : "#1f2937"; // Menggunakan warna dari --text-color
+}
+
+// FUNGSI BARU: MENDAPATKAN WARNA UNTUK GRAFIK
+function getChartColor(type) {
+  // Asumsi Dark Mode dikontrol oleh class 'dark-mode' pada <body>
+  const isDarkMode = document.body.classList.contains("dark-mode");
+
+  // Warna Teks Dasar (sesuai --text-color di CSS)
+  const baseTextColor = isDarkMode ? "#f3f4f6" : "#1f2937";
+  // Warna Garis Grid (samar di Dark Mode, jelas di Light Mode)
+  const gridColor = isDarkMode
+    ? "rgba(255, 255, 255, 0.1)"
+    : "rgba(0, 0, 0, 0.1)";
+
+  if (type === "text") return baseTextColor;
+  if (type === "grid") return gridColor;
+  return baseTextColor; // Default
+}
+
+// --- Atur Pengaturan Global Chart.js ---
+function configureChartDefaults() {
+  const textColor = getChartTextColor();
+
+  // Atur warna teks default (untuk label sumbu, legenda, dll.)
+  Chart.defaults.color = textColor;
+
+  // Khusus untuk Title Chart (opsional)
+  Chart.defaults.plugins.title.color = textColor;
+
+  // Khusus untuk Tooltip (opsional)
+  Chart.defaults.plugins.tooltip.titleColor = textColor;
+  Chart.defaults.plugins.tooltip.bodyColor = textColor;
+}
+
 function createProductCard(product) {
   const card = document.createElement("div");
   card.className =
-    "product-card bg-white rounded-xl shadow-lg hover:shadow-xl transition duration-300 overflow-hidden flex flex-col h-full cursor-pointer border border-gray-100 flex-shrink-0";
+    "product-card rounded-xl shadow-lg hover:shadow-xl transition duration-300 overflow-hidden flex flex-col h-full cursor-pointer border flex-shrink-0";
 
   card.dataset.id = product.id;
 
@@ -930,6 +971,75 @@ function createProductCard(product) {
   if (authAddressInput) authAddressInput.removeAttribute("required");
   if (authPasswordInput)
     authPasswordInput.setAttribute("placeholder", "Sandi (minimal 6 karakter)");
+}
+
+/**
+ * Mengubah tema antara light dan dark, serta menyimpan preferensi ke localStorage.
+ * Memperbarui tampilan grafik (salesChart) jika sudah dimuat.
+ */
+function toggleTheme() {
+  const body = document.body;
+  const isDarkMode = themeToggle.checked;
+
+  console.log("Toggle Ditekan! Status Dark Mode:", isDarkMode); // 🔥 DEBUG INI 🔥
+
+  if (isDarkMode) {
+    body.classList.add("dark-mode");
+    localStorage.setItem(STORAGE_KEY, "dark");
+  } else {
+    body.classList.remove("dark-mode");
+    localStorage.setItem(STORAGE_KEY, "light");
+  }
+
+  // 🔥 PERBAIKAN GRAFIK: Panggil ulang renderSalesChart jika instansi ada 🔥
+  // Asumsi: salesChartInstance dan salesByPeriod tersedia secara global
+  // atau dapat diakses di lingkup ini.
+  if (
+    typeof salesChartInstance !== "undefined" &&
+    salesChartInstance !== null
+  ) {
+    // Pastikan data yang diperlukan (salesByPeriod) tersedia
+    // sebelum mencoba me-render ulang grafik.
+    if (typeof salesByPeriod !== "undefined" && salesByPeriod !== null) {
+      console.log("Memperbarui Grafik Penjualan...");
+      renderSalesChart(salesByPeriod);
+    } else {
+      // Jika data tidak tersedia, mungkin grafik belum dimuat di halaman ini.
+      console.warn(
+        "salesByPeriod tidak ditemukan, tidak dapat memperbarui grafik."
+      );
+    }
+  }
+}
+
+/**
+ * Memuat preferensi tema yang tersimpan di localStorage atau dari preferensi sistem.
+ */
+function loadThemePreference() {
+  const body = document.body;
+  const savedTheme = localStorage.getItem(STORAGE_KEY);
+
+  // 1. Cek Preferensi Tersimpan
+  if (savedTheme === "dark") {
+    body.classList.add("dark-mode");
+    themeToggle.checked = true;
+  } else if (savedTheme === "light") {
+    body.classList.remove("dark-mode");
+    themeToggle.checked = false;
+  }
+  // 2. Cek Preferensi Sistem jika belum ada (hanya saat pertama kali)
+  else if (
+    window.matchMedia &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches
+  ) {
+    body.classList.add("dark-mode");
+    themeToggle.checked = true;
+    // Simpan preferensi ini agar tidak perlu mengecek OS lagi
+    localStorage.setItem(STORAGE_KEY, "dark");
+  } else {
+    // Default ke light mode dan simpan
+    localStorage.setItem(STORAGE_KEY, "light");
+  }
 }
 
 /**
@@ -1937,6 +2047,9 @@ function renderSalesChart(salesData) {
     return;
   }
 
+  const chartTextColor = getChartColor("text");
+  const chartGridColor = getChartColor("grid");
+
   const ctx = salesChartCanvas.getContext("2d");
   salesChartInstance = new Chart(ctx, {
     type: "bar",
@@ -1946,7 +2059,7 @@ function renderSalesChart(salesData) {
         {
           label: "Penjualan Bersih (Rp)",
           data: chartValues,
-          backgroundColor: "rgba(54, 162, 235, 0.8)",
+          backgroundColor: "rgba(54, 162, 235, 0.8)", // Biru (Anda bisa ganti ini dengan variabel CSS jika mau)
           borderColor: "rgba(54, 162, 235, 1)",
           borderWidth: 1,
           borderRadius: 5,
@@ -1959,8 +2072,13 @@ function renderSalesChart(salesData) {
       scales: {
         y: {
           beginAtZero: true,
-          title: { display: true, text: "Pendapatan (Rp)" },
+          title: {
+            display: true,
+            text: "Pendapatan (Rp)",
+            color: chartTextColor, // 🔥 Disesuaikan
+          },
           ticks: {
+            color: chartTextColor, // 🔥 Disesuaikan
             callback: function (value) {
               if (value >= 1000000) {
                 return "Rp " + (value / 1000000).toFixed(1) + "Jt";
@@ -1969,14 +2087,37 @@ function renderSalesChart(salesData) {
               return "Rp " + (value / 1000).toFixed(0) + "k";
             },
           },
+          grid: {
+            color: chartGridColor, // 🔥 Disesuaikan
+            borderColor: chartTextColor, // 🔥 Disesuaikan
+          },
         },
         x: {
-          title: { display: true, text: "Periode (Bulan/Tahun)" },
+          title: {
+            display: true,
+            text: "Periode (Bulan/Tahun)",
+            color: chartTextColor, // 🔥 Disesuaikan
+          },
+          ticks: {
+            color: chartTextColor, // 🔥 Disesuaikan
+          },
+          grid: {
+            color: chartGridColor, // 🔥 Disesuaikan
+            borderColor: chartTextColor, // 🔥 Disesuaikan
+          },
         },
       },
       plugins: {
-        legend: { display: true, position: "top" },
+        legend: {
+          display: true,
+          position: "top",
+          labels: {
+            color: chartTextColor, // 🔥 Disesuaikan
+          },
+        },
         tooltip: {
+          // Anda mungkin ingin menyesuaikan warna latar belakang tooltip di sini,
+          // tapi biasanya warna defaultnya (hitam/putih) sudah kontras.
           callbacks: {
             label: function (context) {
               let label = context.dataset.label || "";
@@ -2394,7 +2535,7 @@ function setupBackToButtonListener() {
     newHandler = handleBackToCartClick;
   } else {
     // Mode Single Item: Kembali ke Detail Produk
-    newText = "Kembali ke Detail Produk";
+    newText = "<  Kembali ke Detail Produk";
 
     if (typeof handleBackToDetailClick === "function") {
       newHandler = handleBackToDetailClick;
@@ -3255,6 +3396,10 @@ document.addEventListener("DOMContentLoaded", () => {
   eyeIconOpen = document.getElementById("eye-icon-open");
   eyeIconClosed = document.getElementById("eye-icon-closed");
 
+  // BAGIAN TEMA / DARK MODE
+  themeToggle = document.getElementById("theme-checkbox");
+  console.log("Status Theme Toggle di DOM:", themeToggle);
+
   // --- AKHIR INISIALISASI DOM ---
 
   // Panggil setAuthModeToLogin() secara default saat DOMContentLoaded
@@ -3265,6 +3410,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // -----------------------------------------------------------------
   // 🔥 EVENT LISTENERS 🔥
   // -----------------------------------------------------------------
+
+  // 0. Dark Mode Toggle
+  if (themeToggle) {
+    // Cek apakah elemen ditemukan
+    // 🔥 PENTING: Gunakan event 'change' karena ini adalah checkbox.
+    themeToggle.addEventListener("change", toggleTheme);
+  }
 
   // 1. Produk Upload/Edit (MODAL UPLOAD)
   if (uploadBtn) {

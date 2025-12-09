@@ -1,0 +1,526 @@
+/* ================================================= */
+/* 🔥 1. DEFINISI VARIABEL TEMA UTAMA & TOGGLE (FINAL) 🔥 */
+/* ================================================= */
+:root {
+  /* --- Tema Dasar (Light Mode) --- */
+  --background-color: #ffffff;
+  --text-color: #1f2937;
+  --primary-color: #3b82f6;
+  --card-background: #f3f4f6;
+  --header-bg: #102a43;
+  --header-text: white;
+  --banner-bg: #e5e7eb;
+
+  /* --- Variabel Toggle Ikon SVG --- */
+  --toggle-off-bg: #e5e7eb;
+  --toggle-on-bg: #4f46e5;
+  --handle-color: white;
+  --sun-icon-color: #f59e0b;
+  --moon-icon-color: #374151;
+}
+
+/* --- DARK MODE OVERRIDE (Kontras Nyaman) --- */
+body.dark-mode {
+  /* Body */
+  --background-color: #1a202c;
+  --text-color: #f3f4f6;
+  --primary-color: #4299e1;
+  --card-background: #4a5568;
+  --banner-bg: #374151;
+  --header-bg: #2d3748;
+  --header-text: #f3f4f6;
+}
+
+/* ================================================= */
+/* 2. PENERAPAN VARIABEL TEMA KE ELEMEN UTAMA */
+/* ================================================= */
+
+body {
+  background-color: var(--background-color);
+  color: var(--text-color);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Penerapan ke elemen Header */
+header {
+  background-color: var(--header-bg);
+  color: var(--header-text);
+  transition: background-color 0.3s, color 0.3s;
+  border-bottom: none;
+}
+
+/* Border Bawah Header Khusus Dark Mode */
+body.dark-mode header {
+  border-bottom: 2px solid var(--primary-color);
+}
+
+/* Penerapan ke elemen Card atau Container (Modal, Card Produk, View Utama) */
+.product-card,
+#profile-modal > div,
+#seller-controls > div,
+#management-view > div,
+#admin-view > div,
+#cart-view > div,
+#product-detail-view > div,
+#order-detail-view > div,
+#login-modal > div,
+#auth-modal > div,
+#alert-modal > div {
+  background-color: var(--card-background) !important;
+  border-color: var(--card-background);
+  transition: background-color 0.3s, border-color 0.3s;
+  color: var(--text-color);
+}
+
+/* Backdrop Modal */
+body.dark-mode #auth-modal,
+body.dark-mode #alert-modal {
+  background-color: rgba(0, 0, 0, 0.9) !important;
+}
+
+/* Penerapan pada elemen spesifik (misalnya banner) */
+#main-banner {
+  background-color: var(--banner-bg);
+  border-bottom-color: var(--card-background);
+  transition: background-color 0.3s, border-bottom-color 0.3s;
+}
+
+/* Contoh Penerapan Warna Primary pada Tombol */
+.primary-button {
+  background-color: var(--primary-color);
+  color: var(--background-color);
+}
+
+/* ================================================= */
+/* 🔥 2B. SOLUSI TEKS UNIVERSAL DARK MODE (FINAL) 🔥 */
+/* ================================================= */
+
+/* KRUSIAL: Menargetkan Div Card Deskripsi Produk (Perbaikan Card Putih di Detail Page) */
+body.dark-mode div:not(body).bg-white.rounded-lg.shadow-xl {
+  background-color: var(--card-background) !important;
+  border-color: var(--banner-bg) !important;
+}
+
+/* --- Penyesuaian Status Label di Riwayat Transaksi (FINAL FIX V3 - Stronger Selector) --- */
+
+/* Completed (Hijau) */
+body.dark-mode .bg-green-100 {
+  background-color: #38a169 !important; /* Latar belakang Hijau Gelap */
+}
+/* Memaksa teks di dalam badge ini menjadi terang/putih */
+body.dark-mode .bg-green-100.text-green-800,
+body.dark-mode .bg-green-100 .text-green-800,
+body.dark-mode .bg-green-100 > span {
+  color: #ffffff !important;
+}
+
+/* Pending (Kuning) */
+body.dark-mode .bg-yellow-100 {
+  background-color: #ecc94b !important; /* Latar belakang Kuning Terang/Gelap */
+}
+/* Memaksa teks di dalam badge ini menjadi gelap/hitam */
+body.dark-mode .bg-yellow-100.text-yellow-800,
+body.dark-mode .bg-yellow-100 .text-yellow-800,
+body.dark-mode .bg-yellow-100 > span {
+  color: #1f2937 !important; /* Teks Hitam (atau warna teks Light Mode) */
+}
+
+/* Cancelled/Error (Merah) */
+body.dark-mode .bg-red-100 {
+  background-color: #c53030 !important;
+}
+body.dark-mode .bg-red-100 .text-red-800 {
+  color: #fff5f5 !important;
+}
+/* --- END Status Label --- */
+
+/* --- Modal Notifikasi (Alert/Confirmation) --- */
+body.dark-mode #alert-modal h2 {
+  color: var(--text-color) !important;
+}
+
+body.dark-mode #alert-modal p {
+  color: #a0aec0 !important;
+}
+
+/* Ikon Peringatan (Asumsi class untuk styling lingkaran ikon) */
+body.dark-mode #alert-modal .warning-icon-circle {
+  background-color: transparent !important;
+  border-color: #f6ad55 !important;
+}
+body.dark-mode #alert-modal .warning-icon-circle svg {
+  color: #f6ad55 !important;
+}
+/* --- END Modal Notifikasi --- */
+
+/* --- OVERRIDE KHUSUS SWEETALERT2 (SWAL) --- */
+body.dark-mode .swal2-popup {
+  background-color: var(--card-background) !important;
+  border: 1px solid var(--banner-bg);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-mode .swal2-title {
+  color: var(--text-color) !important;
+}
+
+body.dark-mode .swal2-html-container {
+  color: #a0aec0 !important;
+}
+
+body.dark-mode .swal2-icon.swal2-warning {
+  border-color: #f6ad55 !important;
+  color: #f6ad55 !important;
+}
+
+/* Khusus tombol sukses (Toast) */
+body.dark-mode .swal2-success .swal2-success-line,
+body.dark-mode .swal2-success .swal2-success-ring {
+  background-color: #48bb78 !important;
+}
+body.dark-mode .swal2-success .swal2-success-circular-line {
+  background-color: var(--card-background) !important;
+}
+/* --- END SWAL OVERRIDE --- */
+
+/* --- MODAL UPLOAD PRODUK & CROP --- */
+/* 1. Modal Wrapper (#upload-modal dan #crop-modal) */
+body.dark-mode #upload-modal > div,
+body.dark-mode #crop-modal > div {
+  background-color: var(--card-background) !important;
+  color: var(--text-color);
+}
+
+/* 2. Judul Modal (text-gray-900 / text-gray-800) dan Label Form */
+body.dark-mode #upload-modal-title,
+body.dark-mode #crop-modal > div h3,
+body.dark-mode #upload-form label {
+  color: var(--text-color) !important;
+}
+
+/* 3. Ikon Close Modal */
+body.dark-mode #close-upload-modal-btn,
+body.dark-mode #close-crop-modal-btn {
+  color: var(--banner-bg) !important;
+}
+body.dark-mode #close-upload-modal-btn:hover,
+body.dark-mode #close-crop-modal-btn:hover {
+  color: var(--text-color) !important;
+}
+
+/* 4. Input File Styling (file:bg-blue-50 file:text-blue-700) */
+body.dark-mode #product-image-file::file-selector-button {
+  background-color: var(--banner-bg) !important;
+  color: var(--primary-color) !important;
+  border-color: var(--banner-bg) !important;
+}
+body.dark-mode #product-image-file:hover::file-selector-button {
+  background-color: var(--header-bg) !important;
+}
+
+/* 5. Pratinjau Gambar */
+body.dark-mode #image-preview-container {
+  border-color: var(--banner-bg) !important;
+}
+body.dark-mode #image-preview-container p,
+body.dark-mode #image-preview {
+  border-color: var(--banner-bg) !important;
+}
+
+/* 6. Button Simpan Produk (bg-green-600) */
+body.dark-mode #upload-submit-btn {
+  background-color: #48bb78 !important;
+  color: var(--background-color) !important;
+}
+body.dark-mode #upload-submit-btn:hover {
+  background-color: #38a169 !important;
+}
+
+/* 7. Crop Modal Specifics */
+body.dark-mode #crop-modal > div > div.border-b,
+body.dark-mode #crop-modal > div > div.border-t {
+  border-color: var(--banner-bg) !important;
+}
+body.dark-mode #image-to-crop {
+  border-color: var(--banner-bg) !important;
+}
+/* --- END MODAL UPLOAD PRODUK & CROP --- */
+
+/* --- Management View (#management-view) --- */
+/* 1. Judul Utama */
+body.dark-mode #management-view h2 {
+  color: var(--text-color) !important;
+}
+
+/* 2. Statistik Card */
+body.dark-mode #management-view p.text-gray-500 {
+  color: #a0aec0 !important;
+}
+body.dark-mode #total-saldo {
+  color: #48bb78 !important;
+}
+body.dark-mode #total-terjual {
+  color: #f6e05e !important;
+}
+body.dark-mode #total-transaksi {
+  color: var(--primary-color) !important;
+}
+body.dark-mode .border-l-4.border-green-500 {
+  border-left-color: #48bb78 !important;
+}
+body.dark-mode .border-l-4.border-yellow-500 {
+  border-left-color: #f6e05e !important;
+}
+body.dark-mode .border-l-4.border-blue-500 {
+  border-left-color: var(--primary-color) !important;
+}
+
+/* 3. Statistik Card Detail & Chart Container */
+body.dark-mode div.border-t-4.border-blue-600 {
+  border-top-color: var(--primary-color) !important;
+}
+body.dark-mode div.border-t-4.border-blue-600 svg {
+  color: var(--primary-color) !important;
+}
+
+/* 4. Tabel Riwayat Transaksi */
+body.dark-mode #management-view table thead.bg-gray-50 {
+  background-color: var(--header-bg) !important;
+}
+body.dark-mode #management-view table th.text-gray-500 {
+  color: var(--header-text) !important;
+}
+body.dark-mode #transaction-history {
+  background-color: var(--card-background) !important;
+}
+body.dark-mode #management-view table .divide-gray-200 {
+  border-color: var(--banner-bg) !important;
+}
+/* --- END Management View --- */
+
+/* Tabel Daftar Pelanggan */
+body.dark-mode table tr {
+  background-color: var(--card-background) !important;
+}
+body.dark-mode .bg-blue-50\/50 {
+  background-color: var(--banner-bg) !important;
+  border-color: var(--primary-color) !important;
+}
+body.dark-mode td,
+body.dark-mode th {
+  color: var(--text-color) !important;
+}
+body.dark-mode .delete-user-btn:disabled,
+body.dark-mode .delete-user-btn[disabled],
+body.dark-mode .text-red-300 {
+  color: #a0aec0 !important;
+  opacity: 0.6;
+}
+body.dark-mode .delete-user-btn:not(:disabled) {
+  color: var(--primary-color) !important;
+}
+body.dark-mode .delete-user-btn:not(:disabled):hover {
+  color: var(--header-text) !important;
+}
+body.dark-mode td.text-red-500 {
+  color: var(--primary-color) !important;
+}
+
+/* 1. Target ID Spesifik yang Paling Kritis */
+body.dark-mode p#detail-product-description,
+body.dark-mode #detail-shop-address-text,
+body.dark-mode #order-product-summary {
+  color: var(--text-color) !important;
+}
+
+/* 2. Prioritaskan Override Warna Teks Tailwind yang Bermasalah (Universal) */
+body.dark-mode .text-gray-500,
+body.dark-mode .text-gray-700,
+body.dark-mode .text-gray-800,
+body.dark-mode .text-gray-900,
+body.dark-mode .text-gray-600,
+body.dark-mode .text-navy-blue,
+body.dark-mode .text-red-600 {
+  color: var(--text-color) !important;
+}
+
+/* 3. Aturan Universal untuk Teks dan Elemen Dasar */
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode p,
+body.dark-mode span,
+body.dark-mode label,
+body.dark-mode div,
+body.dark-mode table {
+  color: var(--text-color) !important;
+}
+
+/* Tautan */
+body.dark-mode a:not(.primary-button):not(.bg-gold-accent) {
+  color: var(--text-color);
+}
+
+/* Ikon Penutup Modal dan Hover State */
+body.dark-mode #close-modal-btn svg {
+  color: var(--text-color) !important;
+}
+body.dark-mode #close-modal-btn:hover svg {
+  color: var(--primary-color) !important;
+}
+
+/* Ikon SVG visibility toggle */
+body.dark-mode #toggle-auth-password-visibility svg {
+  color: var(--text-color) !important;
+}
+
+/* Ikon SVG di Header */
+header svg {
+  color: var(--header-text);
+}
+
+/* Override latar belakang abu-abu yang hardcoded */
+body.dark-mode .bg-gray-50 {
+  background-color: var(--banner-bg) !important;
+}
+
+/* Override latar belakang ringkasan pesanan (bg-red-50) */
+body.dark-mode .bg-red-50 {
+  background-color: var(--banner-bg) !important;
+  border-color: var(--header-bg) !important;
+}
+
+/* Perbaikan Placeholder */
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+  color: #a0aec0 !important;
+  opacity: 0.8;
+}
+
+/* Override Input, Textarea, dan Select */
+body.dark-mode
+  input:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not(
+    [type="radio"]
+  ),
+body.dark-mode textarea,
+body.dark-mode select,
+body.dark-mode .shadow-sm.border.border-gray-300 {
+  background-color: var(--background-color) !important;
+  color: var(--text-color) !important;
+  border-color: #5a6270 !important;
+}
+
+/* ================================================= */
+/* 3. GAYA TOGGLE IKON SVG LANJUTAN */
+/* ================================================= */
+
+.theme-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* Deklarasi Dasar untuk Desktop (dan Mobile secara default) */
+.theme-switch {
+  display: inline-block !important; /* DIPAKSA MUNCUL DI MANA SAJA */
+  width: 50px;
+  height: 26px;
+  position: relative;
+  cursor: pointer;
+}
+
+/* Slider (Background) */
+.slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--toggle-off-bg);
+  transition: all 0.4s ease-in-out;
+  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.slider.round {
+  border-radius: 26px;
+}
+
+/* Handle (Lingkaran Putih Bergerak) */
+.slider-handle {
+  position: absolute;
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  top: 3px;
+  background-color: var(--handle-color);
+  transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --- Styling Ikon di Dalam Handle --- */
+
+.sun-icon,
+.moon-icon {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  transition: all 0.4s ease-in-out;
+}
+
+.sun-icon {
+  color: var(--sun-icon-color);
+  opacity: 1;
+}
+
+.moon-icon {
+  color: var(--moon-icon-color);
+  opacity: 0;
+  transform: rotate(90deg);
+}
+
+/* ----------------------------------- */
+/* Saat Dark Mode ON (Checked State) */
+/* ----------------------------------- */
+
+input:checked + .slider {
+  background-color: var(--toggle-on-bg);
+}
+
+/* Pindahkan handle ke kanan */
+input:checked + .slider .slider-handle {
+  transform: translateX(24px);
+  background-color: var(--handle-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* Animasi Ikon Saat Dark Mode */
+input:checked + .slider .sun-icon {
+  opacity: 0;
+  transform: rotate(90deg);
+}
+
+input:checked + .slider .moon-icon {
+  opacity: 1;
+  transform: rotate(0deg);
+}
+
+/* ================================================= */
+/* 4. TOGGLE VISIBILITY (FIXED FOR MOBILE) 🔥 NEW FIX */
+/* ================================================= */
+
+/* Jika toggle hilang di mobile, kemungkinan ada aturan Tailwind (hidden) 
+   yang diterapkan di layar kecil. Kita timpa aturan tersebut di sini. */
+@media (max-width: 767px) {
+  .theme-switch {
+    /* Memaksa elemen untuk TAMPIL di mobile */
+    display: inline-block !important;
+    /* Pastikan elemen tidak memiliki properti layout yang mengganggu */
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}
