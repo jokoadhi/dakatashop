@@ -1033,7 +1033,7 @@ function triggerFlyToCartAnimation(startButton) {
   flyingItem.style.setProperty("--target-y", `${targetY}px`);
   // --- AKHIR KODE SETUP ---
 
-  const TIMEOUT_START = 1200; // 🔥 KEMBALIKAN KE 1200ms untuk sinkronisasi 🔥
+  const TIMEOUT_START = 1000; // 🔥 KEMBALIKAN KE 1200ms untuk sinkronisasi 🔥
 
   // 1. Pemicu animasi Terbang
   requestAnimationFrame(() => {
