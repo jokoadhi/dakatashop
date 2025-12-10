@@ -23,6 +23,8 @@ let salesChartInstance = null; // Menyimpan instance Chart.js
 let currentPeriodFilter = 12; // Default 12 Bulan (1 Tahun)
 let themeToggle;
 const STORAGE_KEY = "themePreference";
+const MAX_HISTORY_ITEMS = 5;
+const SEARCH_HISTORY_KEY = "dakataShopSearchHistory";
 
 // GANTI DENGAN KONFIGURASI FIREBASE ASLI ANDA
 const firebaseConfig = {
@@ -134,8 +136,8 @@ let productDetailView,
 let imageToCrop;
 let cropModal, closeCropModalBtn, applyCropBtn;
 
-// Struktur Data Keranjang
-let cart = []; // Array untuk menyimpan objek item { produkId, nama, harga, kuantitas }
+/// Struktur Data Keranjang
+let cart = loadCartFromLocalStorage(); // Harus memanggil fungsi load di sini
 
 // Elemen DOM Keranjang
 let cartCount; // Badge jumlah item di header
@@ -973,6 +975,95 @@ function createProductCard(product) {
   if (authAddressInput) authAddressInput.removeAttribute("required");
   if (authPasswordInput)
     authPasswordInput.setAttribute("placeholder", "Sandi (minimal 6 karakter)");
+}
+
+function updateCartCountBadge() {
+  const cartCountElement = document.getElementById("cart-count");
+
+  // Asumsi: Variabel 'cart' adalah array global Anda yang berisi item keranjang.
+  if (typeof cart === "undefined" || !Array.isArray(cart)) {
+    return;
+  }
+
+  // 🔥 KUNCI: Hitung jumlah item unik (cart.length) 🔥
+  const uniqueItemCount = cart.length;
+
+  cartCountElement.textContent = uniqueItemCount;
+
+  // Kontrol Visibilitas Badge
+  if (uniqueItemCount > 0) {
+    cartCountElement.classList.remove("hidden");
+  } else {
+    cartCountElement.classList.add("hidden");
+  }
+
+  // 🔥 HAPUS LOGIKA SHAKE DARI SINI 🔥
+}
+
+/**
+ * Memicu animasi "terbang" dari tombol produk ke ikon keranjang.
+ * @param {HTMLElement} startButton - Tombol produk yang diklik (asal).
+ */
+function triggerFlyToCartAnimation(startButton) {
+  const cartIcon = document.getElementById("cart-btn");
+
+  // ... (KODE SETUP ITEM TERBANG TETAP SAMA) ...
+  const buttonRect = startButton.getBoundingClientRect();
+  const cartRect = cartIcon.getBoundingClientRect();
+
+  const targetX =
+    cartRect.left +
+    cartRect.width / 2 -
+    (buttonRect.left + buttonRect.width / 2);
+  const targetY =
+    cartRect.top +
+    cartRect.height / 2 -
+    (buttonRect.top + buttonRect.height / 2);
+
+  const flyingItem = document.createElement("span");
+  flyingItem.classList.add("flying-cart-item");
+  flyingItem.textContent = "1";
+
+  document.body.appendChild(flyingItem);
+
+  flyingItem.style.left = `${buttonRect.left + buttonRect.width / 2}px`;
+  flyingItem.style.top = `${buttonRect.top + buttonRect.height / 2}px`;
+
+  flyingItem.style.setProperty("--target-x", `${targetX}px`);
+  flyingItem.style.setProperty("--target-y", `${targetY}px`);
+  // --- AKHIR KODE SETUP ---
+
+  const TIMEOUT_START = 1200; // 🔥 KEMBALIKAN KE 1200ms untuk sinkronisasi 🔥
+
+  // 1. Pemicu animasi Terbang
+  requestAnimationFrame(() => {
+    flyingItem.classList.add("is-flying");
+  });
+
+  // 2. Aksi setelah animasi selesai (1200ms)
+  setTimeout(() => {
+    // Hapus item terbang
+    flyingItem.remove();
+
+    // --- Log status saat Count akan diperbarui ---
+    console.log("------------------------------------------");
+    console.log(`[ANIMASI END] Cart di memori saat ini: ${cart.length}`); // DEBUG C
+    console.log(`[ANIMASI END] Count Badge diupdate menjadi: ${cart.length}`);
+    console.log("------------------------------------------");
+
+    // 3. Panggil pembaruan hitungan (Logika Count Akurat)
+    if (typeof updateCartCountBadge === "function") {
+      updateCartCountBadge();
+    }
+
+    // 4. Pemicu SHAKE
+    cartIcon.classList.add("cart-shake");
+
+    // Hapus efek kocok
+    setTimeout(() => {
+      cartIcon.classList.remove("cart-shake");
+    }, 500);
+  }, TIMEOUT_START);
 }
 
 /**
@@ -2732,6 +2823,23 @@ function handleCheckoutClick() {
   window.scrollTo(0, 0);
 }
 
+function loadCartFromLocalStorage() {
+  const storedCart = localStorage.getItem("userCart");
+  // Selalu kembalikan array, baik yang sudah terisi atau array kosong
+  return storedCart ? JSON.parse(storedCart) : [];
+}
+
+function loadCartFromLocalStorage() {
+  const storedCart = localStorage.getItem("userCart");
+  // Selalu kembalikan array (kosong jika tidak ada data)
+  return storedCart ? JSON.parse(storedCart) : [];
+}
+
+function saveCartToLocalStorage() {
+  // Menyimpan array 'cart' global ke Local Storage
+  localStorage.setItem("userCart", JSON.stringify(cart));
+}
+
 /**
  * Memperbarui badge jumlah item di header
  */
@@ -2747,23 +2855,19 @@ function updateCartCount() {
     }
   }
 }
-
 /**
  * Menambahkan atau memperbarui item di keranjang
  * @param {object} product - Detail produk (id, nama, harga, shopName, shopPhone, dll.)
  * @param {number} quantity - Jumlah item yang ditambahkan
  */
-// Fungsi ASYNC untuk menambahkan produk ke keranjang
 async function addToCart(product, quantity = 1) {
   if (!product || !product.id || !product.ownerId) {
-    // Wajibkan ownerId
     Swal.fire("Error", "Data produk atau pemilik tidak valid.", "error");
     return;
   }
 
   const rawPrice = product.price || product.harga;
   const productPrice = Number(rawPrice) || 0;
-
   const productImageURL =
     product.image || product.imageUrl || "https://via.placeholder.com/64";
 
@@ -2772,9 +2876,8 @@ async function addToCart(product, quantity = 1) {
   let finalSellerPhone = null;
 
   try {
-    // Ambil data penjual dari ownerId
     const sellerData = await getSellerData(product.ownerId);
-    finalSellerPhone = sellerData.phone || null; // Ambil nomor HP dari database
+    finalSellerPhone = sellerData.phone || null;
   } catch (error) {
     console.error(
       "Gagal mengambil data penjual saat menambahkan ke keranjang:",
@@ -2798,35 +2901,38 @@ async function addToCart(product, quantity = 1) {
   }
 
   // --- 2. LOGIKA KERANJANG ---
+  console.log(`[ADDCART: Awal] Cart di memori sebelum update: ${cart.length}`); // DEBUG A
+
   const existingItem = cart.find((item) => item.productId === product.id);
 
   if (existingItem) {
     existingItem.quantity += quantity;
   } else {
-    // Jika item baru, masukkan ke keranjang
     cart.push({
       productId: product.id,
       nama: product.nama,
       price: productPrice,
       shopName: shopNameSource,
-      // 🔥 SIMPAN NOMOR HP YANG SUDAH DIAMBIL DARI DATABASE
       shopPhone: finalSellerPhone,
       image: productImageURL,
       quantity: quantity,
     });
   }
 
-  updateCartCount();
+  // 🔥 HAPUS updateCartCount() yang lama. Count diurus oleh animasi. 🔥
+  // updateCartCount();
 
-  Swal.fire({
-    icon: "success",
-    title: "Ditambahkan ke Keranjang!",
-    text: `${product.nama} (x${quantity}) berhasil ditambahkan.`,
-    toast: true,
-    position: "top-end",
-    showConfirmButton: false,
-    timer: 1500,
-  });
+  // 🔥 KUNCI PERBAIKAN: Menyimpan data terbaru ke Local Storage 🔥
+  if (typeof saveCartToLocalStorage === "function") {
+    saveCartToLocalStorage();
+    console.log(
+      `[ADDCART: Save] saveCartToLocalStorage() dipanggil. Cart di memori: ${cart.length}`
+    ); // DEBUG B
+  } else {
+    console.warn(
+      "Fungsi saveCartToLocalStorage() tidak ditemukan. Data mungkin tidak disimpan."
+    );
+  }
 }
 
 function handleRemoveFromCart(e) {
@@ -3478,6 +3584,9 @@ document.addEventListener("DOMContentLoaded", () => {
   mainNav = document.getElementById("main-nav"); // Kontainer navigasi (perlu disembunyikan)
   logoLink = document.getElementById("logo-link"); // Link Logo (perlu disembunyikan)
   executeSearchBtn = document.getElementById("execute-search-btn");
+
+  searchHistoryContainer = document.getElementById("search-history-container");
+  clearHistoryBtn = document.getElementById("clear-history-btn");
   // 🔥 AKHIR BAGIAN SEARCH OVERLAY 🔥
 
   // BAGIAN AUTHENTIKASI & MODAL
@@ -3981,15 +4090,67 @@ document.addEventListener("DOMContentLoaded", () => {
       handleBackToProductsClick
     );
   }
-
   // 10.2. Tombol Tambah ke Keranjang (Detail View)
   if (addToCartBtn) {
-    addToCartBtn.addEventListener("click", handleAddToCartFromDetail);
+    addToCartBtn.addEventListener("click", (e) => {
+      // 1. Memicu logika penambahan keranjang (yang sudah ada)
+      handleAddToCartFromDetail(e);
+
+      // 2. Panggil animasi, menggunakan elemen yang diklik sebagai posisi awal
+      // Ini akan memicu updateCartCountBadge() dan shake setelah 1.2 detik.
+      triggerFlyToCartAnimation(e.currentTarget);
+
+      // 🔥 HAPUS: updateCartCountBadge() di sini, karena sudah dipanggil di dalam animasi 🔥
+      // updateCartCountBadge();
+    });
   }
+
+  // B. Tambahkan Penanganan untuk Tombol List (BARU)
+  // Anda harus menambahkan ini di file JS utama Anda, di mana Anda membuat kartu produk.
+  // Karena tombol list dibuat secara dinamis, Anda harus menggunakan Event Delegation
+  // atau memastikan event listener ditambahkan saat produk di-render.
 
   // 10.3. Tombol Lanjutkan ke Checkout (Dari Keranjang)
   if (checkoutBtn) {
     checkoutBtn.addEventListener("click", handleCheckoutClick);
+  }
+
+  // Contoh Event Delegation (Asumsi productListDiv adalah kontainer utama)
+  if (productListDiv) {
+    productListDiv.addEventListener("click", (e) => {
+      // 1. Cek jika elemen yang diklik atau salah satu parent-nya memiliki kelas 'add-to-cart-btn-list'
+      const listBtn = e.target.closest(".add-to-cart-btn-list");
+
+      if (listBtn) {
+        e.preventDefault();
+
+        // Debug: Verifikasi tombol yang diklik
+        // console.log("Tombol List View yang diklik:", listBtn);
+
+        // 2. Ambil data produk (jika diperlukan oleh handleAddToCartFromList)
+        const productId = listBtn.getAttribute("data-product-id");
+        const ownerId = listBtn.getAttribute("data-owner-id");
+
+        // 3. 🔥 Panggil fungsi penambahan ke keranjang (Logika Bisnis) 🔥
+        // Catatan: Pastikan fungsi ini memanggil addToCart(product, 1)
+        // handleAddToCartFromList(productId, ownerId);
+
+        // *******************************************************************
+        // Karena Anda perlu objek produk lengkap, pastikan Anda memanggil fungsi
+        // yang mengembalikan objek produk lengkap sebelum addToCart.
+        // Di sini kita asumsikan bisnis logic dipanggil:
+        // handleAddToCartFromList(productId, ownerId);
+        // *******************************************************************
+
+        // 4. 🔥 Panggil Animasi Terbang (Menggunakan tombol yang diklik) 🔥
+        // Ini akan menghitung posisi awal dengan benar.
+        triggerFlyToCartAnimation(listBtn);
+
+        // 🔥 HAPUS PEMANGGILAN INI 🔥
+        // updateCartCountBadge();
+        // Update count akan dipanggil oleh triggerFlyToCartAnimation(listBtn) setelah 1.2 detik.
+      }
+    });
   }
 
   // 11. Tombol Order Sekarang (Order Form Submit)

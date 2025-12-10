@@ -524,6 +524,7 @@ input:checked + .slider .moon-icon {
     opacity: 1 !important;
   }
 }
+
 /* ================================================= */
 /* 5. SEARCH OVERLAY STYLING & ANIMATION */
 /* ================================================= */
@@ -597,25 +598,25 @@ input:checked + .slider .moon-icon {
 /* Tombol Kaca Pembesar (Di dalam input bar) */
 .execute-search-btn {
   position: absolute;
-  right: 20px;
+  right: 10px;
   top: 50%;
   transform: translateY(-50%);
 
   background: none;
   border: none;
 
-  /* 🔥 KUNCI PERUBAHAN: Warna Hitam Penuh dan !important untuk Light Mode */
-  color: #1f2937 !important; /* Warna Abu-abu Ekstra Gelap (Hampir Hitam) */
+  /* 🔥 KUNCI PERUBAHAN: Ubah warna menjadi abu-abu terang (misal #9ca3af) */
+  color: #9ca3af; /* Abu-abu muda: terlihat di latar putih, tapi bukan teks utama */
 
-  opacity: 0.6 !important; /* Opasitas 60% agar terlihat transparan, tapi jelas */
+  opacity: 0.8; /* Ubah sedikit agar lebih terlihat */
 
   cursor: pointer;
   transition: opacity 0.3s;
-  z-index: 100 !important;
+  z-index: 100;
 }
 
 .execute-search-btn:hover {
-  opacity: 1 !important;
+  opacity: 1; /* Penuh saat di-hover */
 }
 
 /* ========================================================= */
@@ -651,12 +652,79 @@ body.dark-mode #search-input {
   border-color: #4299e1 !important;
 }
 
-/* --- Dark Mode Override --- */
+/* --- Dark Mode Override (Ikon tetap harus terang saat Dark Mode) --- */
 body.dark-mode .execute-search-btn {
-  /* Di Dark Mode, warna harus tetap terang (putih/abu-abu terang) */
-  color: #f3f4f6 !important; /* Abu-abu sangat terang */
-  opacity: 0.5 !important;
+  /* Di dark mode, warna #9ca3af mungkin terlalu gelap di latar belakang gelap.
+     Kita kembalikan ke warna terang agar kontras. */
+  color: #e5e7eb; /* Abu-abu sangat muda/hampir putih untuk kontras di latar belakang gelap */
 }
 body.dark-mode .close-search-btn {
   color: #f3f4f6;
+}
+
+/* --- Styling Item Terbang (Bola Kecil) --- */
+.flying-cart-item {
+  /* 🔥 KOREKSI KRITIS: GUNAKAN fixed untuk posisi yang dihitung dari viewport 🔥 */
+  position: fixed;
+  height: 20px;
+  width: 20px;
+
+  /* 🔥 HAPUS: Properti yang tidak digunakan/mengganggu karena posisi diatur JS 🔥 */
+  /* top: 50%; */
+  /* left: 50%; */
+  /* transform: translate(-50%, -50%); */ /* Akan ditimpa oleh flyToCart */
+
+  z-index: 99999; /* Pastikan selalu di atas elemen lain */
+  background: #2bd156; /* Warna Hijau (Success/Cart) */
+  color: white;
+  border-radius: 9999px; /* Bentuk lingkaran */
+  text-align: center;
+  line-height: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 1;
+  pointer-events: none; /* Penting agar tidak menghalangi interaksi */
+}
+
+/* --- State: Memicu Animasi --- */
+.is-flying {
+  /* Animasi X & Y digabungkan dalam Keyframes yang sama */
+  animation: flyToCart 1.3s forwards cubic-bezier(0.5, -0.5, 0.4, 1.5);
+}
+
+/* --- Keyframes Utama: Terbang --- */
+@keyframes flyToCart {
+  /* Nilai 0% adalah posisi awal (di tengah tombol) */
+  0% {
+    /* 🔥 KOREKSI: Tambahkan kembali offset -50% untuk memastikan pusatnya adalah titik klik 🔥 */
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+
+  /* 100% adalah posisi akhir (posisi keranjang di header) */
+  100% {
+    /* Memicu terbang dari posisi 50% ke posisi target */
+    transform: translate(var(--target-x), var(--target-y)) scale(0.2);
+    opacity: 0;
+  }
+}
+
+/* --- Animasi Kocok Keranjang --- */
+.cart-shake {
+  animation: shakeCart 0.4s ease-in-out forwards;
+}
+
+@keyframes shakeCart {
+  25% {
+    transform: translateX(6px);
+  }
+  50% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(2px);
+  }
+  100% {
+    transform: translateX(0);
+  }
 }
