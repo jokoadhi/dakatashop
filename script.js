@@ -1349,24 +1349,87 @@ async function loadNewOrdersList() {
  * atau tombol (Notifikasi: Terima/Tolak).
  */
 async function updateOrderStatus(docId, newStatus) {
-  try {
-    const orderRef = db.collection("orders").doc(docId);
+  const db = firebase.firestore();
+  const orderRef = db.collection("orders").doc(docId);
 
-    await orderRef.update({
-      status: newStatus,
-      lastUpdated: firebase.firestore.FieldValue.serverTimestamp(), // Tambahkan lastUpdated
+  try {
+    // 🔥 Menggunakan runTransaction untuk memastikan pembacaan stok dan penulisan status/stok adalah atomik 🔥
+    await db.runTransaction(async (transaction) => {
+      const orderDoc = await transaction.get(orderRef);
+
+      if (!orderDoc.exists) {
+        throw new Error("Dokumen pesanan tidak ditemukan.");
+      }
+
+      const orderData = orderDoc.data();
+      const currentStatus = orderData.status;
+      const ownerId = orderData.ownerId; // Ambil Owner ID
+
+      // --- 1. PENGURANGAN STOK: HANYA DARI 'Diterima' KE 'Diproses' ---
+      if (currentStatus === "Diterima" && newStatus === "Diproses") {
+        const productItems = orderData.productItems;
+
+        if (!productItems || productItems.length === 0) {
+          // Hanya memberikan peringatan, tidak membatalkan transaksi status
+          console.warn(
+            `Pesanan ${docId} tidak memiliki detail produk terstruktur (productItems). Melanjutkan update status tanpa mengurangi stok.`
+          );
+        } else {
+          // Loop melalui setiap item pesanan
+          for (const item of productItems) {
+            if (!item.productId || item.quantity <= 0) continue;
+
+            // 🔥 REFERENSI PRODUK MULTI-VENDOR (users/{ownerId}/products/{productId}) 🔥
+            const productRef = db.collection("products").doc(item.productId);
+
+            const productDoc = await transaction.get(productRef);
+
+            if (!productDoc.exists) {
+              console.warn(
+                `Produk ID ${item.productId} tidak ditemukan. Melewatkan pengurangan stok.`
+              );
+              continue;
+            }
+
+            const currentStock = productDoc.data().stock || 0;
+            const quantityToSubtract = item.quantity;
+            const newStock = currentStock - quantityToSubtract;
+
+            if (newStock < 0) {
+              // KRITIS: Membatalkan seluruh transaksi jika stok tidak cukup
+              throw new Error(
+                `Stok tidak mencukupi untuk produk ID ${item.productId}. Stok tersedia: ${currentStock}, Diminta: ${quantityToSubtract}`
+              );
+            }
+
+            // Lakukan pengurangan stok dalam transaksi
+            transaction.update(productRef, {
+              stock: newStock, // Menggunakan nilai yang sudah dihitung (bukan increment)
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+
+            console.log(
+              `Stok produk ${item.productId} diupdate dari ${currentStock} menjadi ${newStock}.`
+            );
+          }
+        }
+      }
+
+      // --- 2. UPDATE STATUS PESANAN ---
+      transaction.update(orderRef, {
+        status: newStatus,
+        lastUpdated: firebase.firestore.FieldValue.serverTimestamp(), // Tambahkan lastUpdated
+      });
+
+      return `Status pesanan ${docId} berhasil diubah menjadi ${newStatus}.`;
     });
 
-    console.log(
-      `Status Order ${docId} diubah menjadi: ${newStatus} di Firestore.`
-    );
+    // --- LOGIKA SETELAH TRANSAKSI BERHASIL (di luar try block utama) ---
 
     // 1. Refresh tampilan 'Pesanan Baru'
     loadNewOrdersList();
 
-    // 2. Refresh tampilan 'Riwayat Transaksi' untuk melihat status baru
-    //    Ini penting karena status 'Diproses' atau 'Ditolak' akan memindahkan pesanan
-    //    dari tabel Notifikasi ke tabel Riwayat.
+    // 2. Refresh tampilan 'Riwayat Transaksi'
     if (typeof loadTransactionHistory === "function") {
       loadTransactionHistory();
     }
@@ -1374,18 +1437,32 @@ async function updateOrderStatus(docId, newStatus) {
     Swal.fire({
       icon: "success",
       title: "Status Diperbarui!",
-      text: `Pesanan ${docId} berstatus: ${newStatus}`,
+      text:
+        newStatus === "Diproses"
+          ? `Pesanan diterima dan stok produk telah dikurangi.`
+          : `Pesanan ${docId} berstatus: ${newStatus}`,
       toast: true,
       position: "top-end",
       showConfirmButton: false,
-      timer: 2000,
+      timer: 3000,
     });
   } catch (e) {
-    console.error(`Gagal mengupdate status pesanan ${docId}:`, e);
-    Swal.fire("Gagal!", "Gagal memperbarui status di database.", "error");
+    // Tangani error, terutama jika dibatalkan karena stok negatif
+    let userMessage;
+    if (e.message && e.message.includes("Stok tidak mencukupi")) {
+      userMessage = e.message;
+    } else {
+      userMessage =
+        "Gagal memperbarui status di database. Silakan cek konsol untuk detail kesalahan.";
+    }
+
+    console.error(
+      `Gagal mengupdate status pesanan ${docId} atau mengurangi stok:`,
+      e
+    );
+    Swal.fire("Gagal Kritis!", userMessage, "error");
   }
 }
-
 /**
  * 🔥🔥 FUNGSI KRUSIAL: MENGATUR TAMPILAN KE MODE REGISTER 🔥🔥
  */
@@ -2041,6 +2118,7 @@ async function uploadImageToCloudinary(fileOrBlob) {
     throw error;
   }
 }
+
 async function handleSubmitProduct(e) {
   e.preventDefault();
   uploadError.classList.add("hidden");
@@ -3595,6 +3673,7 @@ function executeSearchAction() {
  * dan membuat link WhatsApp.
  */ async function handleOrderSubmit(e) {
   e.preventDefault();
+  // Asumsi 'orderError' adalah elemen HTML untuk menampilkan pesan kesalahan
   if (orderError) orderError.classList.add("hidden");
 
   // --- 1. AMBIL DAN VALIDASI INPUT BUYER ---
@@ -3610,7 +3689,7 @@ function executeSearchAction() {
     return;
   }
 
-  // --- 5. FORMAT HARGA (Didefinisikan di awal agar bisa digunakan di kedua flow) ---
+  // --- 5. FORMAT HARGA ---
   const formatIDR = (amount) =>
     new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -3623,13 +3702,6 @@ function executeSearchAction() {
   // === BLOK MULTI-ITEM CHECKOUT (DIPROSES SEBAGAI MULTI-VENDOR) ===========
   // =========================================================================
   if (isMultiItemCheckout) {
-    // 🔥 DEBUG LOG KRITIS: Memeriksa isi keranjang
-    console.log("------------------------------------------");
-    console.log("DEBUG: Multi-Vendor Checkout Dimulai.");
-    console.log("Data Cart Saat Ini:", JSON.parse(JSON.stringify(cart))); // Log objek cart
-    console.log("------------------------------------------");
-    // 🔥 AKHIR DEBUG LOG
-
     // 2. TENTUKAN PRODUK DAN PENGELOMPOKAN
     if (cart.length === 0) {
       Swal.fire(
@@ -3642,7 +3714,7 @@ function executeSearchAction() {
 
     // KRUSIAL: MEMECAH KERANJANG BERDASARKAN OWNER ID
     const groupedOrders = cart.reduce((acc, item) => {
-      // Asumsi: item.ownerId, item.shopName, item.shopPhone ada di objek produk di dalam array 'cart'
+      // Asumsi: item.ownerId, item.shopName, item.shopPhone, item.productId, dan item.quantity ada di objek 'item'
       const ownerId = item.ownerId || "unknown";
       if (!acc[ownerId]) {
         acc[ownerId] = {
@@ -3659,32 +3731,11 @@ function executeSearchAction() {
       return acc;
     }, {});
 
-    // 🔥 DEBUG LOG KRITIS: Hasil Pengelompokan
-    console.log(
-      "DEBUG: Hasil Pengelompokan Berdasarkan Owner ID:",
-      groupedOrders
-    );
-    // 🔥 AKHIR DEBUG LOG
-
     const validOrders = Object.values(groupedOrders).filter((order) => {
-      // Validasi: ownerId harus terdefinisi dan nomor telepon penjual harus ada
       const isValid =
         order.ownerId !== "unknown" &&
         order.rawSellerPhone &&
         order.items.length > 0;
-
-      if (!isValid) {
-        console.warn("DEBUG: Order Gagal Validasi:", {
-          ownerId: order.ownerId,
-          hasPhone: !!order.rawSellerPhone,
-          itemCount: order.items.length,
-          reason: !order.rawSellerPhone
-            ? "Phone Missing"
-            : order.ownerId === "unknown"
-            ? "OwnerId Missing"
-            : "Other",
-        });
-      }
       return isValid;
     });
 
@@ -3709,7 +3760,7 @@ function executeSearchAction() {
         const rawSellerPhone = order.rawSellerPhone;
         if (!rawSellerPhone)
           throw new Error("Nomor telepon penjual tidak ditemukan.");
-
+        // ... (Logika format WA) ...
         const cleanPhone = rawSellerPhone.replace(/[\s\+]/g, "");
         const phoneDigits = cleanPhone.replace(/[^0-9]/g, "");
 
@@ -3735,7 +3786,6 @@ function executeSearchAction() {
       // --- 6. SUSUN DATA FIRESTORE (PER-PENJUAL) ---
       let newOrderData = {
         ownerId: order.ownerId,
-        // ID unik per penjual, tambahkan kode singkat dari ownerId
         id:
           "ORD-" +
           Date.now().toString().slice(-6) +
@@ -3750,14 +3800,13 @@ function executeSearchAction() {
         totalAmount: order.total,
         status: "Diterima",
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-      };
 
-      // 🔥 DEBUG LOG KRITIS: Data yang akan dikirim ke Firestore
-      console.log(
-        `DEBUG: Mengirim Order ke Firestore untuk Owner ID: ${order.ownerId}`,
-        newOrderData
-      );
-      // 🔥 AKHIR DEBUG LOG
+        // 🔥 PENAMBAHAN KRITIS: productItems (untuk pengurangan stok oleh penjual) 🔥
+        productItems: order.items.map((i) => ({
+          productId: i.productId, // Di sini diasumsikan data cart sudah pakai .productId
+          quantity: i.quantity,
+        })),
+      };
 
       const isSuccessFirestore = await addOrderToFirestore(newOrderData);
 
@@ -3843,8 +3892,6 @@ Mohon konfirmasi ketersediaan produk dan instruksi pembayarannya. Terima kasih!`
         // Reset state dan navigasi
         handleBackToProductsClick();
         if (orderDetailView) orderDetailView.classList.add("hidden");
-        // Reset flag isMultiItemCheckout
-        // window.isMultiItemCheckout = false;
       }
     });
 
@@ -3861,11 +3908,17 @@ Mohon konfirmasi ketersediaan produk dan instruksi pembayarannya. Terima kasih!`
     let ownerId = null;
     let isFirestoreRecordNeeded = false;
 
+    // 🔥 PERBAIKAN KRITIS: Ganti .productId menjadi .id untuk mengambil ID Produk 🔥
+    const currentProductId = currentOrderProductDetail
+      ? currentOrderProductDetail.id
+      : null;
+    const currentQuantity = currentOrderQuantity;
+
     // Mode Single Item (Beli Sekarang)
     if (
       !currentOrderProductDetail ||
       !currentOrderSellerPhone ||
-      !currentOrderQuantity
+      !currentQuantity
     ) {
       Swal.fire(
         "Error",
@@ -3877,30 +3930,35 @@ Mohon konfirmasi ketersediaan produk dan instruksi pembayarannya. Terima kasih!`
     ownerId = currentOrderProductDetail.ownerId;
     isFirestoreRecordNeeded = true;
 
+    // Tambahkan validasi yang ketat sebelum lanjut
+    if (!ownerId || !currentProductId) {
+      console.error(
+        "Owner ID atau Product ID tidak ditemukan di currentOrderProductDetail. Object detail:",
+        currentOrderProductDetail
+      );
+      Swal.fire(
+        "Error",
+        "ID Penjual atau ID Produk tidak ditemukan (Data hilang). Gagal mencatat pesanan.",
+        "error"
+      );
+      return;
+    }
+
     orderItems.push({
       nama: currentOrderProductDetail.nama,
       price: currentOrderProductDetail.price,
-      quantity: currentOrderQuantity,
+      quantity: currentQuantity,
       shopName: currentOrderProductDetail.shopName,
       shopPhone: currentOrderSellerPhone,
+      productId: currentProductId, // Simpan Product ID (yang diambil dari .id) ke item lokal
     });
-    total = currentOrderProductDetail.price * currentOrderQuantity;
+    total = currentOrderProductDetail.price * currentQuantity;
 
     if (orderItems.length === 0) {
       Swal.fire(
         "Error",
         "Keranjang kosong. Tidak ada yang dipesan.",
         "warning"
-      );
-      return;
-    }
-
-    if (isFirestoreRecordNeeded && !ownerId) {
-      console.error("Owner ID tidak ditemukan untuk pencatatan Firestore.");
-      Swal.fire(
-        "Error",
-        "ID Penjual tidak ditemukan. Gagal mencatat pesanan.",
-        "error"
       );
       return;
     }
@@ -3916,6 +3974,7 @@ Mohon konfirmasi ketersediaan produk dan instruksi pembayarannya. Terima kasih!`
       if (!rawSellerPhone) {
         throw new Error("Nomor telepon penjual tidak ditemukan.");
       }
+      // ... (Logika format WA) ...
       const cleanPhone = rawSellerPhone.replace(/[\s\+]/g, "");
       const phoneDigits = cleanPhone.replace(/[^0-9]/g, "");
 
@@ -3962,14 +4021,15 @@ Mohon konfirmasi ketersediaan produk dan instruksi pembayarannya. Terima kasih!`
         totalAmount: total,
         status: "Diterima",
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-      };
 
-      // 🔥 DEBUG LOG KRITIS: Data yang akan dikirim ke Firestore (Single Item)
-      console.log(
-        `DEBUG: Mengirim Single Order ke Firestore untuk Owner ID: ${ownerId}`,
-        newOrderData
-      );
-      // 🔥 AKHIR DEBUG LOG
+        // 🔥 PENAMBAHAN KRITIS SINGLE-ITEM: productItems 🔥
+        productItems: [
+          {
+            productId: currentProductId, // Menggunakan ID yang sudah diperbaiki
+            quantity: currentQuantity,
+          },
+        ],
+      };
 
       // Asumsi addOrderToFirestore sudah didefinisikan dan mengembalikan boolean
       isSuccessFirestore = await addOrderToFirestore(newOrderData);
@@ -4022,7 +4082,7 @@ Mohon konfirmasi ketersediaan produk dan instruksi pembayarannya. Terima kasih!`
 
     window.open(whatsappUrl, "_blank");
 
-    // 🔥 NOTIFIKASI MODAL STANDAR DENGAN CALLBACK .then()
+    // NOTIFIKASI MODAL STANDAR DENGAN CALLBACK .then()
     Swal.fire({
       icon: "success",
       title: "Pesanan Berhasil Dibuat!",
