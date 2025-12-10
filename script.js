@@ -586,7 +586,6 @@ function handleProductCardClick(e) {
 // let currentProductDetail = null;
 // let currentSellerPhone = '';
 // const detailProductName = document.getElementById("detail-product-name"); // dan seterusnya...
-
 async function loadProductDetails(productId) {
   // --- INISIALISASI TAMPILAN AWAL ---
   detailProductName.textContent = "Memuat...";
@@ -594,18 +593,20 @@ async function loadProductDetails(productId) {
   detailProductDescription.textContent = "Sedang memuat deskripsi...";
   detailShopNameText.textContent = "Toko Rahasia";
 
-  // 🔥 INISIALISASI ELEMEN ALAMAT TEKS (Sudah ada di dalam fungsi)
+  // ... (Inisialisasi elemen DOM lainnya) ...
   const detailShopAddressText = document.getElementById(
     "detail-shop-address-text"
   );
-  // 💡 INISIALISASI ELEMEN WRAPPER/KONTAINER ALAMAT (Sudah ada di dalam fungsi)
   const detailShopAddressWrapper = document.getElementById(
     "detail-shop-address-wrapper"
   );
+  const actionButtons = document.getElementById("detail-action-buttons");
+  const quantityControlsWrapper = document.getElementById("detail-qty-control");
 
   if (detailShopAddressText)
     detailShopAddressText.textContent = "Memuat Alamat...";
 
+  // ... (Pengaturan tampilan loading lainnya) ...
   detailProductImage.src =
     "https://via.placeholder.com/600x400.png?text=Memuat...";
   if (detailOwnerMessage) detailOwnerMessage.classList.add("hidden");
@@ -619,11 +620,9 @@ async function loadProductDetails(productId) {
   if (detailStockInfo)
     detailStockInfo.textContent = "Stok: Sedang diperiksa...";
 
-  const actionButtons = document.getElementById("detail-action-buttons");
-  const quantityControlsWrapper = document.getElementById("detail-qty-control");
-
-  // Reset variabel global yang digunakan untuk pemesanan setiap kali produk baru dimuat
+  // Reset variabel global
   currentProductDetail = null;
+  currentProduct = null; // 🔥🔥🔥 DITAMBAHKAN/DIKONFIRMASI RESET 🔥🔥🔥
   currentSellerPhone = "";
 
   try {
@@ -656,12 +655,20 @@ async function loadProductDetails(productId) {
     const isOwner = currentUser && product.ownerId === currentUser.uid;
 
     // 🔥 PENGISIAN VARIABEL GLOBAL UNTUK FUNGSI ORDER (handleMoveToOrderView)
-    currentProductDetail = {
+    const finalProductData = {
       ...product, // Salin semua data produk
       id: productDoc.id,
       price: price, // Pastikan harga sudah terformat sebagai angka
       shopName: shopName,
+      shopPhone: sellerPhone, // Tambahkan phone penjual ke objek produk
+      ownerId: product.ownerId, // Pastikan ownerId ada
     };
+
+    // 🔥🔥🔥 SOLUSI UNTUK ReferenceError: currentProduct is not defined 🔥🔥🔥
+    currentProductDetail = finalProductData; // Digunakan di sebagian skrip lama Anda
+    currentProduct = finalProductData; // Variabel yang diminta oleh handleMoveToOrderView
+    // 🔥🔥🔥 AKHIR SOLUSI 🔥🔥🔥
+
     currentSellerPhone = sellerPhone; // Simpan nomor telepon penjual
 
     // --- UPDATE DATA PRODUK KE DOM ---
@@ -679,23 +686,21 @@ async function loadProductDetails(productId) {
     // --- LOGIKA KEPEMILIKAN (PENJUAL) ---
     if (isOwner) {
       // Penjual (Pemilik Produk)
+      // ... (Logika penyembunyian tombol pembelian dan tampilan stok untuk Penjual) ...
       if (detailOwnerMessage) {
         detailOwnerMessage.textContent =
           "Anda adalah pemilik produk ini. Hanya menampilkan informasi inventaris.";
         detailOwnerMessage.classList.remove("hidden");
       }
 
-      // Sembunyikan elemen pembelian
       if (actionButtons) actionButtons.classList.add("hidden");
       if (quantityControlsWrapper)
         quantityControlsWrapper.classList.add("hidden");
 
-      // Sembunyikan seluruh blok alamat di mode Penjual
       if (detailShopAddressWrapper) {
         detailShopAddressWrapper.classList.add("hidden");
       }
 
-      // Tampilkan Informasi Stok untuk Penjual
       if (detailStockInfo) {
         detailStockInfo.classList.remove("hidden");
         detailStockInfo.textContent = `Stok Saat Ini: ${
@@ -705,14 +710,13 @@ async function loadProductDetails(productId) {
       }
     } else {
       // Pembeli (Bukan Pemilik Produk / Publik)
+      // ... (Logika tampilan tombol pembelian dan stok untuk Pembeli) ...
       if (detailOwnerMessage) detailOwnerMessage.classList.add("hidden");
 
-      // TAMPILKAN SELURUH BLOK ALAMAT (IKON + TEKS) UNTUK PEMBELI/PUBLIK
       if (detailShopAddressWrapper) {
         detailShopAddressWrapper.classList.remove("hidden");
       }
 
-      // TAMPILKAN TEKS ALAMAT TOKO
       if (detailShopAddressText) {
         detailShopAddressText.textContent = shopAddress;
       }
@@ -733,7 +737,6 @@ async function loadProductDetails(productId) {
 
       // Kontrol Kuantitas untuk Pembeli
       if (stok <= 0 || !sellerPhone) {
-        // Jika stok habis ATAU nomor penjual tidak ada, disable order
         if (qtyIncrementBtn) qtyIncrementBtn.disabled = true;
         if (productQuantityInput) productQuantityInput.value = 0;
         if (productQuantityInput) productQuantityInput.disabled = true;
@@ -754,11 +757,11 @@ async function loadProductDetails(productId) {
     }
   } catch (error) {
     console.error("Error loading product details:", error);
+    // ... (Penanganan error) ...
     detailProductName.textContent = "Gagal Memuat Produk";
     detailProductDescription.textContent = "Terjadi kesalahan koneksi.";
     detailProductImage.src =
       "https://via.placeholder.com/600x400.png?text=Error";
-    // Sembunyikan wrapper saat error
     if (detailShopAddressWrapper) {
       detailShopAddressWrapper.classList.add("hidden");
     }
@@ -1132,6 +1135,254 @@ function loadThemePreference() {
   } else {
     // Default ke light mode dan simpan
     localStorage.setItem(STORAGE_KEY, "light");
+  }
+}
+
+// ====================================================================
+// A. HELPER DAN KUNCI IDENTIFIKASI
+// ====================================================================
+
+// Helper untuk format Rupiah
+const formatRupiah = (number) =>
+  new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+  }).format(number);
+
+/**
+ * Mengambil UID penjual yang sedang login dari Firebase Auth (Legacy SDK).
+ * Digunakan untuk memfilter pesanan di Dashboard Penjual.
+ * @returns {string | null} UID penjual atau null.
+ */
+function getCurrentSellerId() {
+  // Menggunakan objek Auth global yang sudah Anda inisialisasi
+  const user = auth.currentUser;
+  if (user) {
+    return user.uid;
+  }
+  console.warn("Peringatan: Pengguna tidak terautentikasi.");
+  return null;
+}
+/**
+ * Mengambil OwnerId (ID Penjual) dari produk yang sedang di-checkout.
+ * @returns {string | null} ownerId atau null.
+ */
+function getOwnerIdFromCurrentOrder() {
+  // ASUMSI: ID Penjual produk disimpan di data-attribute tombol submit order
+  const orderBtn = document.getElementById("order-submit-btn");
+  const ownerId = orderBtn ? orderBtn.getAttribute("data-owner-id") : null;
+
+  if (ownerId && ownerId !== "null" && ownerId.length > 0) {
+    // ID Penjual yang valid telah disuntikkan oleh handleMoveToOrderView
+    return ownerId;
+  }
+
+  // 🔥🔥🔥 KRITIS: JIKA ownerId TIDAK DITEMUKAN, KITA TIDAK BOLEH MENGGUNAKAN DUMMY ID LAGI.
+  // SEBALIKNYA, KITA LOG ERROR DAN MENGEMBALIKAN NULL.
+
+  console.error(
+    "OwnerId produk tidak ditemukan pada tombol submit. Proses order dibatalkan."
+  );
+
+  // Mengembalikan null akan mencegah pesanan dikirim ke Firestore oleh handleOrderSubmission
+  // atau, setidaknya, akan membuat ownerId: null di Firestore (yang akan ter-filter oleh aturan keamanan).
+  return null;
+}
+
+// ====================================================================
+// B. LOGIKA PENYIMPANAN PESANAN (Dipanggil saat Klik 'Order Sekarang')
+// ====================================================================
+
+/**
+ * Menyimpan pesanan baru ke koleksi 'orders' di Firestore (Legacy SDK).
+ */
+async function addOrderToFirestore(orderData) {
+  try {
+    const docRef = await db.collection("orders").add(orderData);
+    console.log(
+      "Pesanan berhasil disimpan di Firestore dengan ID: ",
+      docRef.id
+    );
+    return true;
+  } catch (e) {
+    console.error("Error menambahkan dokumen pesanan: ", e);
+    return false;
+  }
+}
+
+// ====================================================================
+// C. LOGIKA DASHBOARD PENJUAL (Management View)
+// ====================================================================
+
+// --- Fungsi Helper untuk Badge Status ---
+function getStatusBadge(status) {
+  const statusClasses = {
+    Diterima: "bg-yellow-100 text-yellow-800",
+    Diproses: "bg-blue-100 text-blue-800",
+    Pengiriman: "bg-indigo-100 text-indigo-800",
+    Selesai: "bg-green-100 text-green-800",
+    Ditolak: "bg-red-100 text-red-800",
+  };
+  const cssClass = statusClasses[status] || "bg-gray-100 text-gray-800";
+  return `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${cssClass}">${status}</span>`;
+}
+/**
+ * Merender pesanan yang statusnya 'Diterima' ke tabel 'Pesanan Baru' (Notifikasi).
+ * Aksi yang tersedia hanya Terima (-> Diproses) atau Tolak (-> Ditolak).
+ */
+function renderNewOrdersTable(orders, newOrdersListBody) {
+  newOrdersListBody.innerHTML = "";
+
+  if (orders.length === 0) {
+    newOrdersListBody.innerHTML =
+      '<tr><td colspan="5" class="text-center py-4 text-green-500 font-medium">🎉 Tidak ada pesanan baru yang membutuhkan aksi.</td></tr>';
+    return;
+  }
+
+  orders.forEach((order) => {
+    const row = document.createElement("tr");
+
+    // [LOGIKA WAKTU, TOTAL, WHATSAPP SAMA]
+    const timeValue = order.timestamp
+      ? order.timestamp.toDate
+        ? order.timestamp.toDate()
+        : new Date(order.timestamp)
+      : new Date();
+
+    const timeFormatted = timeValue.toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    const formattedTotal =
+      typeof formatRupiah === "function"
+        ? formatRupiah(order.totalAmount)
+        : `Rp ${order.totalAmount.toLocaleString("id-ID")}`;
+
+    const cleanPhone = order.buyerPhone.replace(/\D/g, "");
+    const waPhone = cleanPhone.replace(/^62/, "").replace(/^0/, "");
+    const waLink = `https://wa.me/62${waPhone}`;
+
+    // 🔥 PERUBAHAN KRUSIAL: KEMBALIKAN DETAIL PESANAN KE STRING ASLI 🔥
+    // Detail Pesanan akan menggunakan string asli dan membiarkan browser melakukan wrapping
+    const detailString = order.orderDetail || "Tidak ada detail produk.";
+
+    // LOGIKA AKSI: Tombol Terima dan Tolak (Vertikal)
+    const actions = `
+        <div class="flex flex-col space-y-1 items-stretch min-w-[70px]"> 
+            <button onclick="updateOrderStatus('${order.docId}', 'Diproses')" 
+                class="bg-green-500 hover:bg-green-600 text-white text-xs font-semibold py-1 px-1 rounded-md shadow-sm transition duration-150 ease-in-out"
+                title="Terima Pesanan">
+                Terima
+            </button>
+            <button onclick="updateOrderStatus('${order.docId}', 'Ditolak')" 
+                class="bg-red-500 hover:bg-red-600 text-white text-xs font-semibold py-1 px-1 rounded-md shadow-sm transition duration-150 ease-in-out"
+                title="Tolak Pesanan">
+                Tolak
+            </button>
+        </div>
+    `;
+
+    row.innerHTML = `
+        <td class="px-2 py-3 text-sm text-gray-500 align-top">${timeFormatted}</td>
+        
+        <td class="px-3 py-3 text-sm font-medium text-gray-900 align-top">
+            <span class="font-semibold">${order.buyerName}</span><br>
+            <a href="${waLink}" target="_blank" class="text-blue-600 hover:underline text-xs">${order.buyerPhone}</a>
+        </td>
+        
+        <td class="px-3 py-3 text-sm text-gray-500 align-top">
+            ${detailString} 
+        </td>
+        
+        <td class="px-2 py-3 whitespace-nowrap text-sm font-semibold text-red-600 align-top">${formattedTotal}</td>
+        
+        <td class="px-2 py-3 whitespace-nowrap text-sm align-top">${actions}</td>
+    `;
+    newOrdersListBody.appendChild(row);
+  });
+}
+
+async function loadNewOrdersList() {
+  const sellerId = getCurrentSellerId();
+  const newOrdersListBody = document.getElementById("new-orders-list");
+  newOrdersListBody.innerHTML =
+    '<tr><td colspan="5" class="text-center py-4 text-gray-500">Memuat pesanan dari database...</td></tr>';
+
+  if (!sellerId) {
+    newOrdersListBody.innerHTML =
+      '<tr><td colspan="5" class="text-center py-4 text-red-500">Harap login sebagai penjual untuk melihat pesanan.</td></tr>';
+    return;
+  }
+
+  try {
+    // Query: orders WHERE ownerId == [ID Penjual yang Login] AND status == 'Diterima' (Hanya butuh aksi awal)
+    const q = db
+      .collection("orders")
+      .where("ownerId", "==", sellerId)
+      .where("status", "==", "Diterima") // 🔥 Hanya tampilkan pesanan yang statusnya 'Diterima' 🔥
+      .orderBy("timestamp", "desc");
+
+    const querySnapshot = await q.get();
+
+    const orders = querySnapshot.docs.map((doc) => ({
+      ...doc.data(),
+      docId: doc.id, // ID Dokumen Firestore (penting untuk update)
+      timestamp: doc.data().timestamp
+        ? doc.data().timestamp
+        : new Date().toISOString(),
+      totalAmount: doc.data().totalAmount || 0, // Pastikan ada totalAmount
+      buyerPhone: doc.data().buyerPhone || "N/A", // Pastikan ada buyerPhone
+    }));
+
+    // Gunakan fungsi render yang baru
+    renderNewOrdersTable(orders, newOrdersListBody);
+  } catch (e) {
+    console.error("Gagal memuat pesanan baru dari Firestore: ", e);
+    newOrdersListBody.innerHTML =
+      '<tr><td colspan="5" class="text-center py-4 text-red-500">Gagal mengambil data. Cek Index Firestore Anda!</td></tr>';
+  }
+}
+/**
+ * Fungsi yang dipanggil saat penjual mengganti status menggunakan dropdown (Riwayat)
+ * atau tombol (Notifikasi: Terima/Tolak).
+ */
+async function updateOrderStatus(docId, newStatus) {
+  try {
+    const orderRef = db.collection("orders").doc(docId);
+
+    await orderRef.update({
+      status: newStatus,
+      lastUpdated: firebase.firestore.FieldValue.serverTimestamp(), // Tambahkan lastUpdated
+    });
+
+    console.log(
+      `Status Order ${docId} diubah menjadi: ${newStatus} di Firestore.`
+    );
+
+    // 1. Refresh tampilan 'Pesanan Baru'
+    loadNewOrdersList();
+
+    // 2. Refresh tampilan 'Riwayat Transaksi' untuk melihat status baru
+    //    Ini penting karena status 'Diproses' atau 'Ditolak' akan memindahkan pesanan
+    //    dari tabel Notifikasi ke tabel Riwayat.
+    if (typeof loadTransactionHistory === "function") {
+      loadTransactionHistory();
+    }
+
+    Swal.fire({
+      icon: "success",
+      title: "Status Diperbarui!",
+      text: `Pesanan ${docId} berstatus: ${newStatus}`,
+      toast: true,
+      position: "top-end",
+      showConfirmButton: false,
+      timer: 2000,
+    });
+  } catch (e) {
+    console.error(`Gagal mengupdate status pesanan ${docId}:`, e);
+    Swal.fire("Gagal!", "Gagal memperbarui status di database.", "error");
   }
 }
 
@@ -1703,11 +1954,22 @@ auth.onAuthStateChanged(async (user) => {
   isInitialLoad = false;
   loadProducts();
 });
-
-function handleAddToCartFromList(product) {
+async function handleAddToCartFromList(product) {
   // Memanggil fungsi addToCart dengan kuantitas default 1
-  // addToCart akan menangani pengambilan sellerPhone secara async dari product.ownerId
-  addToCart(product, 1);
+  // Karena addToCart sekarang harus melakukan fetch data (async), kita harus await.
+
+  // Pastikan produk memiliki ownerId sebelum diproses
+  if (!product || !product.ownerId) {
+    console.error(
+      "Gagal menambahkan ke keranjang: Owner ID produk hilang.",
+      product
+    );
+    Swal.fire("Error", "Informasi penjual produk tidak lengkap.", "error");
+    return;
+  }
+
+  // Asumsi: Kita perlu mengambil detail penjual di dalam addToCart
+  await addToCart(product, 1);
 }
 
 // -----------------------------------------------------------------
@@ -1992,13 +2254,19 @@ async function handleDeleteProduct(e) {
     }
   }
 }
-
 // -----------------------------------------------------------------
 // BAGIAN 6: FUNGSI MANAGEMENT (RIWAYAT TRANSAKSI & SALDO)
 // -----------------------------------------------------------------
 function toggleManagementView() {
-  // 1. Cek User Login
-  if (!currentUser) return;
+  // 1. Cek User Login (Ditambahkan notifikasi untuk UX yang lebih baik)
+  if (!currentUser) {
+    Swal.fire(
+      "Akses Ditolak",
+      "Anda harus login sebagai penjual untuk mengakses Management View.",
+      "warning"
+    );
+    return;
+  }
 
   // 🔥 Pengecekan KRITIS untuk Error DOM (Disertai DEBUG Log)
   // Menggunakan productListWrapperElement sesuai inisialisasi DOM Anda
@@ -2019,11 +2287,17 @@ function toggleManagementView() {
   }
 
   // Asumsi: Kita perlu memverifikasi peran user sebelum menampilkan management view
-  // Jika getSellerData tidak dibutuhkan, Anda bisa menghapus .then().catch() ini
   getSellerData(currentUser.uid)
     .then((sellerData) => {
       // Hanya izinkan akses jika role adalah seller atau admin
-      if (sellerData.role !== "seller" && sellerData.role !== "admin") return;
+      if (sellerData.role !== "seller" && sellerData.role !== "admin") {
+        Swal.fire(
+          "Akses Ditolak",
+          "Hanya penjual atau admin yang dapat mengakses Management View.",
+          "error"
+        );
+        return;
+      }
 
       // 2. Logika Toggle View
       if (managementView.classList.contains("hidden")) {
@@ -2045,12 +2319,25 @@ function toggleManagementView() {
         }
 
         // Ubah Teks Tombol Management menjadi 'Lihat Produk'
-        manageBtn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V3zm2 4v1h10V7H5zm0 3v1h10v-1H5zm0 3v1h10v-1H5z" clip-rule="evenodd" />
-            </svg>
-            Lihat Produk
-        `;
+        if (manageBtn) {
+          manageBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V3zm2 4v1h10V7H5zm0 3v1h10v-1H5zm0 3v1h10v-1H5z" clip-rule="evenodd" />
+                </svg>
+                Lihat Produk
+            `;
+        }
+
+        // 🔥 KRUSIAL: Muat Data Pesanan Baru dari Firestore 🔥
+        const sellerId = getCurrentSellerId();
+        if (sellerId) {
+          // Panggil fungsi untuk mengambil dan merender pesanan baru
+          loadNewOrdersList();
+        } else {
+          console.warn(
+            "Penjual login tapi UID tidak ditemukan. Gagal memuat pesanan baru."
+          );
+        }
 
         loadTransactionHistory(); // Asumsi fungsi ini memuat data transaksi/grafik
       } else {
@@ -2059,162 +2346,166 @@ function toggleManagementView() {
         productListWrapperElement.classList.remove("hidden"); // 🔥 DIGANTI
 
         // Kembalikan Teks Tombol Management ke 'Management'
-        manageBtn.innerHTML = `
+        if (manageBtn) {
+          manageBtn.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM13 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2zM13 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2z" />
             </svg>
             Management
         `;
+        }
       }
     })
     .catch((error) => {
       console.error("Error checking role for Management View:", error);
+      Swal.fire(
+        "Error Database",
+        "Gagal memverifikasi peran pengguna.",
+        "error"
+      );
     });
 }
-
 async function loadTransactionHistory() {
-  if (!currentUser) return;
+  const sellerId = getCurrentSellerId();
+  const transactionHistoryBody = document.getElementById("transaction-history");
 
-  transactionHistory.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-500">Memuat riwayat transaksi...</td></tr>`;
+  if (!sellerId) return;
 
-  const today = new Date();
-  const startDate = new Date();
-  startDate.setMonth(today.getMonth() - currentPeriodFilter);
-  startDate.setDate(1);
-  startDate.setHours(0, 0, 0, 0);
+  // Header memiliki 7 kolom: ID, Tanggal, Produk, Harga Satuan, Pembeli, Status, Aksi.
+  // Catatan: Header di HTML Anda harus sudah disesuaikan dengan urutan baru ini.
+  transactionHistoryBody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-gray-500">Memuat riwayat transaksi...</td></tr>`;
 
-  // --- SIMULASI DATA TRANSAKSI INTERNAL ---
-  // (Data simulasi tetap sama seperti di segmen Anda)
-  const simulatedTransactions = [
-    {
-      id: "TX007",
-      product: "Smart Watch",
-      price: 800000,
-      status: "Completed",
-      date: "2025-12-05",
-    },
-    {
-      id: "TX004",
-      product: "Topi Baseball",
-      price: 75000,
-      status: "Completed",
-      date: "2025-12-01",
-    },
-    {
-      id: "TX003",
-      product: "Sepatu Lari Sport",
-      price: 450000,
-      status: "Completed",
-      date: "2025-11-30",
-    },
-    {
-      id: "TX002",
-      product: "Celana Jeans Wanita",
-      price: 280000,
-      status: "Pending",
-      date: "2025-11-29",
-    },
-    {
-      id: "TX001",
-      product: "Baju Batik Pria",
-      price: 150000,
-      status: "Completed",
-      date: "2025-11-28",
-    },
-    {
-      id: "TX006",
-      product: "Power Bank",
-      price: 120000,
-      status: "Completed",
-      date: "2025-10-20",
-    },
-    {
-      id: "TX005",
-      product: "Headset Gaming",
-      price: 600000,
-      status: "Completed",
-      date: "2025-10-15",
-    },
-    {
-      id: "TX011",
-      product: "Kemeja",
-      price: 200000,
-      status: "Completed",
-      date: "2025-09-20",
-    },
-    {
-      id: "TX010",
-      product: "Tas Punggung",
-      price: 300000,
-      status: "Completed",
-      date: "2025-09-10",
-    },
-  ];
+  try {
+    // Query: Ambil semua pesanan milik penjual yang statusnya BUKAN 'Diterima'.
+    const q = db
+      .collection("orders")
+      .where("ownerId", "==", sellerId)
+      .where("status", "!=", "Diterima")
+      .orderBy("status")
+      .orderBy("timestamp", "desc")
+      .limit(50);
 
-  const filteredTransactions = simulatedTransactions.filter((tx) => {
-    const txDate = new Date(tx.date);
-    return txDate >= startDate && txDate <= today;
-  });
+    const querySnapshot = await q.get();
 
-  let saldo = 0;
-  let terjual = 0;
-  let totalTx = 0;
+    const orders = querySnapshot.docs.map((doc) => ({
+      ...doc.data(),
+      docId: doc.id,
+      timestamp: doc.data().timestamp
+        ? doc.data().timestamp.toDate()
+        : new Date(),
+      totalAmount: doc.data().totalAmount || 0,
+      orderDetail: doc.data().orderDetail || "N/A",
+      buyerName: doc.data().buyerName || "Pembeli Tidak Dikenal",
+      status: doc.data().status || "Diterima",
+    }));
 
-  const salesByPeriod = {};
-  const rows = [];
+    // --- LOGIKA PERHITUNGAN STATISTIK ---
+    let saldo = 0;
+    let terjual = 0;
+    let totalTx = 0;
+    const salesByPeriod = {};
+    // ... (Logika statistik lainnya) ...
+    // ------------------------------------
 
-  filteredTransactions.forEach((tx) => {
-    const isCompleted = tx.status === "Completed";
-    totalTx += 1;
+    const rows = orders.map((order) => {
+      const orderId = order.docId;
+      const currentStatus = order.status;
+      const orderDate = order.timestamp;
 
-    if (isCompleted) {
-      saldo += tx.price;
-      terjual += 1;
+      // Status Lanjutan (Aksi di Riwayat Transaksi)
+      const isFinished =
+        currentStatus === "Selesai" || currentStatus === "Ditolak";
 
-      const [year, month] = tx.date.split("-");
-      const period = `${year}-${month}`;
+      let actions;
+      if (isFinished) {
+        actions = `<span class="text-gray-500 text-xs">Selesai/Ditolak</span>`;
+      } else {
+        const statusOrder = {
+          Diterima: 0,
+          Diproses: 1,
+          Pengiriman: 2,
+          Selesai: 3,
+        };
+        const nextStatuses = ["Diproses", "Pengiriman", "Selesai"].filter(
+          (s) => statusOrder[s] > statusOrder[currentStatus]
+        );
 
-      salesByPeriod[period] = (salesByPeriod[period] || 0) + tx.price;
-    }
+        actions = `
+                <select onchange="updateOrderStatus('${orderId}', this.value)" class="py-1 px-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                    <option value="" disabled selected>Ubah Status</option>
+                    ${nextStatuses
+                      .map((s) => `<option value="${s}">${s}</option>`)
+                      .join("")}
+                </select>
+            `;
+      }
 
-    const statusClass = isCompleted
-      ? "bg-green-100 text-green-800"
-      : "bg-yellow-100 text-yellow-800";
+      // UPDATE STATISTIK & DATA CHART
+      totalTx += 1;
+      if (currentStatus === "Selesai") {
+        saldo += order.totalAmount;
+        terjual += 1;
 
-    rows.push(`
-            <tr>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${
-                  tx.id
+        const period =
+          orderDate.getFullYear() +
+          "-" +
+          (orderDate.getMonth() + 1).toString().padStart(2, "0");
+        salesByPeriod[period] =
+          (salesByPeriod[period] || 0) + order.totalAmount;
+      }
+
+      const productDetailContent = order.orderDetail || "N/A";
+
+      return `
+            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-200">${
+                  order.id || orderId
                 }</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${
-                  tx.product
-                }</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Rp ${tx.price.toLocaleString(
+                
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${order.timestamp.toLocaleDateString(
                   "id-ID"
                 )}</td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
-                        ${tx.status}
-                    </span>
+                
+                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                    <div class="min-w-[150px]">${productDetailContent}</div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${
-                  tx.date
-                }</td>
-            </tr>
-        `);
-  });
+                
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Rp ${order.totalAmount.toLocaleString(
+                  "id-ID"
+                )}</td>
+                
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-200">${
+                  order.buyerName
+                }</td> 
+                
+                <td class="px-6 py-4 whitespace-nowrap">${getStatusBadge(
+                  currentStatus
+                )}</td>
+                
+                <td class="px-6 py-4 whitespace-nowrap">${actions}</td>
+                
+                </tr>
+        `;
+    });
 
-  totalSaldo.textContent = `Rp ${saldo.toLocaleString("id-ID")}`;
-  totalTerjual.textContent = terjual;
-  totalTransaksi.textContent = totalTx;
+    // ... (Logika update statistik dan render chart) ...
+    if (typeof totalSaldo !== "undefined")
+      totalSaldo.textContent = `Rp ${saldo.toLocaleString("id-ID")}`;
+    if (typeof totalTerjual !== "undefined") totalTerjual.textContent = terjual;
+    if (typeof totalTransaksi !== "undefined")
+      totalTransaksi.textContent = totalTx;
 
-  transactionHistory.innerHTML =
-    rows.join("") ||
-    `<tr><td colspan="5" class="text-center py-4 text-gray-500">Tidak ada riwayat transaksi.</td></tr>`;
+    transactionHistoryBody.innerHTML =
+      rows.join("") ||
+      `<tr><td colspan="7" class="text-center py-4 text-gray-500">Tidak ada riwayat transaksi yang ditindaklanjuti.</td></tr>`;
 
-  renderSalesChart(salesByPeriod);
+    if (typeof renderSalesChart === "function") renderSalesChart(salesByPeriod);
+  } catch (e) {
+    console.error("Gagal memuat riwayat transaksi dari Firestore: ", e);
+    transactionHistoryBody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-red-500">Gagal mengambil riwayat transaksi. Cek log console untuk Composite Index.</td></tr>`;
+  }
 }
-
 // FUNGSI BARU: RENDERING GRAFIK PENJUALAN
 function renderSalesChart(salesData) {
   if (!salesChartCanvas) return;
@@ -2859,8 +3150,7 @@ function updateCartCount() {
  * Menambahkan atau memperbarui item di keranjang
  * @param {object} product - Detail produk (id, nama, harga, shopName, shopPhone, dll.)
  * @param {number} quantity - Jumlah item yang ditambahkan
- */
-async function addToCart(product, quantity = 1) {
+ */ async function addToCart(product, quantity = 1) {
   if (!product || !product.id || !product.ownerId) {
     Swal.fire("Error", "Data produk atau pemilik tidak valid.", "error");
     return;
@@ -2872,12 +3162,20 @@ async function addToCart(product, quantity = 1) {
     product.image || product.imageUrl || "https://via.placeholder.com/64";
 
   // --- 1. TENTUKAN SHOP NAME DAN PHONE (ASYNC) ---
-  const shopNameSource = product.shopName || "Toko";
+  // Gunakan shopName dari data produk sebagai default, jika ada.
+  let finalShopName = product.shopName || "Toko";
   let finalSellerPhone = null;
 
   try {
+    // Asumsi getSellerData(ownerId) mengembalikan { phone, shopName, ... }
     const sellerData = await getSellerData(product.ownerId);
+
     finalSellerPhone = sellerData.phone || null;
+
+    // 🔥 PERBAIKAN: Update finalShopName dari data penjual (lebih akurat)
+    if (sellerData.shopName) {
+      finalShopName = sellerData.shopName;
+    }
   } catch (error) {
     console.error(
       "Gagal mengambil data penjual saat menambahkan ke keranjang:",
@@ -2912,15 +3210,16 @@ async function addToCart(product, quantity = 1) {
       productId: product.id,
       nama: product.nama,
       price: productPrice,
-      shopName: shopNameSource,
+
+      // 🔥 PERBAIKAN KRUSIAL: Tambahkan ownerId
+      ownerId: product.ownerId,
+
+      shopName: finalShopName, // Gunakan finalShopName yang sudah di-update
       shopPhone: finalSellerPhone,
       image: productImageURL,
       quantity: quantity,
     });
   }
-
-  // 🔥 HAPUS updateCartCount() yang lama. Count diurus oleh animasi. 🔥
-  // updateCartCount();
 
   // 🔥 KUNCI PERBAIKAN: Menyimpan data terbaru ke Local Storage 🔥
   if (typeof saveCartToLocalStorage === "function") {
@@ -3076,52 +3375,105 @@ async function handleUpdateShopName(e) {
   }
 }
 /**
- * Fungsi untuk berpindah view dari Detail Produk ke Formulir Order
- */
+
+* Fungsi untuk berpindah view dari Detail Produk ke Formulir Order
+
+*/
+
 function handleMoveToOrderView() {
   // 1. Ambil data saat ini
+
   const quantity = parseInt(productQuantityInput.value) || 1;
 
   // 2. Simpan data yang akan digunakan saat submit
+
   currentOrderQuantity = quantity;
+
   currentOrderProductDetail = currentProductDetail;
+
   currentOrderSellerPhone = currentSellerPhone;
+
+  // Pastikan detail produk ditemukan
 
   if (!currentOrderProductDetail) {
     Swal.fire("Error", "Detail produk tidak ditemukan.", "error");
+
     return;
   }
 
+  // 🔥🔥🔥 KRUSIAL: VALIDASI OWNER ID 🔥🔥🔥
+
+  const ownerId = currentOrderProductDetail.ownerId;
+
+  if (!ownerId) {
+    console.error(
+      "Owner ID tidak ditemukan di data produk! Gagal memproses order."
+    );
+
+    Swal.fire("Error", "Informasi Penjual produk tidak lengkap.", "error");
+
+    return;
+  }
+
+  // 🔥🔥🔥 AKHIR VALIDASI OWNER ID 🔥🔥🔥
+
   const { nama, price } = currentOrderProductDetail;
+
   const total = price * quantity;
 
   // Format harga
+
   const formatIDR = (amount) =>
     new Intl.NumberFormat("id-ID", {
       style: "currency",
+
       currency: "IDR",
+
       minimumFractionDigits: 0,
+
       maximumFractionDigits: 0,
     }).format(amount);
 
   // 3. Isi ringkasan di Order View
+
   if (orderProductSummary)
     orderProductSummary.textContent = `${nama} (x ${quantity})`;
+
   if (orderTotalPrice)
     orderTotalPrice.textContent = `Total: ${formatIDR(total)}`;
+
   if (orderError) orderError.classList.add("hidden");
 
+  // 🔥🔥🔥 KRUSIAL: SUNTIKKAN OWNER ID KE TOMBOL SUBMIT 🔥🔥🔥
+
+  const orderSubmitBtn = document.getElementById("order-submit-btn");
+
+  if (orderSubmitBtn) {
+    orderSubmitBtn.setAttribute("data-owner-id", ownerId);
+
+    console.log("Owner ID berhasil disuntikkan ke tombol submit:", ownerId);
+  }
+
+  // 🔥🔥🔥 AKHIR SUNTIKKAN OWNER ID 🔥🔥🔥
+
   // 4. Alihkan View
+
   if (productDetailView) productDetailView.classList.add("hidden");
+
   if (orderDetailView) orderDetailView.classList.remove("hidden");
 
   // 🔥 SET FLAG UNTUK SINGLE ITEM CHECKOUT
+
   isMultiItemCheckout = false;
+
   setupBackToButtonListener(); // Update tombol kembali ke mode Detail Produk
 
   // Pastikan input nama/alamat pembeli direset atau dikosongkan saat view dipindahkan
+
   if (buyerNameInput) buyerNameInput.value = "";
+
   if (buyerPhoneInput) buyerPhoneInput.value = "";
+
   if (buyerAddressInput) buyerAddressInput.value = "";
 
   window.scrollTo(0, 0);
@@ -3236,11 +3588,12 @@ function executeSearchAction() {
     // }
   }
 }
-
 /**
- * Menangani submit formulir pesanan dan membuat link WhatsApp.
- */
-function handleOrderSubmit(e) {
+ * Menangani submit formulir pesanan, mencatat ke Firestore, dan membuat link WhatsApp.
+ */ /**
+ * Menangani submit formulir pesanan, mencatat ke Firestore (untuk single item),
+ * dan membuat link WhatsApp.
+ */ async function handleOrderSubmit(e) {
   e.preventDefault();
   if (orderError) orderError.classList.add("hidden");
 
@@ -3257,18 +3610,257 @@ function handleOrderSubmit(e) {
     return;
   }
 
-  // --- 2. TENTUKAN PRODUK DAN TOTAL ---
-  let orderItems = [];
-  let total = 0;
+  // --- 5. FORMAT HARGA (Didefinisikan di awal agar bisa digunakan di kedua flow) ---
+  const formatIDR = (amount) =>
+    new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
 
+  // =========================================================================
+  // === BLOK MULTI-ITEM CHECKOUT (DIPROSES SEBAGAI MULTI-VENDOR) ===========
+  // =========================================================================
   if (isMultiItemCheckout) {
-    // Mode Multi-Item (Checkout dari Keranjang)
-    orderItems = cart;
-    total = cart.reduce(
-      (sum, item) => sum + Number(item.price) * item.quantity,
-      0
+    // 🔥 DEBUG LOG KRITIS: Memeriksa isi keranjang
+    console.log("------------------------------------------");
+    console.log("DEBUG: Multi-Vendor Checkout Dimulai.");
+    console.log("Data Cart Saat Ini:", JSON.parse(JSON.stringify(cart))); // Log objek cart
+    console.log("------------------------------------------");
+    // 🔥 AKHIR DEBUG LOG
+
+    // 2. TENTUKAN PRODUK DAN PENGELOMPOKAN
+    if (cart.length === 0) {
+      Swal.fire(
+        "Error",
+        "Keranjang kosong. Tidak ada yang dipesan.",
+        "warning"
+      );
+      return;
+    }
+
+    // KRUSIAL: MEMECAH KERANJANG BERDASARKAN OWNER ID
+    const groupedOrders = cart.reduce((acc, item) => {
+      // Asumsi: item.ownerId, item.shopName, item.shopPhone ada di objek produk di dalam array 'cart'
+      const ownerId = item.ownerId || "unknown";
+      if (!acc[ownerId]) {
+        acc[ownerId] = {
+          ownerId: ownerId,
+          shopName: item.shopName || "Penjual",
+          rawSellerPhone: item.shopPhone,
+          items: [],
+          total: 0,
+        };
+      }
+      const itemTotal = Number(item.price) * item.quantity;
+      acc[ownerId].items.push(item);
+      acc[ownerId].total += itemTotal;
+      return acc;
+    }, {});
+
+    // 🔥 DEBUG LOG KRITIS: Hasil Pengelompokan
+    console.log(
+      "DEBUG: Hasil Pengelompokan Berdasarkan Owner ID:",
+      groupedOrders
     );
-  } else {
+    // 🔥 AKHIR DEBUG LOG
+
+    const validOrders = Object.values(groupedOrders).filter((order) => {
+      // Validasi: ownerId harus terdefinisi dan nomor telepon penjual harus ada
+      const isValid =
+        order.ownerId !== "unknown" &&
+        order.rawSellerPhone &&
+        order.items.length > 0;
+
+      if (!isValid) {
+        console.warn("DEBUG: Order Gagal Validasi:", {
+          ownerId: order.ownerId,
+          hasPhone: !!order.rawSellerPhone,
+          itemCount: order.items.length,
+          reason: !order.rawSellerPhone
+            ? "Phone Missing"
+            : order.ownerId === "unknown"
+            ? "OwnerId Missing"
+            : "Other",
+        });
+      }
+      return isValid;
+    });
+
+    if (validOrders.length === 0) {
+      Swal.fire(
+        "Error",
+        "Tidak ada produk dengan informasi penjual yang lengkap di keranjang.",
+        "error"
+      );
+      return;
+    }
+
+    let allOrdersSuccess = true;
+    let successfulOrdersCount = 0;
+
+    // 🔥 3. LOOP UNTUK SETIAP PENJUAL (ORDER)
+    for (const order of validOrders) {
+      let finalPhone = "";
+
+      // --- 4. FORMAT NOMOR WHATSAPP (PER-PENJUAL) ---
+      try {
+        const rawSellerPhone = order.rawSellerPhone;
+        if (!rawSellerPhone)
+          throw new Error("Nomor telepon penjual tidak ditemukan.");
+
+        const cleanPhone = rawSellerPhone.replace(/[\s\+]/g, "");
+        const phoneDigits = cleanPhone.replace(/[^0-9]/g, "");
+
+        if (phoneDigits.startsWith("62")) {
+          finalPhone = phoneDigits;
+        } else if (phoneDigits.startsWith("0")) {
+          finalPhone = `62${phoneDigits.substring(1)}`;
+        } else {
+          finalPhone = `62${phoneDigits}`;
+        }
+
+        if (finalPhone.length < 9)
+          throw new Error("Nomor WhatsApp penjual tidak valid.");
+      } catch (error) {
+        console.error(
+          `Error memproses WA Penjual (${order.ownerId}):`,
+          error.message
+        );
+        allOrdersSuccess = false;
+        continue;
+      }
+
+      // --- 6. SUSUN DATA FIRESTORE (PER-PENJUAL) ---
+      let newOrderData = {
+        ownerId: order.ownerId,
+        // ID unik per penjual, tambahkan kode singkat dari ownerId
+        id:
+          "ORD-" +
+          Date.now().toString().slice(-6) +
+          "-" +
+          order.ownerId.substring(0, 4).toUpperCase(),
+        buyerName: buyerName,
+        buyerPhone: buyerPhoneRaw,
+        buyerAddress: buyerAddress,
+        orderDetail: order.items
+          .map((i) => `${i.nama} (x ${i.quantity})`)
+          .join(", "),
+        totalAmount: order.total,
+        status: "Diterima",
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      };
+
+      // 🔥 DEBUG LOG KRITIS: Data yang akan dikirim ke Firestore
+      console.log(
+        `DEBUG: Mengirim Order ke Firestore untuk Owner ID: ${order.ownerId}`,
+        newOrderData
+      );
+      // 🔥 AKHIR DEBUG LOG
+
+      const isSuccessFirestore = await addOrderToFirestore(newOrderData);
+
+      if (!isSuccessFirestore) {
+        console.error(
+          "Gagal mencatat pesanan ke Firestore untuk owner:",
+          order.ownerId
+        );
+        allOrdersSuccess = false;
+        continue;
+      }
+      successfulOrdersCount++;
+
+      // --- 7. SUSUN PESAN WHATSAPP & ARAHKAN KE WA (PER-PENJUAL) ---
+      let itemDetails = order.items
+        .map(
+          (item) =>
+            `* ${item.nama} (x${item.quantity}) - ${formatIDR(
+              item.price * item.quantity
+            )}`
+        )
+        .join("\n");
+
+      const message = `[PESANAN DAKATA SHOP]
+Halo ${order.shopName}, saya ingin membuat pesanan:
+*ID Pesanan:* ${newOrderData.id}
+
+*PRODUK:*
+${itemDetails}
+*Total Biaya:* ${formatIDR(order.total)}
+
+*DETAIL PEMBELI:*
+Nama: ${buyerName}
+No. HP: ${buyerPhoneRaw}
+Alamat: ${buyerAddress}
+
+Mohon konfirmasi ketersediaan produk dan instruksi pembayarannya. Terima kasih!`;
+
+      const encodedMessage = encodeURIComponent(message);
+      const whatsappUrl = `https://wa.me/${finalPhone}?text=${encodedMessage}`;
+
+      // Buka tab baru untuk setiap penjual
+      window.open(whatsappUrl, "_blank");
+
+      // Refresh dashboard penjual (jika view management terbuka)
+      if (
+        document.getElementById("management-view") &&
+        !document.getElementById("management-view").classList.contains("hidden")
+      ) {
+        loadNewOrdersList();
+      }
+    } // AKHIR LOOP FOR
+
+    // NOTIFIKASI AKHIR UNTUK PEMBELI (SETELAH SEMUA PESANAN DIPROSES)
+    const totalOrders = validOrders.length;
+    let successText;
+
+    if (successfulOrdersCount === 0) {
+      successText = "Semua pesanan gagal dicatat. Silakan coba lagi.";
+    } else if (successfulOrdersCount < totalOrders) {
+      successText = `Berhasil mencatat ${successfulOrdersCount} dari ${totalOrders} pesanan. Ada ${
+        totalOrders - successfulOrdersCount
+      } pesanan yang gagal diproses atau gagal diarahkan ke WA.`;
+    } else {
+      successText = `Semua ${totalOrders} pesanan berhasil dicatat dan Anda diarahkan ke WhatsApp. Tekan 'Lanjutkan' untuk kembali ke toko.`;
+    }
+
+    Swal.fire({
+      icon: allOrdersSuccess ? "success" : "warning",
+      title: allOrdersSuccess
+        ? "Semua Pesanan Berhasil!"
+        : "Pesanan Diproses Sebagian",
+      text: successText,
+      showConfirmButton: true,
+      confirmButtonText: "Lanjutkan",
+      allowOutsideClick: false,
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // Bersihkan keranjang
+        cart = [];
+        updateCartCount();
+
+        // Reset state dan navigasi
+        handleBackToProductsClick();
+        if (orderDetailView) orderDetailView.classList.add("hidden");
+        // Reset flag isMultiItemCheckout
+        // window.isMultiItemCheckout = false;
+      }
+    });
+
+    return; // Keluar dari fungsi setelah memproses keranjang
+  }
+
+  // =========================================================================
+  // === BLOK SINGLE ITEM CHECKOUT (KODE ASLI ANDA) ==========================
+  // =========================================================================
+  else {
+    // --- 2. TENTUKAN PRODUK DAN TOTAL ---
+    let orderItems = [];
+    let total = 0;
+    let ownerId = null;
+    let isFirestoreRecordNeeded = false;
+
     // Mode Single Item (Beli Sekarang)
     if (
       !currentOrderProductDetail ||
@@ -3282,84 +3874,137 @@ function handleOrderSubmit(e) {
       );
       return;
     }
+    ownerId = currentOrderProductDetail.ownerId;
+    isFirestoreRecordNeeded = true;
+
     orderItems.push({
       nama: currentOrderProductDetail.nama,
       price: currentOrderProductDetail.price,
       quantity: currentOrderQuantity,
       shopName: currentOrderProductDetail.shopName,
-      shopPhone: currentOrderSellerPhone, // Ambil dari variabel global
+      shopPhone: currentOrderSellerPhone,
     });
     total = currentOrderProductDetail.price * currentOrderQuantity;
-  }
 
-  // Pastikan keranjang/item tidak kosong
-  if (orderItems.length === 0) {
-    Swal.fire("Error", "Keranjang kosong. Tidak ada yang dipesan.", "warning");
-    return;
-  }
-
-  // --- 3. AMBIL DETAIL PENJUAL (UNTUK WHATSAPP) ---
-  const firstItem = orderItems[0];
-  const rawSellerPhone = firstItem.shopPhone;
-  const shopName = firstItem.shopName || "Penjual";
-
-  // --- 4. FORMAT NOMOR WHATSAPP ---
-  let finalPhone = "";
-  try {
-    if (!rawSellerPhone) {
-      throw new Error("Nomor telepon penjual tidak ditemukan.");
+    if (orderItems.length === 0) {
+      Swal.fire(
+        "Error",
+        "Keranjang kosong. Tidak ada yang dipesan.",
+        "warning"
+      );
+      return;
     }
 
-    const cleanPhone = rawSellerPhone.replace(/[\s\+]/g, "");
-    const phoneDigits = cleanPhone.replace(/[^0-9]/g, "");
-
-    if (phoneDigits.startsWith("62")) {
-      finalPhone = phoneDigits;
-    } else if (phoneDigits.startsWith("0")) {
-      finalPhone = `62${phoneDigits.substring(1)}`;
-    } else {
-      finalPhone = `62${phoneDigits}`;
+    if (isFirestoreRecordNeeded && !ownerId) {
+      console.error("Owner ID tidak ditemukan untuk pencatatan Firestore.");
+      Swal.fire(
+        "Error",
+        "ID Penjual tidak ditemukan. Gagal mencatat pesanan.",
+        "error"
+      );
+      return;
     }
-  } catch (error) {
-    console.error("Error memproses nomor telepon penjual:", error.message);
-    Swal.fire(
-      "Error",
-      "Gagal memproses nomor WhatsApp penjual. Coba hubungi penjual secara manual.",
-      "error"
-    );
-    return;
-  }
 
-  if (finalPhone.length < 9) {
-    Swal.fire(
-      "Error",
-      "Nomor WhatsApp penjual tidak valid setelah pemrosesan.",
-      "error"
-    );
-    return;
-  }
+    // --- 3. AMBIL DETAIL PENJUAL (UNTUK WHATSAPP) ---
+    const firstItem = orderItems[0];
+    const rawSellerPhone = firstItem.shopPhone;
+    const shopName = firstItem.shopName || "Penjual";
 
-  // --- 5. FORMAT HARGA ---
-  const formatIDR = (amount) =>
-    new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
+    // --- 4. FORMAT NOMOR WHATSAPP ---
+    let finalPhone = "";
+    try {
+      if (!rawSellerPhone) {
+        throw new Error("Nomor telepon penjual tidak ditemukan.");
+      }
+      const cleanPhone = rawSellerPhone.replace(/[\s\+]/g, "");
+      const phoneDigits = cleanPhone.replace(/[^0-9]/g, "");
 
-  // --- 6. SUSUN PESAN WHATSAPP ---
-  let itemDetails = orderItems
-    .map(
-      (item) =>
-        `* ${item.nama} (x${item.quantity}) - ${formatIDR(
-          item.price * item.quantity
-        )}`
-    )
-    .join("\n");
+      if (phoneDigits.startsWith("62")) {
+        finalPhone = phoneDigits;
+      } else if (phoneDigits.startsWith("0")) {
+        finalPhone = `62${phoneDigits.substring(1)}`;
+      } else {
+        finalPhone = `62${phoneDigits}`;
+      }
+    } catch (error) {
+      console.error("Error memproses nomor telepon penjual:", error.message);
+      Swal.fire(
+        "Error",
+        "Gagal memproses nomor WhatsApp penjual. Coba hubungi penjual secara manual.",
+        "error"
+      );
+      return;
+    }
 
-  const message = `[PESANAN DAKATA SHOP]
+    if (finalPhone.length < 9) {
+      Swal.fire(
+        "Error",
+        "Nomor WhatsApp penjual tidak valid setelah pemrosesan.",
+        "error"
+      );
+      return;
+    }
+
+    // --- 6. SUSUN DATA FIRESTORE (JIKA SINGLE ITEM) ---
+    let isSuccessFirestore = true;
+    let newOrderData = null;
+
+    if (!isMultiItemCheckout && ownerId) {
+      newOrderData = {
+        ownerId: ownerId,
+        id: "ORD-" + Date.now().toString().slice(-6),
+        buyerName: buyerName,
+        buyerPhone: buyerPhoneRaw,
+        buyerAddress: buyerAddress,
+        orderDetail: orderItems
+          .map((i) => `${i.nama} (x ${i.quantity})`)
+          .join(", "),
+        totalAmount: total,
+        status: "Diterima",
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      };
+
+      // 🔥 DEBUG LOG KRITIS: Data yang akan dikirim ke Firestore (Single Item)
+      console.log(
+        `DEBUG: Mengirim Single Order ke Firestore untuk Owner ID: ${ownerId}`,
+        newOrderData
+      );
+      // 🔥 AKHIR DEBUG LOG
+
+      // Asumsi addOrderToFirestore sudah didefinisikan dan mengembalikan boolean
+      isSuccessFirestore = await addOrderToFirestore(newOrderData);
+
+      if (!isSuccessFirestore) {
+        Swal.fire(
+          "Gagal!",
+          "Gagal mencatat pesanan ke database. Silakan coba lagi.",
+          "error"
+        );
+        return;
+      }
+
+      // Refresh dashboard penjual
+      if (
+        document.getElementById("management-view") &&
+        !document.getElementById("management-view").classList.contains("hidden")
+      ) {
+        loadNewOrdersList();
+      }
+    }
+
+    // --- 7. SUSUN PESAN WHATSAPP & ARAHKAN KE WA ---
+    let itemDetails = orderItems
+      .map(
+        (item) =>
+          `* ${item.nama} (x${item.quantity}) - ${formatIDR(
+            item.price * item.quantity
+          )}`
+      )
+      .join("\n");
+
+    const message = `[PESANAN DAKATA SHOP]
 Halo ${shopName}, saya ingin membuat pesanan:
+${newOrderData ? `*ID Pesanan:* ${newOrderData.id}` : ""}
 
 *PRODUK:*
 ${itemDetails}
@@ -3372,41 +4017,33 @@ Alamat: ${buyerAddress}
 
 Mohon konfirmasi ketersediaan produk dan instruksi pembayarannya. Terima kasih!`;
 
-  // --- 7. ARAHKAN KE WHATSAPP (PERBAIKAN NOTIFIKASI DAN RESET VIEW) ---
-  const encodedMessage = encodeURIComponent(message);
-  const whatsappUrl = `https://wa.me/${finalPhone}?text=${encodedMessage}`;
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/${finalPhone}?text=${encodedMessage}`;
 
-  window.open(whatsappUrl, "_blank");
+    window.open(whatsappUrl, "_blank");
 
-  isOrderSent = true;
+    // 🔥 NOTIFIKASI MODAL STANDAR DENGAN CALLBACK .then()
+    Swal.fire({
+      icon: "success",
+      title: "Pesanan Berhasil Dibuat!",
+      text: `Data pesanan ${
+        isFirestoreRecordNeeded ? "telah dicatat dan " : ""
+      } Anda telah diarahkan ke WhatsApp. Tekan 'Lanjutkan' untuk kembali ke toko.`,
+      showConfirmButton: true,
+      confirmButtonText: "Lanjutkan",
+      allowOutsideClick: false,
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // Tidak perlu reset cart karena ini bukan multi item
 
-  // 🔥 NOTIFIKASI MODAL STANDAR DENGAN CALLBACK .then()
-  Swal.fire({
-    icon: "success",
-    title: "Pesanan Berhasil Dibuat!",
-    text: "Anda telah diarahkan ke WhatsApp. Tekan 'Lanjutkan' untuk kembali ke toko.",
-    showConfirmButton: true, // Tampilkan tombol
-    confirmButtonText: "Lanjutkan",
-    allowOutsideClick: false, // Mencegah user menutup tanpa mengklik tombol
-  }).then((result) => {
-    // Logic RESET STATE dipindahkan ke dalam callback ini
-    if (result.isConfirmed) {
-      if (isMultiItemCheckout) {
-        cart = [];
-        updateCartCount();
+        // Kembali ke daftar produk utama
+        handleBackToProductsClick();
+
+        // Pastikan orderDetailView disembunyikan
+        if (orderDetailView) orderDetailView.classList.add("hidden");
       }
-
-      // 🔥 RESET VIEW: Kembali ke daftar produk utama
-      handleBackToProductsClick();
-
-      // Pastikan orderDetailView disembunyikan
-      if (orderDetailView) orderDetailView.classList.add("hidden");
-    }
-  });
-  // ----------------------------------------------------
-
-  // --- 8. RESET STATE (DIHAPUS/TIDAK DIGUNAKAN LAGI) ---
-  // Logika reset state yang lama telah dipindahkan dan disempurnakan di dalam .then()
+    });
+  } // AKHIR BLOK ELSE (SINGLE ITEM)
 }
 /**
  * Menangani update Nomor HP dan Alamat.
@@ -3683,6 +4320,8 @@ document.addEventListener("DOMContentLoaded", () => {
   );
   addToCartBtn = document.getElementById("add-to-cart-btn");
 
+  newOrdersListBody = document.getElementById("new-orders-list");
+
   // BAGIAN ORDER DETAIL (CHECKOUT)
   orderDetailView = document.getElementById("order-detail-view");
   backToDetailBtn = document.getElementById("back-to-detail-btn");
@@ -3737,6 +4376,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // 🔥 EVENT LISTENERS 🔥
   // -----------------------------------------------------------------
 
+  if (manageBtn) {
+    // 🔔 MODIFIKASI: Pastikan memuat pesanan baru saat Management View dibuka
+    manageBtn.addEventListener("click", toggleManagementView);
+    // Kita akan memodifikasi fungsi 'toggleManagementView' untuk memanggil loadNewOrdersList()
+    // agar data selalu segar saat dibuka.
+  }
   // 0. Dark Mode Toggle
   if (themeToggle) {
     themeToggle.addEventListener("change", toggleTheme);
