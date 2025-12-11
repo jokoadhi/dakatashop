@@ -809,7 +809,6 @@ function configureChartDefaults() {
   Chart.defaults.plugins.tooltip.titleColor = textColor;
   Chart.defaults.plugins.tooltip.bodyColor = textColor;
 }
-
 function createProductCard(product) {
   const card = document.createElement("div");
   card.className =
@@ -817,7 +816,6 @@ function createProductCard(product) {
 
   card.dataset.id = product.id;
 
-  // Pastikan product.ownerId ada untuk item keranjang
   const ownerId = product.ownerId || null;
 
   const price =
@@ -825,19 +823,66 @@ function createProductCard(product) {
       ? product.harga
       : parseInt(product.harga) || 0;
 
+  // 🔥🔥🔥 PENGAMBILAN STOK YANG BENAR (Berdasarkan Database: 'stock') 🔥🔥🔥
+  let rawStockValue = 0;
+
+  // 1. Coba ambil dari field 'stock' (INI YANG BENAR BERDASARKAN DATABASE)
+  if (product.stock !== undefined && product.stock !== null) {
+    rawStockValue = product.stock;
+  }
+  // 2. Fallback ke 'stok' (untuk kompatibilitas)
+  else if (product.stok !== undefined && product.stok !== null) {
+    rawStockValue = product.stok;
+  }
+
+  // Konversi ke integer, fallback ke 0 jika gagal
+  const stock = parseInt(rawStockValue) || 0;
+  // 🔥🔥🔥 AKHIR PENGAMBILAN STOK 🔥🔥🔥
+
   const isOwner = currentUser && ownerId === currentUser.uid;
+  const isLoggedIn = !!currentUser; // Cek status login
   const shopName = product.shopName || "Toko Terpercaya";
+
+  // Logika Universal: Stok Habis
+  const isOutOfStock = stock === 0;
+
+  // 1. LOGIKA INDIKATOR STOK (HANYA DIBUAT JIKA USER LOGIN)
+  let stockIndicatorHTML = "";
+
+  if (isLoggedIn) {
+    let stockIndicatorClass;
+    let stockStatusText;
+
+    if (stock > 10) {
+      stockIndicatorClass = "text-green-600 dark:text-green-400";
+      stockStatusText = `Stok: ${stock}`;
+    } else if (stock > 0) {
+      stockIndicatorClass =
+        "text-yellow-600 dark:text-yellow-400 font-semibold";
+      stockStatusText = `Stok Tersisa: ${stock}`;
+    } else {
+      stockIndicatorClass = "text-red-600 dark:text-red-400 font-bold";
+      stockStatusText = "Stok Habis";
+    }
+
+    stockIndicatorHTML = `
+          <p class="text-sm ${stockIndicatorClass} mt-1 mb-2">
+              ${stockStatusText}
+          </p>
+      `;
+  }
+  // ----------------------------------------------------
 
   const ownerControls = isOwner
     ? `
-        <div class="mt-3 flex space-x-2 border-t border-gray-100 pt-3">
-            <button data-id="${product.id}" class="edit-btn text-xs font-semibold text-blue-500 hover:text-blue-700">Edit</button>
-            <button data-id="${product.id}" class="delete-btn text-xs font-semibold text-red-500 hover:text-red-700">Hapus</button>
+        <div class="mt-3 flex space-x-2 border-t border-gray-100 dark:border-gray-700 pt-3">
+            <button data-id="${product.id}" class="edit-btn text-xs font-semibold text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">Edit</button>
+            <button data-id="${product.id}" class="delete-btn text-xs font-semibold text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300">Hapus</button>
         </div>
     `
     : "";
 
-  // 🔥 Tombol Keranjang: Tambahkan data-owner-id untuk referensi
+  // 2. LOGIKA TOMBOL KERANJANG DENGAN PENONAKTIFAN UNIVERSAL
   const cartButton = isOwner
     ? ""
     : `
@@ -845,16 +890,21 @@ function createProductCard(product) {
           type="button"
           data-product-id="${product.id}"
           data-owner-id="${ownerId}" 
-          class="add-to-cart-btn-list w-full bg-yellow-400 text-gray-900 py-1.5 rounded-lg text-sm font-bold hover:bg-yellow-500 transition duration-200 shadow-sm"
+          ${isOutOfStock ? "disabled" : ""} 
+          class="add-to-cart-btn-list w-full bg-yellow-400 text-gray-900 py-1.5 rounded-lg text-sm font-bold hover:bg-yellow-500 transition duration-200 shadow-sm ${
+            isOutOfStock
+              ? "opacity-50 cursor-not-allowed hover:bg-yellow-400"
+              : ""
+          }"
       >
-          Keranjang
+          ${isOutOfStock ? "Stok Habis" : "Keranjang"}
       </button>
   `;
 
   const shopNameDisplay = isOwner
     ? ""
     : `
-      <p class="text-xs font-semibold text-gray-700">
+      <p class="text-xs font-semibold text-gray-700 dark:text-gray-400">
           <span class="text-gold-accent font-semibold">Toko:</span> ${shopName}
       </p>
     `;
@@ -878,12 +928,12 @@ function createProductCard(product) {
 
     <div class="p-3 flex flex-col flex-grow">
         
-        <h3 class="text-base font-bold text-gray-900 mb-1 truncate">
+        <h3 class="text-base font-bold text-gray-900 dark:text-gray-100 mb-1 truncate">
             ${product.nama}
         </h3>
         
-        <div class="text-xs text-gray-700 mb-2 flex-grow">
-            <p class="line-clamp-2 leading-tight text-gray-500">
+        <div class="text-xs text-gray-700 dark:text-gray-400 mb-2 flex-grow">
+            <p class="line-clamp-2 leading-tight text-gray-500 dark:text-gray-400">
                 ${
                   product.deskripsi
                     ? product.deskripsi.substring(0, 100)
@@ -892,14 +942,14 @@ function createProductCard(product) {
             </p>
         </div>
 
-        <div class="mt-auto pt-2 border-t border-gray-100">
+        <div class="mt-auto pt-2 border-t border-gray-100 dark:border-gray-700">
             
             <div class="md:hidden"> 
                 ${shopNameDisplay} 
             </div>
 
-            <div class="flex justify-between items-baseline mb-2">
-                <p class="text-xl font-extrabold text-red-600">
+            <div class="flex justify-between items-baseline mb-1">
+                <p class="text-xl font-extrabold text-red-600 dark:text-red-400">
                     Rp ${price.toLocaleString("id-ID")}
                 </p>
                 
@@ -907,6 +957,8 @@ function createProductCard(product) {
                     ${shopNameDisplay} 
                 </div>
             </div>
+            
+            ${stockIndicatorHTML}
 
             ${isOwner ? ownerControls : cartButton}
         </div>
@@ -919,23 +971,22 @@ function createProductCard(product) {
     if (deleteBtn) deleteBtn.addEventListener("click", handleDeleteProduct);
     if (editBtn) editBtn.addEventListener("click", handleEditClick);
   } else {
-    // 🔥 TAMBAHKAN LISTENER UNTUK TOMBOL KERANJANG DI LIST
+    // Listener hanya akan memanggil handleAddToCartFromList jika stok > 0
     const listCartBtn = card.querySelector(".add-to-cart-btn-list");
-    if (listCartBtn) {
+    if (listCartBtn && stock > 0) {
       listCartBtn.addEventListener("click", (e) => {
-        // Karena kita ada di loop createProductCard, kita dapat meneruskan objek produk lengkap
         handleAddToCartFromList(product);
       });
     }
   }
 
-  // Listener untuk menampilkan detail produk (ditinggalkan karena sudah benar)
+  // Listener untuk menampilkan detail produk
   card.addEventListener("click", (e) => {
     const targetClasses = e.target.classList;
     if (
       targetClasses.contains("edit-btn") ||
       targetClasses.contains("delete-btn") ||
-      targetClasses.contains("add-to-cart-btn-list")
+      e.target.closest(".add-to-cart-btn-list") // Cegah klik pada tombol keranjang
     ) {
       return;
     }
@@ -1940,7 +1991,7 @@ auth.onAuthStateChanged(async (user) => {
     if (mainBanner) mainBanner.classList.add("hidden");
 
     // --- TAMPILAN HEADER (Login/Logout & Profil) ---
-    authBtn.textContent = `Hai, ${user.email.split("@")[0]} (Logout)`;
+    authBtn.textContent = `Logout`;
     authBtn.classList.remove(
       "bg-gold-accent",
       "text-navy-blue",
@@ -2337,64 +2388,52 @@ async function handleDeleteProduct(e) {
 // BAGIAN 6: FUNGSI MANAGEMENT (RIWAYAT TRANSAKSI & SALDO)
 // -----------------------------------------------------------------
 function toggleManagementView() {
-  // 1. Cek User Login (Ditambahkan notifikasi untuk UX yang lebih baik)
+  // 1. Cek User Login
   if (!currentUser) {
     Swal.fire(
       "Akses Ditolak",
-      "Anda harus login sebagai penjual untuk mengakses Management View.",
+      "Anda harus login untuk mengakses Management View.",
       "warning"
     );
     return;
   }
 
-  // 🔥 Pengecekan KRITIS untuk Error DOM (Disertai DEBUG Log)
-  // Menggunakan productListWrapperElement sesuai inisialisasi DOM Anda
+  // 🔥 Pengecekan KRITIS untuk Error DOM
   if (!managementView || !productListWrapperElement || !manageBtn) {
-    console.error(
-      "Error DOM: Salah satu elemen manajemen tidak ditemukan (managementView, productListWrapperElement, atau manageBtn)."
-    );
-    // Tambahkan log detail untuk melacak variabel mana yang null
-    console.error(
-      "DEBUG Check: managementView:",
-      managementView,
-      "productListWrapperElement:",
-      productListWrapperElement,
-      "manageBtn:",
-      manageBtn
-    );
+    console.error("Error DOM di toggleManagementView.");
     return;
   }
 
-  // Asumsi: Kita perlu memverifikasi peran user sebelum menampilkan management view
   getSellerData(currentUser.uid)
     .then((sellerData) => {
-      // Hanya izinkan akses jika role adalah seller atau admin
-      if (sellerData.role !== "seller" && sellerData.role !== "admin") {
+      // ✅ PERBAIKAN ROLE: Hanya izinkan role "biasa" (penjual) dan "admin"
+      if (sellerData.role !== "biasa" && sellerData.role !== "admin") {
         Swal.fire(
           "Akses Ditolak",
-          "Hanya penjual atau admin yang dapat mengakses Management View.",
+          "Management View hanya tersedia untuk Penjual (Role Biasa) dan Admin.",
           "error"
         );
         return;
       }
 
+      // ✅ AKSES DIBERIKAN KEPADA ROLE BIASA DAN ADMIN
       // 2. Logika Toggle View
       if (managementView.classList.contains("hidden")) {
         // --- MASUK KE TAMPILAN MANAGEMENT ---
         managementView.classList.remove("hidden");
-        productListWrapperElement.classList.add("hidden"); // 🔥 DIGANTI
+        productListWrapperElement.classList.add("hidden");
 
-        // Sembunyikan Admin View jika ada (adminView sudah diperiksa di inisialisasi)
+        // Sembunyikan Admin View jika terbuka
         if (adminView) adminView.classList.add("hidden");
 
-        // Atur Tombol Admin (kembalikan ke mode Admin/Pelanggan)
+        // Atur Tombol Admin (pastikan dikembalikan ke mode Pelanggan jika Management View dibuka)
         if (adminBtn) {
           adminBtn.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
             </svg>
             Admin (Pelanggan)
-        `;
+          `;
         }
 
         // Ubah Teks Tombol Management menjadi 'Lihat Produk'
@@ -2407,22 +2446,16 @@ function toggleManagementView() {
             `;
         }
 
-        // 🔥 KRUSIAL: Muat Data Pesanan Baru dari Firestore 🔥
+        // Muat data yang relevan
         const sellerId = getCurrentSellerId();
         if (sellerId) {
-          // Panggil fungsi untuk mengambil dan merender pesanan baru
           loadNewOrdersList();
-        } else {
-          console.warn(
-            "Penjual login tapi UID tidak ditemukan. Gagal memuat pesanan baru."
-          );
         }
-
-        loadTransactionHistory(); // Asumsi fungsi ini memuat data transaksi/grafik
+        loadTransactionHistory();
       } else {
         // --- KELUAR DARI TAMPILAN MANAGEMENT (KEMBALI KE PRODUK) ---
         managementView.classList.add("hidden");
-        productListWrapperElement.classList.remove("hidden"); // 🔥 DIGANTI
+        productListWrapperElement.classList.remove("hidden");
 
         // Kembalikan Teks Tombol Management ke 'Management'
         if (manageBtn) {
@@ -2431,7 +2464,7 @@ function toggleManagementView() {
                 <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM13 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2zM13 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2z" />
             </svg>
             Management
-        `;
+          `;
         }
       }
     })
