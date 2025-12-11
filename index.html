@@ -16,8 +16,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
 
     <script>
-      // Tambahkan breakpoint 'xs' custom untuk penyesuaian mobile yang lebih halus
+      // 🔥 KRITIKAL: Set darkMode: 'class' 🔥
       tailwind.config = {
+        darkMode: "class",
         theme: {
           extend: {
             screens: {
@@ -517,7 +518,7 @@
 
       <section
         id="management-view"
-        class="hidden container mx-auto px-6 mb-12 mt-8"
+        class="hidden container mx-auto px-6 mb-12 mt-8 **bg-gray-50 dark:bg-gray-900**"
       >
         <h2 class="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-6">
           💰 Dashboard Penjual
@@ -528,7 +529,10 @@
             class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-lg border-l-4 border-green-500"
           >
             <p class="text-sm text-gray-500 dark:text-gray-400">Total Saldo</p>
-            <p id="total-saldo" class="text-3xl font-extrabold text-green-600">
+            <p
+              id="total-saldo"
+              class="text-3xl font-extrabold text-green-600 **dark:text-green-400**"
+            >
               Rp 0
             </p>
           </div>
@@ -540,7 +544,7 @@
             </p>
             <p
               id="total-terjual"
-              class="text-3xl font-extrabold text-yellow-600"
+              class="text-3xl font-extrabold text-yellow-600 **dark:text-yellow-400**"
             >
               0
             </p>
@@ -553,7 +557,7 @@
             </p>
             <p
               id="total-transaksi"
-              class="text-3xl font-extrabold text-blue-600"
+              class="text-3xl font-extrabold text-blue-600 **dark:text-blue-400**"
             >
               0
             </p>
@@ -584,7 +588,7 @@
         </div>
 
         <div
-          class="bg-red-50 dark:bg-gray-900 p-6 rounded-xl shadow-2xl ring-2 ring-red-500 mb-8"
+          class="bg-red-50 dark:bg-gray-900 p-3 rounded-xl shadow-2xl ring-2 ring-red-500 mb-8"
         >
           <h3
             class="text-xl font-bold text-red-700 dark:text-red-400 mb-4 flex items-center"
@@ -656,7 +660,7 @@
             </table>
           </div>
         </div>
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-2xl">
+        <div class="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-2xl">
           <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">
             Riwayat Transaksi Terakhir
           </h3>

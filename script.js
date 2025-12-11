@@ -85,6 +85,9 @@ let productListView;
 
 // Variabel untuk menyimpan semua data produk yang dimuat dari Firebase
 let ALL_PRODUCTS_CACHE = [];
+let isHomePage = false;
+let currentView = "products";
+let isExiting = false; // Flag untuk mencegah popstate loop setelah konfirmasi keluar
 
 // Variabel DOM baru
 let orderDetailView;
@@ -1107,10 +1110,11 @@ function toggleTheme() {
     }
   }
 }
-
 /**
- * Memuat preferensi tema yang tersimpan di localStorage atau dari preferensi sistem.
+ * Memuat preferensi tema yang tersimpan di localStorage.
+ * DETEKSI PREFERENSI SISTEM (OS) DIHAPUS untuk mengatasi bug mobile.
  */
+
 function loadThemePreference() {
   const body = document.body;
   const savedTheme = localStorage.getItem(STORAGE_KEY);
@@ -1123,19 +1127,15 @@ function loadThemePreference() {
     body.classList.remove("dark-mode");
     themeToggle.checked = false;
   }
-  // 2. Cek Preferensi Sistem jika belum ada (hanya saat pertama kali)
-  else if (
-    window.matchMedia &&
-    window.matchMedia("(prefers-color-scheme: dark)").matches
-  ) {
-    body.classList.add("dark-mode");
-    themeToggle.checked = true;
-    // Simpan preferensi ini agar tidak perlu mengecek OS lagi
-    localStorage.setItem(STORAGE_KEY, "dark");
-  } else {
-    // Default ke light mode dan simpan
+  // 2. Jika BELUM ADA preferensi tersimpan, default ke Light Mode
+  else {
+    // Default ke light mode, pastikan body class dihilangkan
+    body.classList.remove("dark-mode");
+    themeToggle.checked = false;
     localStorage.setItem(STORAGE_KEY, "light");
   }
+
+  // CATATAN: Blok kode yang memeriksa `prefers-color-scheme: dark` telah DIBUANG.
 }
 
 // ====================================================================
@@ -1512,6 +1512,7 @@ function displayAuthError(message) {
     authError.classList.remove("hidden");
   }
 }
+
 /**
  * Menyaring produk berdasarkan query (Nama Produk, Name, Deskripsi, ATAU Nama Toko).
  * Menggunakan pencarian multi-properti untuk fleksibilitas maksimal.
@@ -4857,12 +4858,4 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
-
-  // 11. Tombol Order Sekarang (Order Form Submit)
-  if (orderForm) {
-    orderForm.addEventListener("submit", handleOrderSubmit);
-  }
-
-  // 12. Tombol Kembali dari Order View (Mode Single Item)
-  // Tidak ada perubahan yang diperlukan di sini.
 });
