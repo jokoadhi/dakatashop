@@ -23,6 +23,8 @@
           extend: {
             screens: {
               xs: "475px",
+              // 🔥 TAMBAH BREAKPOINT 2XL SEBAGAI PENGAMAN RESOLUSI TINGGI 🔥
+              "2xl": "1536px",
             },
             colors: {
               // Warna netral yang elegan
@@ -859,10 +861,10 @@
         id="product-list-wrapper"
       >
         <h2
-          id="product-list-header"
+          id="product-list-title"
           class="text-4xl font-bold text-gray-800 mb-8 border-l-4 border-gold-accent pl-4"
         >
-          Daftar Produk
+          Pilihan Produk
         </h2>
 
         <div
@@ -1150,18 +1152,45 @@
               <p class="text-xs font-semibold text-red-600 mb-1">
                 Anda Memesan:
               </p>
+
               <p
                 id="order-product-summary"
-                class="text-lg font-bold text-gray-800"
+                class="text-lg font-bold text-gray-800 mb-2"
               >
                 Nama Produk (x Kuantitas)
               </p>
-              <p
-                id="order-total-price"
-                class="text-base text-red-700 font-semibold"
+
+              <div id="order-item-price-container" class="flex flex-col mb-3">
+                <p
+                  id="order-original-price"
+                  class="text-sm text-gray-500 line-through hidden"
+                >
+                  Harga Normal: Rp 0
+                </p>
+                <p
+                  id="order-discounted-price"
+                  class="text-base text-red-700 font-semibold"
+                >
+                  Harga Bayar: Rp 0
+                </p>
+              </div>
+
+              <hr id="order-summary-separator" class="border-red-300 mb-3" />
+
+              <div
+                id="order-grand-total-container"
+                class="flex justify-between items-center"
               >
-                Total: Rp 0
-              </p>
+                <span class="text-lg font-bold text-gray-800"
+                  >Total Pembayaran:</span
+                >
+                <p
+                  id="order-total-price"
+                  class="text-xl text-red-700 font-bold"
+                >
+                  Rp 0
+                </p>
+              </div>
             </div>
 
             <div class="space-y-4 mb-6">
@@ -1494,13 +1523,26 @@
             <label
               for="product-harga"
               class="block text-xs sm:text-sm font-medium text-gray-700"
-              >Harga (Rp)</label
+              >Harga Asli (Rp)</label
             >
             <input
               type="number"
               id="product-harga"
               required
               class="mt-1 block w-full px-3 py-2 text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label
+              for="product-diskon"
+              class="block text-xs sm:text-sm font-medium text-gray-700"
+              >Harga Diskon (Rp) - Opsional</label
+            >
+            <input
+              type="number"
+              id="product-diskon"
+              class="mt-1 block w-full px-3 py-2 text-sm border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Kosongkan jika tidak ada diskon"
             />
           </div>
           <div>

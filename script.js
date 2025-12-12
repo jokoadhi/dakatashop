@@ -375,20 +375,28 @@ function renderProductList(products) {
     productListDiv.appendChild(productElement);
   });
 }
-
 async function loadProducts() {
+  const productListDiv = document.getElementById("product-list"); // Asumsi ID elemen container Anda
+  const productListTitleElement = document.getElementById("product-list-title"); // Asumsi ID elemen judul Anda
+
   if (!productListDiv) return;
 
   try {
+    // 🔥🔥🔥 PENYESUAIAN GRID: Mobile 2, Tablet 4, Desktop 6 🔥🔥🔥
+    productListDiv.className =
+      "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-6 gap-4 p-4";
+    // 🔥🔥🔥 AKHIR PENYESUAIAN GRID 🔥🔥🔥
+
     // 🔥 LOGIKA PENGGANTIAN JUDUL 🔥
-    if (
-      typeof productListTitleElement !== "undefined" &&
-      productListTitleElement
-    ) {
-      if (currentUser) {
-        productListTitleElement.textContent = "Daftar Produk";
+    if (productListTitleElement) {
+      // Cek langsung apakah elemen ditemukan
+      if (currentUser && currentUser.uid) {
+        // Pastikan currentUser ada dan memiliki UID
+        // Mode Pengguna (Sudah Login)
+        productListTitleElement.textContent = "Daftar Produk"; // Atau "Daftar Produk Anda"
       } else {
-        productListTitleElement.textContent = "Pilihan Produk";
+        // Mode Publik (Belum Login)
+        productListTitleElement.textContent = "Pilihan Produk"; // Atau "Pilihan Produk Terbaik"
       }
     }
     // -----------------------------------------------------------
@@ -450,14 +458,12 @@ async function loadProducts() {
     await Promise.all(sellerPromises);
 
     // ------------------------------------------------------------------
-    // 🔥 PERUBAHAN UTAMA: CACHING DAN KONVERSI KE PROPERTI 'nama' 🔥
+    // CACHING DAN KONVERSI KE PROPERTI 'nama'
     // ------------------------------------------------------------------
     ALL_PRODUCTS_CACHE = products.map((product) => {
       const transformedProduct = {
         ...product,
         shopName: sellerNamesMap[product.ownerId] || "Toko Unknown",
-        // JIKA properti 'name' ada, pindahkan/fallback nilainya ke 'nama'.
-        // Jika sudah ada 'nama', gunakan 'nama'.
         nama: product.nama || product.name,
       };
 
@@ -589,14 +595,18 @@ function handleProductCardClick(e) {
 // let currentProductDetail = null;
 // let currentSellerPhone = '';
 // const detailProductName = document.getElementById("detail-product-name"); // dan seterusnya...
+
 async function loadProductDetails(productId) {
   // --- INISIALISASI TAMPILAN AWAL ---
-  detailProductName.textContent = "Memuat...";
-  detailProductPrice.textContent = "Rp 0";
-  detailProductDescription.textContent = "Sedang memuat deskripsi...";
-  detailShopNameText.textContent = "Toko Rahasia";
-
-  // ... (Inisialisasi elemen DOM lainnya) ...
+  const detailProductName = document.getElementById("detail-product-name");
+  const detailProductPrice = document.getElementById("detail-product-price");
+  const detailProductDescription = document.getElementById(
+    "detail-product-description"
+  );
+  const detailShopNameText = document.getElementById("detail-shop-name-text");
+  const detailProductImage = document.getElementById("detail-product-image");
+  const detailStockInfo = document.getElementById("detail-stock-info");
+  const detailOwnerMessage = document.getElementById("detail-owner-message");
   const detailShopAddressText = document.getElementById(
     "detail-shop-address-text"
   );
@@ -605,14 +615,25 @@ async function loadProductDetails(productId) {
   );
   const actionButtons = document.getElementById("detail-action-buttons");
   const quantityControlsWrapper = document.getElementById("detail-qty-control");
+  const productQuantityInput = document.getElementById(
+    "product-quantity-input"
+  );
+  const qtyDecrementBtn = document.getElementById("qty-decrement-btn");
+  const qtyIncrementBtn = document.getElementById("qty-increment-btn");
+  const detailDiscountBadge = document.getElementById("detail-discount-badge");
+
+  detailProductName.textContent = "Memuat...";
+  detailProductPrice.innerHTML = "Rp 0";
+  detailProductDescription.textContent = "Sedang memuat deskripsi...";
+  detailShopNameText.textContent = "Toko Rahasia";
 
   if (detailShopAddressText)
     detailShopAddressText.textContent = "Memuat Alamat...";
 
-  // ... (Pengaturan tampilan loading lainnya) ...
   detailProductImage.src =
     "https://via.placeholder.com/600x400.png?text=Memuat...";
   if (detailOwnerMessage) detailOwnerMessage.classList.add("hidden");
+  if (detailDiscountBadge) detailDiscountBadge.classList.add("hidden");
 
   if (mainBanner) mainBanner.classList.add("hidden");
 
@@ -623,9 +644,9 @@ async function loadProductDetails(productId) {
   if (detailStockInfo)
     detailStockInfo.textContent = "Stok: Sedang diperiksa...";
 
-  // Reset variabel global
+  // Reset variabel global (Asumsi variabel ini didefinisikan di luar fungsi)
   currentProductDetail = null;
-  currentProduct = null; // 🔥🔥🔥 DITAMBAHKAN/DIKONFIRMASI RESET 🔥🔥🔥
+  currentProduct = null;
   currentSellerPhone = "";
 
   try {
@@ -646,37 +667,50 @@ async function loadProductDetails(productId) {
 
     const sellerData = await getSellerData(product.ownerId);
     const shopName = sellerData.shopName || "Toko Rahasia";
-    // 🔥 AMBIL DATA ALAMAT
     const shopAddress = sellerData.address || "Lokasi tidak tersedia.";
-    // 🔥 AMBIL DATA PHONE PENJUAL
     const sellerPhone = sellerData.phone || null;
 
-    const price =
+    // 🔥🔥🔥 LOGIKA HARGA DISKON DI DETAIL PRODUK 🔥🔥🔥
+    const hargaAsli =
       typeof product.harga === "number"
         ? product.harga
         : parseInt(product.harga) || 0;
+
+    const hargaDiskon =
+      typeof product.hargaDiskon === "number" &&
+      product.hargaDiskon > 0 &&
+      product.hargaDiskon < hargaAsli
+        ? product.hargaDiskon
+        : null;
+
+    const isOnDiscount = hargaDiskon !== null;
+    const finalPrice = isOnDiscount ? hargaDiskon : hargaAsli; // Harga yang digunakan untuk Order
+    // 🔥🔥🔥 AKHIR LOGIKA HARGA DISKON 🔥🔥🔥
+
     const isOwner = currentUser && product.ownerId === currentUser.uid;
 
-    // 🔥 PENGISIAN VARIABEL GLOBAL UNTUK FUNGSI ORDER (handleMoveToOrderView)
+    // 🔥 PENGISIAN VARIABEL GLOBAL UNTUK FUNGSI ORDER 🔥
     const finalProductData = {
       ...product, // Salin semua data produk
       id: productDoc.id,
-      price: price, // Pastikan harga sudah terformat sebagai angka
+      price: finalPrice, // Harga yang akan dibayarkan (diskon atau asli)
+
+      // 🔥 TAMBAHAN KRITIS: Menyimpan data harga asli dan diskon 🔥
+      hargaAsli: hargaAsli,
+      hargaDiskon: hargaDiskon,
+      // ---------------------------------------------------------
+
       shopName: shopName,
-      shopPhone: sellerPhone, // Tambahkan phone penjual ke objek produk
-      ownerId: product.ownerId, // Pastikan ownerId ada
+      shopPhone: sellerPhone,
+      ownerId: product.ownerId,
     };
 
-    // 🔥🔥🔥 SOLUSI UNTUK ReferenceError: currentProduct is not defined 🔥🔥🔥
-    currentProductDetail = finalProductData; // Digunakan di sebagian skrip lama Anda
-    currentProduct = finalProductData; // Variabel yang diminta oleh handleMoveToOrderView
-    // 🔥🔥🔥 AKHIR SOLUSI 🔥🔥🔥
-
-    currentSellerPhone = sellerPhone; // Simpan nomor telepon penjual
+    currentProductDetail = finalProductData;
+    currentProduct = finalProductData;
+    currentSellerPhone = sellerPhone;
 
     // --- UPDATE DATA PRODUK KE DOM ---
     detailProductName.textContent = product.nama;
-    detailProductPrice.textContent = `Rp ${price.toLocaleString("id-ID")}`;
     detailProductDescription.textContent =
       product.deskripsi || "Tidak ada deskripsi tersedia.";
 
@@ -686,10 +720,45 @@ async function loadProductDetails(productId) {
 
     detailShopNameText.textContent = shopName;
 
+    // 🔥🔥🔥 TAMPILAN HARGA (SESUAI DISKON) - FONT DISKON KEMBALI KE 4XL 🔥🔥🔥
+    if (isOnDiscount) {
+      detailProductPrice.innerHTML = `
+            <div class="flex flex-col items-start w-full">
+                
+                <div class="flex justify-between items-center w-full mb-1">
+                    <p class="text-xl text-gray-500 line-through">
+                        Rp ${hargaAsli.toLocaleString("id-ID")}
+                    </p>
+                    <span class="text-base font-bold text-red-700 bg-red-200 px-3 py-1 rounded-full whitespace-nowrap">
+                        Harga Diskon
+                    </span>
+                </div>
+                
+                <p class="text-4xl font-extrabold text-red-600 dark:text-red-400">
+                    Rp ${hargaDiskon.toLocaleString("id-ID")}
+                </p>
+            </div>
+        `;
+      if (detailDiscountBadge) {
+        detailDiscountBadge.classList.remove("hidden");
+        detailDiscountBadge.textContent = "Diskon Spesial!";
+      }
+    } else {
+      // Hanya tampilkan harga asli (Kembali ke 4XL)
+      detailProductPrice.innerHTML = `
+            <p class="text-4xl font-extrabold text-red-600 dark:text-red-400">
+                Rp ${hargaAsli.toLocaleString("id-ID")}
+            </p>
+        `;
+      if (detailDiscountBadge) {
+        detailDiscountBadge.classList.add("hidden");
+      }
+    }
+    // 🔥🔥🔥 AKHIR TAMPILAN HARGA 🔥🔥🔥
+
     // --- LOGIKA KEPEMILIKAN (PENJUAL) ---
     if (isOwner) {
       // Penjual (Pemilik Produk)
-      // ... (Logika penyembunyian tombol pembelian dan tampilan stok untuk Penjual) ...
       if (detailOwnerMessage) {
         detailOwnerMessage.textContent =
           "Anda adalah pemilik produk ini. Hanya menampilkan informasi inventaris.";
@@ -704,6 +773,8 @@ async function loadProductDetails(productId) {
         detailShopAddressWrapper.classList.add("hidden");
       }
 
+      if (detailDiscountBadge) detailDiscountBadge.classList.add("hidden");
+
       if (detailStockInfo) {
         detailStockInfo.classList.remove("hidden");
         detailStockInfo.textContent = `Stok Saat Ini: ${
@@ -713,7 +784,6 @@ async function loadProductDetails(productId) {
       }
     } else {
       // Pembeli (Bukan Pemilik Produk / Publik)
-      // ... (Logika tampilan tombol pembelian dan stok untuk Pembeli) ...
       if (detailOwnerMessage) detailOwnerMessage.classList.add("hidden");
 
       if (detailShopAddressWrapper) {
@@ -818,10 +888,24 @@ function createProductCard(product) {
 
   const ownerId = product.ownerId || null;
 
-  const price =
+  // 🔥 MENGAMBIL HARGA ASLI 🔥
+  const hargaAsli =
     typeof product.harga === "number"
       ? product.harga
       : parseInt(product.harga) || 0;
+
+  // 🔥 MENGAMBIL HARGA DISKON 🔥
+  // Cek apakah hargaDiskon ada, merupakan angka positif, dan lebih kecil dari hargaAsli
+  const hargaDiskon =
+    typeof product.hargaDiskon === "number" &&
+    product.hargaDiskon > 0 &&
+    product.hargaDiskon < hargaAsli
+      ? product.hargaDiskon
+      : null;
+
+  const isOnDiscount = hargaDiskon !== null;
+  // Harga yang ditampilkan di tombol Keranjang
+  const displayedPrice = isOnDiscount ? hargaDiskon : hargaAsli;
 
   // 🔥🔥🔥 PENGAMBILAN STOK & TERJUAL 🔥🔥🔥
   let rawStockValue = 0;
@@ -843,6 +927,51 @@ function createProductCard(product) {
   const shopName = product.shopName || "Toko Terpercaya";
 
   const isOutOfStock = stock === 0;
+
+  // ----------------------------------------------------
+  // 🔥🔥🔥 LOGIKA PRODUK BARU (7 HARI) 🔥🔥🔥
+  let isNewProduct = false;
+  if (product.createdAt) {
+    // Asumsi: product.createdAt adalah objek Firebase Timestamp
+    // yang memiliki method .toDate()
+    const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    try {
+      const createdTimeMs = product.createdAt.toDate().getTime();
+      if (now - createdTimeMs <= ONE_WEEK_MS) {
+        isNewProduct = true;
+      }
+    } catch (e) {
+      // Jika konversi ke Date gagal, abaikan tag 'Baru'
+      console.warn("Gagal mengkonversi createdAt untuk cek produk baru:", e);
+    }
+  }
+  // 🔥🔥🔥 AKHIR LOGIKA PRODUK BARU 🔥🔥🔥
+
+  // 🔥 LOGIKA TAG DISPLAY (Prioritas: MILIK ANDA > DISKON > BARU) 🔥
+  let tagClass = "";
+  let tagText = "";
+
+  if (isOwner) {
+    tagClass = "bg-blue-600";
+    tagText = "MILIK ANDA";
+  } else if (isOnDiscount) {
+    tagClass = "bg-red-500";
+    tagText = "DISKON";
+  } else if (isNewProduct) {
+    tagClass = "bg-red-500";
+    tagText = "Baru";
+  }
+
+  const productTagHTML = tagText
+    ? `
+      <span class="absolute top-2 right-2 ${tagClass} text-white text-xs font-semibold px-2 py-1 rounded-lg shadow">
+          ${tagText}
+      </span>
+      `
+    : "";
+  // ----------------------------------------------------
 
   // 🔥 LOGIKA PISAH STOK DAN TERJUAL 🔥
   let stockIndicatorContent = "";
@@ -889,7 +1018,7 @@ function createProductCard(product) {
         `;
   }
 
-  // 🔥 3. Gabungkan Konten Indikator untuk BARIS INDIKATOR 🔥
+  // 3. Gabungkan Konten Indikator untuk BARIS INDIKATOR
   let indicatorDisplayHTML = "";
   let shopNameInIndicatorBar = "";
 
@@ -903,7 +1032,6 @@ function createProductCard(product) {
       `;
   } else {
     // Mode Publik/Logout: TERJUAL di kiri, NAMA TOKO di kanan (Horizontal)
-    // NAMA TOKO HANYA AKAN MUNCUL DI DESKTOP/MD:BLOCK
     shopNameInIndicatorBar = isOwner
       ? ""
       : `<p class="text-xs font-semibold text-gray-700 dark:text-gray-400 whitespace-nowrap hidden md:block"> 
@@ -955,6 +1083,29 @@ function createProductCard(product) {
       </p>
     `;
 
+  // 🔥 LOGIKA TAMPILAN HARGA UTAMA (Sudah Rata Kiri) 🔥
+  let priceDisplayHTML;
+
+  if (isOnDiscount) {
+    // Tampilkan Harga Asli (dicoret) dan Harga Diskon (besar)
+    priceDisplayHTML = `
+        <p class="text-sm text-gray-500 dark:text-gray-400 line-through text-left">
+            Rp ${hargaAsli.toLocaleString("id-ID")}
+        </p>
+        <p class="text-xl font-extrabold text-red-600 dark:text-red-400 -mt-0.5 text-left">
+            Rp ${hargaDiskon.toLocaleString("id-ID")}
+        </p>
+    `;
+  } else {
+    // Hanya tampilkan Harga Asli (besar)
+    priceDisplayHTML = `
+        <p class="text-xl font-extrabold text-red-600 dark:text-red-400 text-left">
+            Rp ${hargaAsli.toLocaleString("id-ID")}
+        </p>
+    `;
+  }
+  // 🔥 AKHIR LOGIKA TAMPILAN HARGA UTAMA 🔥
+
   card.innerHTML = `
     <div class="relative overflow-hidden h-36 sm:h-40"> 
         <img
@@ -965,11 +1116,7 @@ function createProductCard(product) {
             alt="${product.nama}" 
             class="w-full h-full object-cover"
         />
-        <span class="absolute top-2 right-2 ${
-          isOwner ? "bg-blue-600" : "bg-red-500"
-        } text-white text-xs font-semibold px-2 py-1 rounded-lg shadow">
-            ${isOwner ? "MILIK ANDA" : "Baru"}
-        </span>
+        ${productTagHTML}
     </div>
 
     <div class="p-3 flex flex-col flex-grow">
@@ -996,10 +1143,8 @@ function createProductCard(product) {
                 ${shopNameMobileDisplay} 
             </div>
 
-            <div class="flex justify-between items-end mb-1">
-                <p class="text-xl font-extrabold text-red-600 dark:text-red-400">
-                    Rp ${price.toLocaleString("id-ID")}
-                </p>
+            <div class="flex mb-1 flex-col items-start">
+                ${priceDisplayHTML}
                 
                 <div class="hidden md:block"></div>
             </div>
@@ -1023,7 +1168,8 @@ function createProductCard(product) {
     const listCartBtn = card.querySelector(".add-to-cart-btn-list");
     if (listCartBtn && stock > 0) {
       listCartBtn.addEventListener("click", (e) => {
-        handleAddToCartFromList(product);
+        // Menggunakan displayedPrice untuk harga yang ditambahkan ke keranjang
+        handleAddToCartFromList({ ...product, harga: displayedPrice });
       });
     }
   }
@@ -1330,6 +1476,7 @@ function getStatusBadge(status) {
  * Merender pesanan yang statusnya 'Diterima' ke tabel 'Pesanan Baru' (Notifikasi).
  * Aksi yang tersedia hanya Terima (-> Diproses) atau Tolak (-> Ditolak).
  */
+
 function renderNewOrdersTable(orders, newOrdersListBody) {
   newOrdersListBody.innerHTML = "";
 
@@ -2045,6 +2192,7 @@ async function handleSubmitAuth(e) {
     setLoading(authSubmitBtn, false, originalText);
   }
 }
+
 // Update UI berdasarkan status Auth (PENTING)
 auth.onAuthStateChanged(async (user) => {
   if (user) {
@@ -2166,22 +2314,30 @@ auth.onAuthStateChanged(async (user) => {
   isInitialLoad = false;
   loadProducts();
 });
-async function handleAddToCartFromList(product) {
-  // Memanggil fungsi addToCart dengan kuantitas default 1
-  // Karena addToCart sekarang harus melakukan fetch data (async), kita harus await.
 
-  // Pastikan produk memiliki ownerId sebelum diproses
-  if (!product || !product.ownerId) {
-    console.error(
-      "Gagal menambahkan ke keranjang: Owner ID produk hilang.",
-      product
-    );
-    Swal.fire("Error", "Informasi penjual produk tidak lengkap.", "error");
+async function handleAddToCartFromList(productListItem) {
+  if (!productListItem || !productListItem.id) {
+    Swal.fire("Error", "ID produk hilang.", "error");
     return;
   }
 
-  // Asumsi: Kita perlu mengambil detail penjual di dalam addToCart
-  await addToCart(product, 1);
+  try {
+    // 🔥 Langkah 1: Ambil detail produk lengkap menggunakan ID (fetch ke API)
+    // Kita butuh fungsi ini untuk mendapatkan hargaAsli, stok, dll.
+    const fullProductDetail = await fetchProductDetails(productListItem.id);
+
+    if (!fullProductDetail || !fullProductDetail.ownerId) {
+      Swal.fire("Error", "Detail lengkap produk gagal dimuat.", "error");
+      return;
+    }
+
+    // 🔥 Langkah 2: Kirim detail lengkap ke fungsi addToCart
+    // Gunakan data lengkap agar cart memiliki hargaAsli
+    await addToCart(fullProductDetail, 1);
+  } catch (error) {
+    console.error("Error fetching full product details:", error);
+    Swal.fire("Error", "Gagal memuat detail produk untuk keranjang.", "error");
+  }
 }
 
 // -----------------------------------------------------------------
@@ -2269,18 +2425,24 @@ async function handleSubmitProduct(e) {
   const loadingText = isEditing ? "Memperbarui..." : "Mengupload...";
 
   const nama = document.getElementById("product-nama").value;
-  const harga = parseInt(document.getElementById("product-harga").value);
+  // 🔥 MENGAMBIL HARGA ASLI (WAJIB)
+  const hargaAsli = parseInt(document.getElementById("product-harga").value);
+
+  // 🔥 MENGAMBIL HARGA DISKON (OPSIONAL)
+  const hargaDiskonInput = document.getElementById("product-diskon").value;
+  let hargaDiskon = hargaDiskonInput ? parseInt(hargaDiskonInput) : null;
+
   const deskripsi = document.getElementById("product-desc").value;
   const stock = parseInt(document.getElementById("product-stock").value || 0);
 
   const fileFromInput = productImageFile.files[0];
   const fileToProcess = croppedFileBlob || fileFromInput;
 
-  // Ambil URL gambar lama dari pratinjau sebelum set loading
-  const oldImageUrl = isEditing ? imagePreview.src : null; // Digunakan jika user tidak mengupload file baru
+  const oldImageUrl = isEditing ? imagePreview.src : null;
 
-  if (isNaN(harga) || harga <= 0) {
-    uploadError.textContent = "Harga harus berupa angka positif.";
+  // --- VALIDASI HARGA ASLI & STOK ---
+  if (isNaN(hargaAsli) || hargaAsli <= 0) {
+    uploadError.textContent = "Harga Asli harus berupa angka positif.";
     uploadError.classList.remove("hidden");
     return;
   }
@@ -2291,13 +2453,29 @@ async function handleSubmitProduct(e) {
     return;
   }
 
+  // --- 🔥 VALIDASI HARGA DISKON 🔥 ---
+  if (hargaDiskon !== null) {
+    if (isNaN(hargaDiskon) || hargaDiskon <= 0) {
+      uploadError.textContent =
+        "Harga Diskon harus berupa angka positif yang valid.";
+      uploadError.classList.remove("hidden");
+      return;
+    }
+    if (hargaDiskon >= hargaAsli) {
+      uploadError.textContent =
+        "Harga Diskon harus lebih kecil dari Harga Asli.";
+      uploadError.classList.remove("hidden");
+      return;
+    }
+  }
+  // --- AKHIR VALIDASI DISKON ---
+
   if (!isEditing && !fileToProcess) {
     uploadError.textContent = "Anda harus memilih foto produk.";
     uploadError.classList.remove("hidden");
     return;
   }
 
-  // Jika mengedit, dan tidak ada file baru/crop, pastikan ada URL gambar lama
   if (isEditing && !fileToProcess && !oldImageUrl) {
     uploadError.textContent =
       "Gagal mendapatkan gambar lama. Harap upload ulang gambar.";
@@ -2316,19 +2494,29 @@ async function handleSubmitProduct(e) {
       croppedFileBlob = null;
     } else if (isEditing) {
       // Jika mengedit dan TIDAK ADA file baru, gunakan URL gambar lama
-      imageUrl = oldImageUrl; // Menggunakan variabel yang sudah diambil di awal
+      imageUrl = oldImageUrl;
     } else {
-      // Seharusnya tidak terjadi karena sudah dicek di atas, tapi untuk keamanan
       throw new Error("Produk baru memerlukan gambar.");
     }
 
     const productData = {
       nama: nama,
-      harga: harga,
+      harga: hargaAsli, // Harga Asli disimpan di field 'harga'
       deskripsi: deskripsi,
       stock: stock,
       ownerId: currentUser.uid,
     };
+
+    // 🔥 LOGIKA DISKON DI OBJEK DATA 🔥
+    if (hargaDiskon !== null) {
+      // Jika user mengisi harga diskon yang valid, tambahkan ke data
+      productData.hargaDiskon = hargaDiskon;
+    } else if (isEditing) {
+      // Jika user mengosongkan field diskon saat mengedit, hapus field 'hargaDiskon'
+      // dari dokumen Firestore menggunakan FieldValue.delete().
+      productData.hargaDiskon = firebase.firestore.FieldValue.delete();
+    }
+    // Jika hargaDiskon null dan isEditing false (produk baru), kita tidak menambahkan field 'hargaDiskon' sama sekali.
 
     if (imageUrl) {
       productData.imageUrl = imageUrl;
@@ -2345,7 +2533,7 @@ async function handleSubmitProduct(e) {
     // --- RESET UI SETELAH BERHASIL ---
     uploadForm.reset();
 
-    // 🔥 PENTING: Bersihkan pratinjau gambar dan sembunyikan
+    // Bersihkan pratinjau gambar
     imagePreview.src = "";
     imagePreviewContainer.classList.add("hidden");
 
@@ -2366,8 +2554,7 @@ async function handleSubmitProduct(e) {
     });
   } catch (error) {
     console.error("Error submit produk: ", error);
-    // Jika error terjadi setelah upload gambar, pastikan error ditangkap
-    uploadError.textContent = `Gagal memproses produk: ${error.message}. Cek Cloudinary API atau koneksi Firestore.`;
+    uploadError.textContent = `Gagal memproses produk: ${error.message}.`;
     uploadError.classList.remove("hidden");
   } finally {
     setLoading(uploadSubmitBtn, false, originalText);
@@ -3117,13 +3304,89 @@ function handleCartClick() {
   }
 }
 
+// =============================================================
+// FUNGSIONALITAS PENGAMBILAN DETAIL PRODUK LENGKAP DARI FIRESTORE
+// =============================================================
+async function fetchProductDetails(productId) {
+  if (!db) {
+    console.error("Firebase database instance (db) tidak tersedia.");
+    return null;
+  }
+
+  try {
+    const productDoc = await db.collection("products").doc(productId).get();
+
+    if (!productDoc.exists) {
+      console.warn(
+        `Produk dengan ID ${productId} tidak ditemukan di Firestore.`
+      );
+      return null;
+    }
+
+    const product = productDoc.data();
+
+    // --- LOGIKA HARGA (SESUAI DENGAN loadProductDetails) ---
+    // 'harga' adalah Harga Asli
+    const hargaAsli = Number(product.harga) || 0;
+
+    // Cek hargaDiskon: harus berupa angka, > 0, dan < hargaAsli
+    const hargaDiskon =
+      product.hargaDiskon !== undefined &&
+      product.hargaDiskon !== null &&
+      Number(product.hargaDiskon) > 0 &&
+      Number(product.hargaDiskon) < hargaAsli
+        ? Number(product.hargaDiskon)
+        : null;
+
+    const finalPrice = hargaDiskon !== null ? hargaDiskon : hargaAsli;
+    // -----------------------------------------------------
+
+    // Kembalikan objek produk yang sudah memiliki format harga lengkap
+    return {
+      ...product,
+      id: productDoc.id,
+      price: finalPrice, // Harga Jual (yang dibayarkan)
+      hargaAsli: hargaAsli, // HARGA ASLI (Krusial untuk tampilan keranjang dicoret)
+      hargaDiskon: hargaDiskon,
+      // Properti lain sudah otomatis dari productDoc.data()
+    };
+  } catch (error) {
+    console.error(
+      `Gagal mengambil detail produk ID ${productId} dari Firestore:`,
+      error
+    );
+    return null;
+  }
+}
+// =============================================================
 function loadOrderSummaryFromCart(cartItems) {
   // 1. Ambil elemen DOM
   const summaryListWrapper = document.getElementById("order-product-summary");
   const totalElement = document.getElementById("order-total-price");
   const backButton = document.getElementById("back-to-detail-btn");
 
-  if (!summaryListWrapper || !totalElement || !backButton) {
+  // Elemen Single-Item yang HARUS disembunyikan di mode Multi-Item
+  const orderOriginalPriceElement = document.getElementById(
+    "order-original-price"
+  );
+  const orderDiscountedPriceElement = document.getElementById(
+    "order-discounted-price"
+  );
+  const orderItemPriceContainer = document.getElementById(
+    "order-item-price-container"
+  );
+
+  // 🔥 AMBIL ELEMEN HR (SEPARATOR) 🔥
+  const orderSummarySeparator = document.getElementById(
+    "order-summary-separator"
+  );
+
+  if (
+    !summaryListWrapper ||
+    !totalElement ||
+    !backButton ||
+    !orderOriginalPriceElement
+  ) {
     console.error("Salah satu elemen DOM ringkasan pesanan tidak ditemukan.");
     Swal.fire(
       "Error",
@@ -3133,39 +3396,81 @@ function loadOrderSummaryFromCart(cartItems) {
     return;
   }
 
-  // 2. Kustomisasi Tampilan untuk Checkout Keranjang (Multi-Item)
+  // Format harga
+  const formatIDR = (amount) =>
+    new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
 
-  // a. 🔥 HANYA PENTING: Panggil setupBackToButtonListener() yang akan mengatur teks dan handler.
-  //    Tidak perlu logika replace teks di sini, biarkan setupBackToButtonListener yang menangani.
+  // KRUSIAL 1: Sembunyikan elemen harga per unit dari Single-Item Checkout
+  if (orderOriginalPriceElement)
+    orderOriginalPriceElement.classList.add("hidden");
+  if (orderDiscountedPriceElement)
+    orderDiscountedPriceElement.classList.add("hidden");
+  if (orderItemPriceContainer) orderItemPriceContainer.classList.add("hidden");
 
-  // b. Inisialisasi variabel total
+  // 🔥🔥🔥 KRUSIAL: SEMBUNYIKAN GARIS HR 🔥🔥🔥
+  if (orderSummarySeparator) orderSummarySeparator.classList.add("hidden");
+
+  // 2. Inisialisasi variabel total
   let grandTotal = 0;
 
   // c. Buat wadah UL baru untuk daftar item
   const ulList = document.createElement("ul");
-  ulList.className = "space-y-2 mt-2";
+  ulList.className = "space-y-3 mt-2";
 
   // --- 3. RENDER DAFTAR PRODUK ---
 
   cartItems.forEach((item) => {
-    const itemPrice = Number(item.price) || 0;
-    const itemTotal = itemPrice * item.quantity;
+    // Ambil harga dari item keranjang yang sudah lengkap
+    const itemPrice = Number(item.price) || 0; // Harga Jual Final
+    const hargaAsli = Number(item.hargaAsli) || itemPrice; // Harga Asli
+    const quantity = item.quantity || 1;
+
+    // Logika diskon: Harga Asli harus lebih besar dari Harga Jual
+    const isDiscounted = hargaAsli > itemPrice;
+
+    const itemTotal = itemPrice * quantity; // Total harga yang dibayarkan untuk item ini
     grandTotal += itemTotal;
 
     const itemElement = document.createElement("li");
     itemElement.className =
-      "flex justify-between items-center text-sm border-b border-red-200/50 pb-1";
+      "flex justify-between items-center text-sm border-b border-red-200/50 pb-2";
+
+    // KRUSIAL 2: STRUKTUR HTML BARU UNTUK DISPLAY HARGA LENGKAP PER ITEM
+    let priceDetailsHTML = "";
+
+    if (isDiscounted) {
+      // Tampilkan Harga Asli Dicoret dan Harga Diskon
+      priceDetailsHTML = `
+            <p class="text-xs text-gray-500 line-through">
+                ${quantity} x ${formatIDR(hargaAsli)} (Normal)
+            </p>
+            <p class="text-sm text-red-700 font-medium">
+                ${quantity} x ${formatIDR(itemPrice)} (Diskon)
+            </p>
+        `;
+    } else {
+      // Hanya tampilkan Harga Normal/Bayar jika tidak ada diskon
+      priceDetailsHTML = `
+            <p class="text-sm text-gray-700 font-medium">
+                ${quantity} x ${formatIDR(itemPrice)}
+            </p>
+        `;
+    }
+
     itemElement.innerHTML = `
-            <div class="flex flex-col">
+            <div class="flex flex-col flex-grow">
                 <p class="font-semibold text-gray-800 line-clamp-1">${
                   item.nama
                 }</p>
-                <p class="text-xs text-gray-500">${
-                  item.quantity
-                } x Rp ${itemPrice.toLocaleString("id-ID")}</p>
+                ${priceDetailsHTML}
             </div>
             <span class="font-bold text-red-700 whitespace-nowrap ml-4">
-                Rp ${itemTotal.toLocaleString("id-ID")}
+                ${formatIDR(itemTotal)}
             </span>
         `;
     ulList.appendChild(itemElement);
@@ -3175,17 +3480,16 @@ function loadOrderSummaryFromCart(cartItems) {
   summaryListWrapper.innerHTML = "";
   summaryListWrapper.appendChild(ulList);
 
-  // 5. Perbarui Total Harga
+  // 5. Perbarui Total Harga (Grand Total)
   const finalTotal = grandTotal;
-  totalElement.textContent = `Total: Rp ${finalTotal.toLocaleString("id-ID")}`;
+  totalElement.textContent = formatIDR(finalTotal);
 
   console.log(
     `Checkout multi-item berhasil dimuat. ${
       cartItems.length
-    } produk. Total: Rp ${grandTotal.toLocaleString("id-ID")}`
+    } produk. Total: ${formatIDR(grandTotal)}`
   );
 
-  // 🔥 PANGGIL FUNGSI SETUP LISTENER DI AKHIR (Ini sudah benar)
   setupBackToButtonListener();
 }
 
@@ -3346,19 +3650,27 @@ function updateCartCount() {
  * Menambahkan atau memperbarui item di keranjang
  * @param {object} product - Detail produk (id, nama, harga, shopName, shopPhone, dll.)
  * @param {number} quantity - Jumlah item yang ditambahkan
- */ async function addToCart(product, quantity = 1) {
+ */
+
+async function addToCart(product, quantity = 1) {
   if (!product || !product.id || !product.ownerId) {
     Swal.fire("Error", "Data produk atau pemilik tidak valid.", "error");
     return;
   }
 
-  const rawPrice = product.price || product.harga;
-  const productPrice = Number(rawPrice) || 0;
+  // Ambil harga dari properti yang benar. Diasumsikan `product.price` adalah harga jual (diskon atau asli).
+  const productPrice = Number(product.price) || 0;
+
+  // Ambil harga asli dan diskon dari objek produk yang masuk
+  // 🔥🔥🔥 KUNCI PERBAIKAN: MEMASTIKAN HARGA ASLI DAN DISKON DITANGKAP 🔥🔥🔥
+  const hargaAsli = product.hargaAsli; // Nilai ini datang dari fetchProductDetails (misal: 50000)
+  const hargaDiskon = product.hargaDiskon; // Nilai ini datang dari fetchProductDetails (misal: 30000 atau null)
+  // 🔥🔥🔥 AKHIR KUNCI PERBAIKAN 🔥🔥🔥
+
   const productImageURL =
     product.image || product.imageUrl || "https://via.placeholder.com/64";
 
   // --- 1. TENTUKAN SHOP NAME DAN PHONE (ASYNC) ---
-  // Gunakan shopName dari data produk sebagai default, jika ada.
   let finalShopName = product.shopName || "Toko";
   let finalSellerPhone = null;
 
@@ -3368,7 +3680,7 @@ function updateCartCount() {
 
     finalSellerPhone = sellerData.phone || null;
 
-    // 🔥 PERBAIKAN: Update finalShopName dari data penjual (lebih akurat)
+    // Update finalShopName dari data penjual (lebih akurat)
     if (sellerData.shopName) {
       finalShopName = sellerData.shopName;
     }
@@ -3397,27 +3709,32 @@ function updateCartCount() {
   // --- 2. LOGIKA KERANJANG ---
   console.log(`[ADDCART: Awal] Cart di memori sebelum update: ${cart.length}`); // DEBUG A
 
+  // Asumsi 'cart' adalah array global/state
   const existingItem = cart.find((item) => item.productId === product.id);
 
   if (existingItem) {
     existingItem.quantity += quantity;
   } else {
+    // 🔥🔥🔥 TAMBAHAN KRUSIAL DI SINI 🔥🔥🔥
     cart.push({
       productId: product.id,
       nama: product.nama,
-      price: productPrice,
+      price: productPrice, // Harga Jual (misal: 30000)
 
-      // 🔥 PERBAIKAN KRUSIAL: Tambahkan ownerId
+      // >>> SIMPAN HARGA ASLI DAN DISKON DARI OBJEK PRODUK <<<
+      hargaAsli: hargaAsli, // Harga Asli (misal: 50000)
+      hargaDiskon: hargaDiskon, // Harga Diskon (misal: 20000)
+      // --------------------------------------------------------
+
       ownerId: product.ownerId,
-
-      shopName: finalShopName, // Gunakan finalShopName yang sudah di-update
+      shopName: finalShopName,
       shopPhone: finalSellerPhone,
       image: productImageURL,
       quantity: quantity,
     });
   }
 
-  // 🔥 KUNCI PERBAIKAN: Menyimpan data terbaru ke Local Storage 🔥
+  // KUNCI PERBAIKAN: Menyimpan data terbaru ke Local Storage
   if (typeof saveCartToLocalStorage === "function") {
     saveCartToLocalStorage();
     console.log(
@@ -3428,6 +3745,17 @@ function updateCartCount() {
       "Fungsi saveCartToLocalStorage() tidak ditemukan. Data mungkin tidak disimpan."
     );
   }
+
+  // Tambahkan notifikasi sukses (opsional)
+  // Swal.fire({
+  //   icon: "success",
+  //   title: "Berhasil",
+  //   text: `${product.nama} ditambahkan ke keranjang.`,
+  //   toast: true,
+  //   position: "top-end",
+  //   showConfirmButton: false,
+  //   timer: 1500,
+  // });
 }
 
 function handleRemoveFromCart(e) {
@@ -3578,98 +3906,146 @@ async function handleUpdateShopName(e) {
 
 function handleMoveToOrderView() {
   // 1. Ambil data saat ini
-
   const quantity = parseInt(productQuantityInput.value) || 1;
 
   // 2. Simpan data yang akan digunakan saat submit
-
   currentOrderQuantity = quantity;
-
   currentOrderProductDetail = currentProductDetail;
-
   currentOrderSellerPhone = currentSellerPhone;
 
   // Pastikan detail produk ditemukan
-
   if (!currentOrderProductDetail) {
     Swal.fire("Error", "Detail produk tidak ditemukan.", "error");
-
     return;
   }
 
   // 🔥🔥🔥 KRUSIAL: VALIDASI OWNER ID 🔥🔥🔥
-
   const ownerId = currentOrderProductDetail.ownerId;
-
   if (!ownerId) {
     console.error(
       "Owner ID tidak ditemukan di data produk! Gagal memproses order."
     );
-
     Swal.fire("Error", "Informasi Penjual produk tidak lengkap.", "error");
-
     return;
   }
-
   // 🔥🔥🔥 AKHIR VALIDASI OWNER ID 🔥🔥🔥
 
-  const { nama, price } = currentOrderProductDetail;
+  // --- AMBIL DATA HARGA DENGAN DISKON DARI currentProductDetail ---
+  const { nama, price, hargaAsli, hargaDiskon } = currentOrderProductDetail;
+  const hargaJual = price;
 
-  const total = price * quantity;
+  const totalFinal = hargaJual * quantity;
+  const totalOriginal = hargaAsli * quantity;
+
+  const isOnDiscount = hargaDiskon !== null && hargaDiskon < hargaAsli;
+  // ---------------------------------------------------------------
 
   // Format harga
-
   const formatIDR = (amount) =>
     new Intl.NumberFormat("id-ID", {
       style: "currency",
-
       currency: "IDR",
-
       minimumFractionDigits: 0,
-
       maximumFractionDigits: 0,
     }).format(amount);
 
-  // 3. Isi ringkasan di Order View
+  // --- AMBIL ELEMEN HTML ---
+  const orderProductSummary = document.getElementById("order-product-summary");
+  const orderError = document.getElementById("order-error");
+  const orderOriginalPriceElement = document.getElementById(
+    "order-original-price"
+  );
+  const orderDiscountedPriceElement = document.getElementById(
+    "order-discounted-price"
+  );
+  const orderTotalPriceElement = document.getElementById("order-total-price");
+  const orderItemPriceContainer = document.getElementById(
+    "order-item-price-container"
+  );
+  const multiItemSummaryList = document.getElementById(
+    "multi-item-summary-list"
+  ); // Elemen Multi-Item
 
+  // 🔥 AMBIL ELEMEN HR (SEPARATOR) 🔥
+  const orderSummarySeparator = document.getElementById(
+    "order-summary-separator"
+  );
+
+  // --- 3. Atur Visibilitas dan Isi Ringkasan di Order View ---
+
+  // 🔥 KRUSIAL 1: PASTIKAN WADAH MULTI-ITEM DISEMBUYIKAN DAN WADAH SINGLE-ITEM DITAMPILKAN
+  if (multiItemSummaryList) multiItemSummaryList.classList.add("hidden");
+  if (orderItemPriceContainer)
+    orderItemPriceContainer.classList.remove("hidden");
+
+  // 🔥🔥🔥 KRUSIAL: TAMPILKAN GARIS HR KEMBALI 🔥🔥🔥
+  if (orderSummarySeparator) orderSummarySeparator.classList.remove("hidden");
+
+  // 3a. Nama Produk & Kuantitas
   if (orderProductSummary)
     orderProductSummary.textContent = `${nama} (x ${quantity})`;
 
-  if (orderTotalPrice)
-    orderTotalPrice.textContent = `Total: ${formatIDR(total)}`;
-
   if (orderError) orderError.classList.add("hidden");
 
-  // 🔥🔥🔥 KRUSIAL: SUNTIKKAN OWNER ID KE TOMBOL SUBMIT 🔥🔥🔥
+  // 3b. LOGIKA TAMPILAN HARGA (Single-Item)
+  if (
+    orderOriginalPriceElement &&
+    orderDiscountedPriceElement &&
+    orderTotalPriceElement
+  ) {
+    // 🔥 KRUSIAL 2: TAMPILKAN KEMBALI ELEMEN HARGA SEBELUM MENGISI DATA
+    orderDiscountedPriceElement.classList.remove("hidden");
 
+    if (isOnDiscount) {
+      // 1. Harga Normal (Dicoret)
+      orderOriginalPriceElement.textContent = `Harga Normal: ${formatIDR(
+        hargaAsli
+      )}`;
+      orderOriginalPriceElement.classList.remove("hidden"); // <<< TAMPILKAN HARGA DICORET
+
+      // 2. Harga Bayar (Diskon per unit)
+      orderDiscountedPriceElement.textContent = `Harga Diskon: ${formatIDR(
+        hargaJual
+      )}`;
+
+      // 3. Total Pembayaran (Grand Total)
+      orderTotalPriceElement.textContent = formatIDR(totalFinal);
+    } else {
+      // Mode Harga Normal
+      orderOriginalPriceElement.classList.add("hidden"); // Sembunyikan harga dicoret
+
+      // Harga Bayar (Sama dengan Harga Normal/unit)
+      orderDiscountedPriceElement.textContent = `Harga: ${formatIDR(
+        hargaJual
+      )}`;
+
+      // Total Pembayaran (Grand Total)
+      orderTotalPriceElement.textContent = formatIDR(totalFinal);
+    }
+  }
+
+  // 3c. SUNTIKKAN OWNER ID KE TOMBOL SUBMIT
   const orderSubmitBtn = document.getElementById("order-submit-btn");
-
   if (orderSubmitBtn) {
     orderSubmitBtn.setAttribute("data-owner-id", ownerId);
-
     console.log("Owner ID berhasil disuntikkan ke tombol submit:", ownerId);
   }
 
-  // 🔥🔥🔥 AKHIR SUNTIKKAN OWNER ID 🔥🔥🔥
-
   // 4. Alihkan View
-
   if (productDetailView) productDetailView.classList.add("hidden");
-
   if (orderDetailView) orderDetailView.classList.remove("hidden");
 
   // 🔥 SET FLAG UNTUK SINGLE ITEM CHECKOUT
-
   isMultiItemCheckout = false;
-
   setupBackToButtonListener(); // Update tombol kembali ke mode Detail Produk
 
   // Pastikan input nama/alamat pembeli direset atau dikosongkan saat view dipindahkan
+  const buyerNameInput = document.getElementById("buyer-name");
+  const buyerPhoneInput = document.getElementById("buyer-phone");
+  const buyerAddressInput = document.getElementById("buyer-address");
 
   if (buyerNameInput) buyerNameInput.value = "";
-
   if (buyerPhoneInput) buyerPhoneInput.value = "";
-
   if (buyerAddressInput) buyerAddressInput.value = "";
 
   window.scrollTo(0, 0);
@@ -3794,44 +4170,32 @@ async function handleOrderSubmit(e) {
   e.preventDefault();
 
   // Asumsi 'orderError' adalah elemen HTML untuk menampilkan pesan kesalahan
-
   if (orderError) orderError.classList.add("hidden");
 
   // --- 1. AMBIL DAN VALIDASI INPUT BUYER ---
-
   const buyerName = buyerNameInput ? buyerNameInput.value.trim() : "";
-
   const buyerPhoneRaw = buyerPhoneInput ? buyerPhoneInput.value.trim() : "";
-
   const buyerAddress = buyerAddressInput ? buyerAddressInput.value.trim() : "";
 
   if (!buyerName || !buyerPhoneRaw || !buyerAddress) {
     if (orderError) {
       orderError.textContent = "Semua kolom harus diisi.";
-
       orderError.classList.remove("hidden");
     }
-
     return;
   }
 
   // --- 5. FORMAT HARGA ---
-
   const formatIDR = (amount) =>
     new Intl.NumberFormat("id-ID", {
       style: "currency",
-
       currency: "IDR",
-
       minimumFractionDigits: 0,
-
       maximumFractionDigits: 0,
     }).format(amount);
 
   // =========================================================================
-
   // === BLOK MULTI-ITEM CHECKOUT (DIPROSES SEBAGAI MULTI-VENDOR) ===========
-
   // =========================================================================
 
   if (isMultiItemCheckout) {
@@ -3840,40 +4204,31 @@ async function handleOrderSubmit(e) {
     if (cart.length === 0) {
       Swal.fire(
         "Error",
-
         "Keranjang kosong. Tidak ada yang dipesan.",
-
         "warning"
       );
-
       return;
     }
 
     // KRUSIAL: MEMECAH KERANJANG BERDASARKAN OWNER ID
 
     const groupedOrders = cart.reduce((acc, item) => {
-      // Asumsi: item.ownerId, item.shopName, item.shopPhone, item.productId, dan item.quantity ada di objek 'item'
+      // 🔥 ASUMSI KRUSIAL: item sekarang memiliki item.price (Harga Jual) dan item.hargaAsli 🔥
 
       const ownerId = item.ownerId || "unknown";
 
       if (!acc[ownerId]) {
         acc[ownerId] = {
           ownerId: ownerId,
-
           shopName: item.shopName || "Penjual",
-
           rawSellerPhone: item.shopPhone,
-
           items: [],
-
           total: 0,
         };
       }
 
       const itemTotal = Number(item.price) * item.quantity;
-
       acc[ownerId].items.push(item);
-
       acc[ownerId].total += itemTotal;
 
       return acc;
@@ -3884,28 +4239,22 @@ async function handleOrderSubmit(e) {
         order.ownerId !== "unknown" &&
         order.rawSellerPhone &&
         order.items.length > 0;
-
       return isValid;
     });
 
     if (validOrders.length === 0) {
       Swal.fire(
         "Error",
-
         "Tidak ada produk dengan informasi penjual yang lengkap di keranjang.",
-
         "error"
       );
-
       return;
     }
 
     let allOrdersSuccess = true;
-
     let successfulOrdersCount = 0;
 
     // 🔥 3. LOOP UNTUK SETIAP PENJUAL (ORDER)
-
     for (const order of validOrders) {
       let finalPhone = "";
 
@@ -3913,14 +4262,11 @@ async function handleOrderSubmit(e) {
 
       try {
         const rawSellerPhone = order.rawSellerPhone;
-
         if (!rawSellerPhone)
           throw new Error("Nomor telepon penjual tidak ditemukan.");
 
         // ... (Logika format WA) ...
-
         const cleanPhone = rawSellerPhone.replace(/[\s\+]/g, "");
-
         const phoneDigits = cleanPhone.replace(/[^0-9]/g, "");
 
         if (phoneDigits.startsWith("62")) {
@@ -3936,12 +4282,9 @@ async function handleOrderSubmit(e) {
       } catch (error) {
         console.error(
           `Error memproses WA Penjual (${order.ownerId}):`,
-
           error.message
         );
-
         allOrdersSuccess = false;
-
         continue;
       }
 
@@ -3949,36 +4292,39 @@ async function handleOrderSubmit(e) {
 
       let newOrderData = {
         ownerId: order.ownerId,
-
         id:
           "ORD-" +
           Date.now().toString().slice(-6) +
           "-" +
           order.ownerId.substring(0, 4).toUpperCase(),
-
         buyerName: buyerName,
-
         buyerPhone: buyerPhoneRaw,
-
         buyerAddress: buyerAddress,
 
+        // OrderDetail sekarang harus mencantumkan harga asli jika ada diskon (atau harga jual jika tidak)
         orderDetail: order.items
+          .map((i) => {
+            const hargaJual = Number(i.price);
+            const hargaAsli = Number(i.hargaAsli);
+            const isDiscounted = hargaAsli > hargaJual;
 
-          .map((i) => `${i.nama} (x ${i.quantity})`)
-
+            if (isDiscounted) {
+              return `${i.nama} (x ${i.quantity}) - Harga Diskon: ${formatIDR(
+                hargaJual
+              )}`;
+            } else {
+              return `${i.nama} (x ${i.quantity}) - ${formatIDR(hargaJual)}`;
+            }
+          })
           .join(", "),
 
         totalAmount: order.total,
-
         status: "Diterima",
-
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
 
         // 🔥 PENAMBAHAN KRITIS: productItems (untuk pengurangan stok oleh penjual) 🔥
-
         productItems: order.items.map((i) => ({
-          productId: i.productId, // Di sini diasumsikan data cart sudah pakai .productId
-
+          productId: i.productId,
           quantity: i.quantity,
         })),
       };
@@ -3988,12 +4334,9 @@ async function handleOrderSubmit(e) {
       if (!isSuccessFirestore) {
         console.error(
           "Gagal mencatat pesanan ke Firestore untuk owner:",
-
           order.ownerId
         );
-
         allOrdersSuccess = false;
-
         continue;
       }
 
@@ -4001,55 +4344,53 @@ async function handleOrderSubmit(e) {
 
       // --- 7. SUSUN PESAN WHATSAPP & ARAHKAN KE WA (PER-PENJUAL) ---
 
+      // 🔥🔥🔥 PERUBAHAN UTAMA DI SINI: Menyusun detail item dengan harga asli (dicoret/diskon) 🔥🔥🔥
       let itemDetails = order.items
+        .map((item) => {
+          const hargaJual = Number(item.price) || 0;
+          const hargaAsli = Number(item.hargaAsli) || hargaJual;
+          const isDiscounted = hargaAsli > hargaJual;
 
-        .map(
-          (item) =>
-            `* ${item.nama} (x${item.quantity}) - ${formatIDR(
-              item.price * item.quantity
-            )}`
-        )
+          let priceString;
+          if (isDiscounted) {
+            priceString = `Harga Normal: ${formatIDR(
+              hargaAsli
+            )} -> Harga Bayar: ${formatIDR(hargaJual)}`;
+          } else {
+            priceString = `Harga: ${formatIDR(hargaJual)}`;
+          }
 
+          return `* ${item.nama} (x${item.quantity})\n      (${priceString})`;
+        })
         .join("\n");
+      // 🔥🔥🔥 AKHIR PERUBAHAN UTAMA 🔥🔥🔥
 
       const message = `[PESANAN DAKATA SHOP]
 
-Halo ${order.shopName}, saya ingin membuat pesanan:
+Halo *${order.shopName}*, saya ingin membuat pesanan baru:
 
 *ID Pesanan:* ${newOrderData.id}
-
-
+---------------------------------
 
 *PRODUK:*
-
 ${itemDetails}
 
-*Total Biaya:* ${formatIDR(order.total)}
-
-
+*TOTAL BIAYA:* ${formatIDR(order.total)}
 
 *DETAIL PEMBELI:*
-
-Nama: ${buyerName}
-
-No. HP: ${buyerPhoneRaw}
-
-Alamat: ${buyerAddress}
-
-
+*Nama:* ${buyerName}
+*No. HP:* ${buyerPhoneRaw}
+*Alamat:* ${buyerAddress}
 
 Mohon konfirmasi ketersediaan produk dan instruksi pembayarannya. Terima kasih!`;
 
       const encodedMessage = encodeURIComponent(message);
-
       const whatsappUrl = `https://wa.me/${finalPhone}?text=${encodedMessage}`;
 
       // Buka tab baru untuk setiap penjual
-
       window.open(whatsappUrl, "_blank");
 
       // Refresh dashboard penjual (jika view management terbuka)
-
       if (
         document.getElementById("management-view") &&
         !document.getElementById("management-view").classList.contains("hidden")
@@ -4061,7 +4402,6 @@ Mohon konfirmasi ketersediaan produk dan instruksi pembayarannya. Terima kasih!`
     // NOTIFIKASI AKHIR UNTUK PEMBELI (SETELAH SEMUA PESANAN DIPROSES)
 
     const totalOrders = validOrders.length;
-
     let successText;
 
     if (successfulOrdersCount === 0) {
@@ -4076,30 +4416,21 @@ Mohon konfirmasi ketersediaan produk dan instruksi pembayarannya. Terima kasih!`
 
     Swal.fire({
       icon: allOrdersSuccess ? "success" : "warning",
-
       title: allOrdersSuccess
         ? "Semua Pesanan Berhasil!"
         : "Pesanan Diproses Sebagian",
-
       text: successText,
-
       showConfirmButton: true,
-
       confirmButtonText: "Lanjutkan",
-
       allowOutsideClick: false,
     }).then((result) => {
       if (result.isConfirmed) {
         // Bersihkan keranjang
-
         cart = [];
-
         updateCartCount();
 
         // Reset state dan navigasi
-
         handleBackToProductsClick();
-
         if (orderDetailView) orderDetailView.classList.add("hidden");
       }
     });
@@ -4108,31 +4439,23 @@ Mohon konfirmasi ketersediaan produk dan instruksi pembayarannya. Terima kasih!`
   }
 
   // =========================================================================
-
   // === BLOK SINGLE ITEM CHECKOUT (KODE ASLI ANDA) ==========================
-
   // =========================================================================
   else {
     // --- 2. TENTUKAN PRODUK DAN TOTAL ---
 
     let orderItems = [];
-
     let total = 0;
-
     let ownerId = null;
-
     let isFirestoreRecordNeeded = false;
 
     // 🔥 PERBAIKAN KRITIS: Ganti .productId menjadi .id untuk mengambil ID Produk 🔥
-
     const currentProductId = currentOrderProductDetail
       ? currentOrderProductDetail.id
       : null;
-
     const currentQuantity = currentOrderQuantity;
 
     // Mode Single Item (Beli Sekarang)
-
     if (
       !currentOrderProductDetail ||
       !currentOrderSellerPhone ||
@@ -4140,51 +4463,45 @@ Mohon konfirmasi ketersediaan produk dan instruksi pembayarannya. Terima kasih!`
     ) {
       Swal.fire(
         "Error",
-
         "Data produk/penjual hilang. Coba muat ulang halaman atau ulangi proses beli.",
-
         "error"
       );
-
       return;
     }
 
     ownerId = currentOrderProductDetail.ownerId;
-
     isFirestoreRecordNeeded = true;
 
     // Tambahkan validasi yang ketat sebelum lanjut
-
     if (!ownerId || !currentProductId) {
       console.error(
         "Owner ID atau Product ID tidak ditemukan di currentOrderProductDetail. Object detail:",
-
         currentOrderProductDetail
       );
-
       Swal.fire(
         "Error",
-
         "ID Penjual atau ID Produk tidak ditemukan (Data hilang). Gagal mencatat pesanan.",
-
         "error"
       );
-
       return;
     }
 
+    // 🔥🔥 TAMBAHAN KRITIS: Pastikan hargaAsli dan hargaDiskon ada di item lokal single-item 🔥🔥
+    const hargaAsliSingle =
+      currentOrderProductDetail.hargaAsli || currentOrderProductDetail.price;
+    const hargaDiskonSingle = currentOrderProductDetail.hargaDiskon || null;
+    const isDiscountedSingle =
+      hargaDiskonSingle !== null && hargaAskonSingle < hargaAsliSingle;
+
     orderItems.push({
       nama: currentOrderProductDetail.nama,
-
-      price: currentOrderProductDetail.price,
-
+      price: currentOrderProductDetail.price, // Harga Jual
+      hargaAsli: hargaAsliSingle, // Harga Asli
+      hargaDiskon: hargaDiskonSingle, // Harga Diskon
       quantity: currentQuantity,
-
       shopName: currentOrderProductDetail.shopName,
-
       shopPhone: currentOrderSellerPhone,
-
-      productId: currentProductId, // Simpan Product ID (yang diambil dari .id) ke item lokal
+      productId: currentProductId,
     });
 
     total = currentOrderProductDetail.price * currentQuantity;
@@ -4192,25 +4509,18 @@ Mohon konfirmasi ketersediaan produk dan instruksi pembayarannya. Terima kasih!`
     if (orderItems.length === 0) {
       Swal.fire(
         "Error",
-
         "Keranjang kosong. Tidak ada yang dipesan.",
-
         "warning"
       );
-
       return;
     }
 
     // --- 3. AMBIL DETAIL PENJUAL (UNTUK WHATSAPP) ---
-
     const firstItem = orderItems[0];
-
     const rawSellerPhone = firstItem.shopPhone;
-
     const shopName = firstItem.shopName || "Penjual";
 
     // --- 4. FORMAT NOMOR WHATSAPP ---
-
     let finalPhone = "";
 
     try {
@@ -4219,9 +4529,7 @@ Mohon konfirmasi ketersediaan produk dan instruksi pembayarannya. Terima kasih!`
       }
 
       // ... (Logika format WA) ...
-
       const cleanPhone = rawSellerPhone.replace(/[\s\+]/g, "");
-
       const phoneDigits = cleanPhone.replace(/[^0-9]/g, "");
 
       if (phoneDigits.startsWith("62")) {
@@ -4233,89 +4541,77 @@ Mohon konfirmasi ketersediaan produk dan instruksi pembayarannya. Terima kasih!`
       }
     } catch (error) {
       console.error("Error memproses nomor telepon penjual:", error.message);
-
       Swal.fire(
         "Error",
-
         "Gagal memproses nomor WhatsApp penjual. Coba hubungi penjual secara manual.",
-
         "error"
       );
-
       return;
     }
 
     if (finalPhone.length < 9) {
       Swal.fire(
         "Error",
-
         "Nomor WhatsApp penjual tidak valid setelah pemrosesan.",
-
         "error"
       );
-
       return;
     }
 
     // --- 6. SUSUN DATA FIRESTORE (JIKA SINGLE ITEM) ---
 
     let isSuccessFirestore = true;
-
     let newOrderData = null;
 
     if (!isMultiItemCheckout && ownerId) {
+      // 🔥🔥 PERBAIKAN FIREBASE: Cantumkan harga asli di orderDetail jika diskon
+      const detailHargaAsli = hargaAsliSingle || total;
+      const detailHargaJual = total;
+      let detailString;
+
+      if (isDiscountedSingle) {
+        detailString = `${firstItem.nama} (x ${
+          firstItem.quantity
+        }) - Harga Diskon: ${formatIDR(detailHargaJual)}`;
+      } else {
+        detailString = `${firstItem.nama} (x ${
+          firstItem.quantity
+        }) - ${formatIDR(detailHargaJual)}`;
+      }
+
       newOrderData = {
         ownerId: ownerId,
-
         id: "ORD-" + Date.now().toString().slice(-6),
-
         buyerName: buyerName,
-
         buyerPhone: buyerPhoneRaw,
-
         buyerAddress: buyerAddress,
-
-        orderDetail: orderItems
-
-          .map((i) => `${i.nama} (x ${i.quantity})`)
-
-          .join(", "),
-
+        orderDetail: detailString, // Hanya satu item
         totalAmount: total,
-
         status: "Diterima",
-
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
 
         // 🔥 PENAMBAHAN KRITIS SINGLE-ITEM: productItems 🔥
-
         productItems: [
           {
-            productId: currentProductId, // Menggunakan ID yang sudah diperbaiki
-
+            productId: currentProductId,
             quantity: currentQuantity,
           },
         ],
       };
 
       // Asumsi addOrderToFirestore sudah didefinisikan dan mengembalikan boolean
-
       isSuccessFirestore = await addOrderToFirestore(newOrderData);
 
       if (!isSuccessFirestore) {
         Swal.fire(
           "Gagal!",
-
           "Gagal mencatat pesanan ke database. Silakan coba lagi.",
-
           "error"
         );
-
         return;
       }
 
       // Refresh dashboard penjual
-
       if (
         document.getElementById("management-view") &&
         !document.getElementById("management-view").classList.contains("hidden")
@@ -4326,16 +4622,20 @@ Mohon konfirmasi ketersediaan produk dan instruksi pembayarannya. Terima kasih!`
 
     // --- 7. SUSUN PESAN WHATSAPP & ARAHKAN KE WA ---
 
-    let itemDetails = orderItems
-
-      .map(
-        (item) =>
-          `* ${item.nama} (x${item.quantity}) - ${formatIDR(
-            item.price * item.quantity
-          )}`
-      )
-
-      .join("\n");
+    // 🔥🔥🔥 PERUBAHAN UTAMA DI SINI: Menyusun detail item dengan harga asli (dicoret/diskon) 🔥🔥🔥
+    let itemDetails;
+    if (isDiscountedSingle) {
+      itemDetails = `* ${firstItem.nama} (x${
+        firstItem.quantity
+      })\n      (Harga Normal: ${formatIDR(
+        hargaAsliSingle
+      )} -> Harga Bayar: ${formatIDR(firstItem.price)})`;
+    } else {
+      itemDetails = `* ${firstItem.nama} (x${
+        firstItem.quantity
+      })\n      (Harga: ${formatIDR(firstItem.price)})`;
+    }
+    // 🔥🔥🔥 AKHIR PERUBAHAN UTAMA 🔥🔥🔥
 
     const message = `[PESANAN DAKATA SHOP]
 
@@ -4343,60 +4643,41 @@ Halo ${shopName}, saya ingin membuat pesanan:
 
 ${newOrderData ? `*ID Pesanan:* ${newOrderData.id}` : ""}
 
-
-
 *PRODUK:*
-
 ${itemDetails}
 
 *Total Biaya:* ${formatIDR(total)}
 
-
-
 *DETAIL PEMBELI:*
-
 Nama: ${buyerName}
-
 No. HP: ${buyerPhoneRaw}
-
 Alamat: ${buyerAddress}
-
-
 
 Mohon konfirmasi ketersediaan produk dan instruksi pembayarannya. Terima kasih!`;
 
     const encodedMessage = encodeURIComponent(message);
-
     const whatsappUrl = `https://wa.me/${finalPhone}?text=${encodedMessage}`;
 
     window.open(whatsappUrl, "_blank");
 
     // NOTIFIKASI MODAL STANDAR DENGAN CALLBACK .then()
-
     Swal.fire({
       icon: "success",
-
       title: "Pesanan Berhasil Dibuat!",
-
       text: `Data pesanan ${
         isFirestoreRecordNeeded ? "telah dicatat dan " : ""
       } Anda telah diarahkan ke WhatsApp. Tekan 'Lanjutkan' untuk kembali ke toko.`,
-
       showConfirmButton: true,
-
       confirmButtonText: "Lanjutkan",
-
       allowOutsideClick: false,
     }).then((result) => {
       if (result.isConfirmed) {
         // Tidak perlu reset cart karena ini bukan multi item
 
         // Kembali ke daftar produk utama
-
         handleBackToProductsClick();
 
         // Pastikan orderDetailView disembunyikan
-
         if (orderDetailView) orderDetailView.classList.add("hidden");
       }
     });
