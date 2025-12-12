@@ -4398,7 +4398,7 @@ async function handleOrderSubmit(e) {
         .join("\n");
       // 🔥🔥🔥 AKHIR PERUBAHAN UTAMA 🔥🔥🔥
 
-      const message = `[PESANAN DAKATA SHOP]
+      const message = `[PESANAN BLUEFIN]
 
 Halo *${order.shopName}*, saya ingin membuat pesanan baru:
 
