@@ -3,13 +3,13 @@
 /* ================================================= */
 :root {
   /* --- Tema Dasar (Light Mode) --- */
-  --background-color: #ffffff;
+  --background-color: #e5e7eb;
   --text-color: #1f2937;
   --primary-color: #3b82f6;
   --card-background: #f3f4f6;
   --header-bg: #102a43;
   --header-text: white;
-  --banner-bg: #e5e7eb;
+  --banner-bg: #ffffff;
 
   /* --- Variabel Toggle Ikon SVG --- */
   --toggle-off-bg: #e5e7eb;
