@@ -4,6 +4,45 @@
  * =================================================================
  */
 
+/**
+ * Menampilkan notifikasi peringatan bahwa aplikasi masih dalam tahap pengembangan.
+ */
+function showDevelopmentWarning() {
+  // Cek apakah SweetAlert2 (Swal) tersedia sebelum dipanggil
+  if (typeof Swal === "undefined") {
+    console.warn(
+      "SweetAlert2 (Swal) library tidak ditemukan. Lewati notifikasi."
+    );
+    return;
+  }
+
+  Swal.fire({
+    icon: "warning", // Menggunakan ikon peringatan
+    title: "⚠️ Aplikasi Dalam Tahap Pengembangan (Beta) ⚠️",
+    html: `
+            <p class="text-justify">
+                Mohon diperhatikan bahwa aplikasi ini masih berada dalam
+                <b>tahap pengembangan dan pengujian (Beta)</b>.
+            </p>
+            <p class="mt-4 text-sm text-red-600 font-semibold">
+                Jika Anda menemukan <b>bug, error, atau tampilan yang tidak sesuai</b>,
+                mohon segera kontak developer melalui kontak yang tersedia.
+            </p>
+            <p class="mt-4">Kontribusi Anda sangat kami hargai!</p>
+        `,
+    confirmButtonText: "Saya Mengerti",
+    confirmButtonColor: "#22C55E", // Warna hijau (green-500)
+    allowOutsideClick: false, // Wajibkan pengguna menekan tombol
+    allowEscapeKey: false,
+  });
+}
+
+// Panggil fungsi ini ketika seluruh DOM (HTML) sudah siap
+document.addEventListener("DOMContentLoaded", () => {
+  // Tambahkan delay kecil (misal 500ms) agar tidak terlalu mendadak
+  setTimeout(showDevelopmentWarning, 500);
+});
+
 // -----------------------------------------------------------------
 // BAGIAN 1: VARIABEL GLOBAL, KONFIGURASI, DAN INISIALISASI FIREBASE
 // -----------------------------------------------------------------
