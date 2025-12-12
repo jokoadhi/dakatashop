@@ -20,15 +20,15 @@ function showDevelopmentWarning() {
     icon: "warning", // Menggunakan ikon peringatan
     title: "⚠️ Aplikasi Dalam Tahap Pengembangan (Beta) ⚠️",
     html: `
-            <p class="text-justify">
+            <p class="text-center">
                 Mohon diperhatikan bahwa aplikasi ini masih berada dalam
                 <b>tahap pengembangan dan pengujian (Beta)</b>.
             </p>
-            <p class="mt-4 text-sm text-red-600 font-semibold">
+            <p class="mt-4 text-sm text-red-600 font-semibold text-center">
                 Jika Anda menemukan <b>bug, error, atau tampilan yang tidak sesuai</b>,
                 mohon segera kontak developer melalui kontak yang tersedia.
             </p>
-            <p class="mt-4">Kontribusi Anda sangat kami hargai!</p>
+            <p class="mt-4 text-center">Kontribusi Anda sangat kami hargai!</p>
         `,
     confirmButtonText: "Saya Mengerti",
     confirmButtonColor: "#22C55E", // Warna hijau (green-500)
