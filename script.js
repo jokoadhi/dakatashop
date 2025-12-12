@@ -25,10 +25,10 @@ function showDevelopmentWarning() {
                 <b>tahap pengembangan dan pengujian (Beta)</b>.
             </p>
             <p class="mt-4 text-sm text-red-600 font-semibold text-center">
-                Jika Anda menemukan <b>bug, error, atau tampilan yang tidak sesuai</b>,
+                Jika menemukan <b>bug, error, atau tampilan yang tidak sesuai</b>,
                 mohon segera kontak developer melalui kontak yang tersedia.
             </p>
-            <p class="mt-4 text-center">Kontribusi Anda sangat kami hargai!</p>
+            <p class="mt-4 text-center">Kontribusi sangat kami hargai!</p>
         `,
     confirmButtonText: "Saya Mengerti",
     confirmButtonColor: "#22C55E", // Warna hijau (green-500)
@@ -36,12 +36,6 @@ function showDevelopmentWarning() {
     allowEscapeKey: false,
   });
 }
-
-// Panggil fungsi ini ketika seluruh DOM (HTML) sudah siap
-document.addEventListener("DOMContentLoaded", () => {
-  // Tambahkan delay kecil (misal 500ms) agar tidak terlalu mendadak
-  setTimeout(showDevelopmentWarning, 500);
-});
 
 // -----------------------------------------------------------------
 // BAGIAN 1: VARIABEL GLOBAL, KONFIGURASI, DAN INISIALISASI FIREBASE
@@ -4889,6 +4883,8 @@ document.addEventListener("DOMContentLoaded", () => {
   productListTitleElement = document.getElementById("product-list-header");
   productListWrapperElement = document.getElementById("product-list-wrapper");
   productListView = document.getElementById("product-list-view"); // Asumsi ID wrapper utama list
+
+  setTimeout(showDevelopmentWarning, 500);
 
   // 🔥 BAGIAN SEARCH OVERLAY BARU 🔥
   searchBtn = document.getElementById("search-btn"); // Tombol kaca pembesar di Header
