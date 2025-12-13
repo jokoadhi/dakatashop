@@ -156,6 +156,7 @@ let authPhoneGroup, authAddressGroup; // Container div
 
 // Variabel global untuk menyimpan fungsi unsubscribe listener order
 let unsubscribeOrders = null;
+let unsubscribeNotifications = null;
 
 // 🔥 DEKLARASI VARIABEL DETAIL PRODUK 🔥
 let productDetailView,
@@ -2456,7 +2457,7 @@ auth.onAuthStateChanged(async (user) => {
     }
 
     const shopName = sellerData.shopName || user.email.split("@")[0];
-    const userRole = sellerData.role;
+    const userRole = sellerData.role; // Mendapatkan role
 
     if (!isInitialLoad) {
       Swal.fire({
@@ -2469,6 +2470,38 @@ auth.onAuthStateChanged(async (user) => {
         timer: 3000,
       });
     }
+
+    // 🔥🔥🔥 INTEGRASI NOTIFIKASI USER (Perubahan Realtime) 🔥🔥🔥
+    const infoWrapper = document.getElementById("user-info-banner-wrapper");
+
+    if (userRole && userRole !== "admin") {
+      console.log("[NOTIF] Memuat notifikasi realtime untuk user penjual...");
+
+      // Hapus listener notifikasi lama jika ada
+      if (typeof unsubscribeNotifications === "function") {
+        unsubscribeNotifications();
+        unsubscribeNotifications = null;
+        console.log("RT Listener: Listener notifikasi lama dihentikan.");
+      }
+
+      // Pasang listener notifikasi realtime yang baru
+      if (typeof setupRealTimeNotificationsListener === "function") {
+        unsubscribeNotifications = setupRealTimeNotificationsListener();
+      }
+    } else {
+      // Jika admin, pastikan banner info tersembunyi
+      if (infoWrapper) infoWrapper.classList.add("hidden");
+
+      // Hentikan listener notifikasi jika user adalah admin atau tidak ada role
+      if (typeof unsubscribeNotifications === "function") {
+        unsubscribeNotifications();
+        unsubscribeNotifications = null;
+        console.log(
+          "RT Listener: Listener notifikasi dihentikan karena user adalah admin."
+        );
+      }
+    }
+    // 🔥🔥🔥 AKHIR INTEGRASI NOTIFIKASI USER 🔥🔥🔥
 
     if (mainBanner) mainBanner.classList.add("hidden");
 
@@ -2547,7 +2580,6 @@ auth.onAuthStateChanged(async (user) => {
 
       // 🔥 PENTING: Panggil listener di sini satu kali saat login untuk MENDAPATKAN HITUNGAN AWAL badge
       if (typeof setupRealTimeNewOrdersListener === "function") {
-        // Hanya untuk mengaktifkan badge di Home View. Listener di Management View akan dibuat ulang.
         unsubscribeOrders = setupRealTimeNewOrdersListener();
       }
     } else {
@@ -2562,7 +2594,7 @@ auth.onAuthStateChanged(async (user) => {
   } else {
     currentUser = null;
 
-    // --- LOGIKA UNSUBSCRIBE SAAT LOGOUT ---
+    // --- LOGIKA UNSUBSCRIBE SAAT LOGOUT (Order) ---
     if (typeof unsubscribeOrders === "function") {
       unsubscribeOrders();
       unsubscribeOrders = null;
@@ -2570,7 +2602,20 @@ auth.onAuthStateChanged(async (user) => {
         "RT Listener: Listener order real-time telah dihentikan saat logout."
       );
     }
+
+    // 🔥 LOGIKA BARU: UNSUBSCRIBE SAAT LOGOUT (Notifikasi) 🔥
+    if (typeof unsubscribeNotifications === "function") {
+      unsubscribeNotifications();
+      unsubscribeNotifications = null;
+      console.log(
+        "RT Listener: Listener notifikasi real-time telah dihentikan saat logout."
+      );
+    }
     // --- AKHIR LOGIKA UNSUBSCRIBE ---
+
+    // Pastikan notifikasi dihilangkan saat logout
+    const infoWrapper = document.getElementById("user-info-banner-wrapper");
+    if (infoWrapper) infoWrapper.innerHTML = "";
 
     if (mainBanner) mainBanner.classList.remove("hidden");
 
@@ -3335,6 +3380,417 @@ function renderSalesChart(salesData) {
 // BAGIAN 6.5: FUNGSI ADMIN (DAFTAR PELANGGAN)
 // -----------------------------------------------------------------
 
+async function loadNotificationHistory(targetUid) {
+  const historyContent = document.getElementById("historyContent");
+
+  if (!historyContent || typeof db === "undefined") return;
+
+  historyContent.innerHTML = `<p class="text-center text-gray-500 text-sm">Memuat riwayat...</p>`;
+
+  try {
+    // Query 6 dokumen terbaru: 5 untuk ditampilkan, 1 untuk menandai jika ada yang harus dihapus.
+    console.log(
+      `[HISTORY] Mulai query riwayat notifikasi untuk UID: ${targetUid}`
+    );
+    const snapshot = await db
+      .collection("notifications")
+      .where("recipientId", "==", targetUid)
+      .orderBy("timestamp", "desc")
+      .limit(6) // Query 6 dokumen untuk memastikan kita bisa mendeteksi yang ke-6 untuk dihapus.
+      .get();
+
+    const totalDocs = snapshot.size;
+
+    if (totalDocs === 0) {
+      historyContent.innerHTML = `<p class="text-center text-gray-500 text-sm italic">Belum ada pesan terkirim ke pengguna ini.</p>`;
+      return;
+    }
+
+    let historyHTML = "";
+    const docsToDelete = [];
+    const limitDisplay = 5; // Batas Riwayat yang Ditampilkan dan Dipertahankan
+
+    // 1. Proses Dokumen untuk Ditampilkan (5 Terbaru) dan Menentukan yang Akan Dihapus
+    snapshot.docs.forEach((doc, index) => {
+      if (index < limitDisplay) {
+        // Tampilkan 5 dokumen terbaru
+        const data = doc.data();
+
+        const isRead = data.read === true;
+        const statusClass = isRead
+          ? "bg-green-100 text-green-700"
+          : "bg-red-100 text-red-700";
+        const statusText = isRead ? "Dibaca" : "Belum Dibaca";
+
+        const formattedTime =
+          data.timestamp && data.timestamp.toDate
+            ? new Date(data.timestamp.toDate()).toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }) +
+              ", " +
+              new Date(data.timestamp.toDate()).toLocaleDateString("id-ID", {
+                day: "numeric",
+                month: "short",
+              })
+            : "Baru Saja";
+
+        historyHTML += `
+                    <div class="p-3 border rounded-lg shadow-sm ${
+                      isRead ? "border-green-200" : "border-red-200"
+                    }">
+                        <div class="flex justify-between items-start mb-1">
+                            <p class="font-medium text-gray-800 text-sm">${
+                              data.title
+                            }</p>
+                            <span class="text-xs font-semibold py-0.5 px-2 rounded-full ${statusClass}">
+                                ${statusText}
+                            </span>
+                        </div>
+                        <p class="text-xs text-gray-600 mb-1">${data.message.substring(
+                          0,
+                          100
+                        )}...</p>
+                        <div class="text-right">
+                            <span class="text-xs text-gray-400">
+                                Terkirim: ${formattedTime}
+                            </span>
+                        </div>
+                    </div>
+                `;
+      } else {
+        // Tambahkan dokumen ke daftar hapus (index 5 dan seterusnya)
+        docsToDelete.push(doc.ref);
+      }
+    });
+
+    // 2. Perbarui Tampilan Riwayat
+    historyContent.innerHTML = historyHTML;
+
+    // 3. Eksekusi Penghapusan Batch (jika ada dokumen yang lebih tua)
+    if (docsToDelete.length > 0) {
+      console.log(
+        `[HISTORY] Ditemukan ${docsToDelete.length} notifikasi yang melebihi batas (5). Melakukan penghapusan batch.`
+      );
+
+      const batch = db.batch();
+      docsToDelete.forEach((docRef) => {
+        batch.delete(docRef);
+      });
+
+      await batch.commit();
+      console.log(
+        `[HISTORY] Berhasil menghapus ${docsToDelete.length} notifikasi lama.`
+      );
+    } else {
+      console.log(
+        "[HISTORY] Semua notifikasi sesuai batas (<=5). Tidak ada penghapusan dilakukan."
+      );
+    }
+  } catch (error) {
+    console.error("Gagal memuat atau membersihkan riwayat notifikasi: ", error);
+    historyContent.innerHTML = `<p class="text-center text-red-500 text-sm">Error memuat riwayat.</p>`;
+  }
+}
+
+function setupRealTimeNotificationsListener() {
+  if (!currentUser || typeof db === "undefined") {
+    console.warn(
+      "[NOTIF-RT] Listener notifikasi dihentikan: User atau DB undefined."
+    );
+    return () => {}; // Kembalikan fungsi kosong
+  }
+
+  const recipientId = currentUser.uid;
+  const infoWrapper = document.getElementById("user-info-banner-wrapper");
+
+  if (!infoWrapper) {
+    console.error(
+      "[NOTIF-RT] Elemen DOM 'user-info-banner-wrapper' tidak ditemukan!"
+    );
+    return () => {};
+  }
+
+  console.log(
+    `[NOTIF-RT] Memasang Realtime Listener untuk notifikasi user: ${recipientId}`
+  );
+
+  // Inisialisasi wadah untuk menyimpan HTML notifikasi
+  let notificationHtml = "";
+
+  // 🔥 Gunakan onSnapshot untuk Realtime 🔥
+  const unsubscribe = db
+    .collection("notifications")
+    .where("recipientId", "==", recipientId)
+    .where("read", "==", false)
+    .orderBy("timestamp", "desc")
+    .onSnapshot(
+      (snapshot) => {
+        if (snapshot.empty) {
+          // Jika tidak ada notifikasi yang belum dibaca
+          infoWrapper.innerHTML = "";
+          infoWrapper.classList.add("hidden");
+          console.log(
+            "[NOTIF-RT] Tidak ada notifikasi baru (atau semua sudah dibaca)."
+          );
+          return;
+        }
+
+        // Atur kembali HTML setiap kali ada perubahan
+        notificationHtml = "";
+
+        snapshot.docs.forEach((doc) => {
+          const data = doc.data();
+          const docId = doc.id;
+
+          const formattedTime =
+            data.timestamp && data.timestamp.toDate
+              ? new Date(data.timestamp.toDate()).toLocaleString()
+              : "Baru Saja";
+
+          notificationHtml += `
+                    <div id="info-card-${docId}" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-4 shadow-lg rounded-lg relative">
+                        <h3 class="font-bold text-lg mb-1 flex justify-between items-center">
+                            ${data.title}
+                            <span class="text-xs text-gray-500">${formattedTime}</span>
+                        </h3>
+                        <p class="text-sm">${data.message}</p>
+                        <div class="mt-2 text-right">
+                            <button 
+                                onclick="markNotificationAsRead('${docId}')" 
+                                class="text-xs text-yellow-700 hover:text-yellow-900 font-medium py-1 px-3 bg-yellow-200 rounded-md transition duration-300"
+                            >
+                                Tandai Sudah Dibaca
+                            </button>
+                        </div>
+                    </div>
+                `;
+        });
+
+        // Perbarui DOM
+        infoWrapper.innerHTML = notificationHtml;
+        infoWrapper.classList.remove("hidden");
+        console.log(
+          `[NOTIF-RT] Listener: Berhasil me-render ${snapshot.size} notifikasi baru.`
+        );
+      },
+      (error) => {
+        console.error("[NOTIF-RT] Error Realtime Listener Notifikasi:", error);
+        infoWrapper.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded-lg">Error memuat notifikasi. Periksa koneksi atau Izin.</div>`;
+        infoWrapper.classList.remove("hidden");
+      }
+    );
+
+  return unsubscribe;
+}
+
+function openSendNotificationModal(uid, email) {
+  const modal = document.getElementById("notificationModal");
+
+  // Set nilai di form modal
+  document.getElementById("targetUid").value = uid;
+  document.getElementById("targetEmail").value = email;
+  document.getElementById("displayEmail").value = email; // Tampilkan email di modal
+  document.getElementById("notificationTitle").value = "";
+  document.getElementById("notificationMessage").value = "";
+
+  // 🔥 Panggil fungsi pemuatan riwayat di sini 🔥
+  loadNotificationHistory(uid);
+
+  modal.classList.remove("hidden");
+}
+
+// Global Function untuk Menutup Modal
+function closeModal() {
+  document.getElementById("notificationModal").classList.add("hidden");
+}
+
+function promptSendInfo(targetUid, targetShopName) {
+  Swal.fire({
+    title: `Kirim Informasi ke ${targetShopName}`,
+    html: `
+            <input id="swal-title" class="swal2-input" placeholder="Judul Info (Max 50 karakter)" maxlength="50">
+            <textarea id="swal-text" class="swal2-textarea" placeholder="Isi Pesan (Max 200 karakter)" maxlength="200" style="min-height: 100px;"></textarea>
+        `,
+    focusConfirm: false,
+    showCancelButton: true,
+    confirmButtonText: "Kirim",
+    cancelButtonText: "Batal",
+    preConfirm: () => {
+      const title = document.getElementById("swal-title").value.trim();
+      const text = document.getElementById("swal-text").value.trim();
+
+      if (!title || !text) {
+        Swal.showValidationMessage(`Judul dan Isi pesan harus diisi.`);
+        return false;
+      }
+
+      return { title: title, text: text };
+    },
+  }).then((result) => {
+    if (result.isConfirmed) {
+      sendNotificationToUser(targetUid, result.value.title, result.value.text);
+    }
+  });
+}
+async function sendNotificationToUser(uid, title, message, targetEmail) {
+  if (typeof db === "undefined" || !currentUser) {
+    Swal.fire(
+      "Error",
+      "Sistem tidak dapat mengirim notifikasi. Harap login kembali.",
+      "error"
+    );
+    return;
+  }
+
+  Swal.fire({
+    title: "Mengirim...",
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading();
+    },
+  });
+
+  try {
+    const docRef = await db.collection("notifications").add({
+      recipientId: uid,
+      title: title,
+      message: message,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      read: false,
+      sender: currentUser.email || "Admin",
+    });
+
+    // LOGGING BERHASIL
+    console.log(
+      `[ADMIN ACTION] Notifikasi berhasil dikirim ke UID: ${uid}. Doc ID: ${docRef.id}`
+    );
+
+    // 🔥 PERUBAHAN DI SINI: Menggunakan targetEmail di pesan sukses
+    Swal.fire(
+      "Terkirim!",
+      `Informasi berhasil dikirim ke **${targetEmail}** (ID: ${uid}).`,
+      "success"
+    );
+  } catch (error) {
+    console.error("Gagal mengirim notifikasi: ", error);
+    Swal.fire(
+      "Error Pengiriman",
+      "Gagal menyimpan data ke Firestore.",
+      "error"
+    );
+  }
+}
+
+// Deklarasi global untuk menampung notifikasi user
+// let cachedUserNotifications = []; // Anda mungkin ingin menggunakan cache di sini juga
+async function loadUserNotifications() {
+  if (!currentUser || typeof db === "undefined") return;
+
+  const recipientId = currentUser.uid; // UID yang seharusnya: "fdtHEiesI3QvmEuqJ6TXKup8GB03"
+  const infoWrapper = document.getElementById("user-info-banner-wrapper");
+
+  if (!infoWrapper) {
+    console.error(
+      "[NOTIF-RX] Elemen DOM 'user-info-banner-wrapper' tidak ditemukan!"
+    );
+    return;
+  }
+
+  infoWrapper.innerHTML = "";
+
+  // 🔥 LOG KRITIS: Cek UID yang digunakan
+  console.log(
+    `[NOTIF-RX] UID Penerima (currentUser.uid) yang digunakan: ${recipientId}`
+  );
+
+  try {
+    const snapshot = await db
+      .collection("notifications")
+      .where("recipientId", "==", recipientId)
+      .where("read", "==", false)
+      .orderBy("timestamp", "desc")
+      .get();
+
+    if (snapshot.empty) {
+      infoWrapper.classList.add("hidden");
+      console.log(
+        "[NOTIF-RX] Query berhasil dieksekusi, tetapi tidak ada notifikasi baru yang ditemukan."
+      );
+      return;
+    }
+
+    infoWrapper.classList.remove("hidden");
+    let htmlContent = "";
+
+    snapshot.docs.forEach((doc) => {
+      const data = doc.data();
+      const docId = doc.id;
+
+      const formattedTime =
+        data.timestamp && data.timestamp.toDate
+          ? new Date(data.timestamp.toDate()).toLocaleString()
+          : "Baru Saja";
+
+      htmlContent += `
+                <div id="info-card-${docId}" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-4 shadow-lg rounded-lg relative">
+                    <h3 class="font-bold text-lg mb-1 flex justify-between items-center">
+                        ${data.title}
+                        <span class="text-xs text-gray-500">${formattedTime}</span>
+                    </h3>
+                    <p class="text-sm">${data.message}</p>
+                    <div class="mt-2 text-right">
+                        <button 
+                            onclick="markNotificationAsRead('${docId}')" 
+                            class="text-xs text-yellow-700 hover:text-yellow-900 font-medium py-1 px-3 bg-yellow-200 rounded-md transition duration-300"
+                        >
+                            Tandai Sudah Dibaca
+                        </button>
+                    </div>
+                </div>
+            `;
+    });
+
+    infoWrapper.innerHTML = htmlContent;
+    console.log(`[NOTIF-RX] Berhasil me-render ${snapshot.size} notifikasi.`);
+  } catch (error) {
+    // 🔥 LOG KRITIS: Jika ada error izin (kemungkinan rule belum sempurna)
+    console.error(
+      "[NOTIF-RX] GAGAL MEMUAT notifikasi user. Periksa Security Rules!",
+      error
+    );
+    // Tampilkan pesan error di UI untuk debugging cepat
+    if (infoWrapper)
+      infoWrapper.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded-lg">Error saat memuat notifikasi: ${error.message}</div>`;
+  }
+}
+
+async function markNotificationAsRead(docId) {
+  if (typeof db === "undefined") return;
+
+  try {
+    await db.collection("notifications").doc(docId).update({
+      read: true,
+    });
+
+    const card = document.getElementById(`info-card-${docId}`);
+    if (card) {
+      card.remove();
+    }
+
+    // Cek apakah semua kartu sudah dihapus untuk menyembunyikan wrapper
+    const infoWrapper = document.getElementById("user-info-banner-wrapper");
+    if (infoWrapper && infoWrapper.children.length === 0) {
+      infoWrapper.classList.add("hidden");
+    }
+
+    await loadUserNotifications(); // Muat ulang untuk jaga-jaga
+  } catch (error) {
+    console.error("Gagal menandai notifikasi dibaca:", error);
+    Swal.fire("Error", "Gagal memperbarui status notifikasi.", "error");
+  }
+}
+
 function toggleAdminView() {
   // 1. Cek User Login
   if (!currentUser) return;
@@ -3410,8 +3866,8 @@ function toggleAdminView() {
       console.error("Error checking role for Admin View:", error);
     });
 }
-
 async function loadCustomerList() {
+  // Asumsi: customerListTableBody sudah dideklarasikan global
   if (!currentUser || !customerListTableBody) return;
 
   const sellerData = await getSellerData(currentUser.uid);
@@ -3435,7 +3891,7 @@ async function loadCustomerList() {
       const uid = doc.id;
       const data = doc.data();
       const shopName = data.shopName || "-";
-      const email = data.email || "Email Tidak Diketahui";
+      const email = data.email || "Email Tidak Diketahui"; // 🔥 Ambil Email
 
       const userRole = data.role || "biasa";
       const phone = data.phone || "-";
@@ -3448,10 +3904,43 @@ async function loadCustomerList() {
       const isDakata = userRole === "admin";
       const isSelf = currentUser.uid === uid;
 
-      const deleteButton =
-        isDakata || isSelf
-          ? '<button class="text-red-300 cursor-not-allowed text-xs" disabled>Hapus</button>'
-          : `<button data-uid="${uid}" data-email="${email}" class="delete-user-btn text-red-600 hover:text-red-800 font-semibold text-xs">Hapus</button>`;
+      // --- LOGIKA TOMBOL AKSI BARU ---
+      let actionButtonsHTML = "";
+
+      // Sanitasi email dan shopName untuk penggunaan di atribut onclick
+      const safeEmail = email.replace(/'/g, "\\'");
+      const safeShopName = shopName.replace(/'/g, "\\'");
+
+      if (userRole === "biasa" && !isSelf) {
+        // Tombol untuk role 'biasa' (penjual) yang bukan diri sendiri
+        actionButtonsHTML += `
+              <button 
+                  data-uid="${uid}" 
+                  data-email="${email}"
+                  onclick="openSendNotificationModal('${uid}', '${safeEmail}')" 
+                  class="action-btn text-white bg-green-600 hover:bg-green-700 px-2 py-1 rounded-md text-xs mr-1 mb-1 shadow-sm"
+              >
+                  Kirim Info
+              </button>
+              <button 
+                  data-uid="${uid}" 
+                  onclick="viewUserDetails('${uid}')"
+                  class="action-btn text-white bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded-md text-xs mr-1 mb-1 shadow-sm"
+              >
+                  Detail
+              </button>
+          `;
+        // Tombol Hapus untuk user biasa
+        actionButtonsHTML += `
+              <button data-uid="${uid}" data-email="${email}" class="delete-user-btn text-white bg-red-600 hover:bg-red-700 px-2 py-1 rounded-md text-xs mb-1 shadow-sm">
+                  Hapus
+              </button>
+          `;
+      } else if (isDakata || isSelf) {
+        // Jika Admin atau Diri Sendiri
+        actionButtonsHTML =
+          '<span class="text-gray-400 text-xs italic">Aksi Terbatas</span>';
+      }
 
       const rowClass = isDakata ? "bg-blue-50/50 font-bold" : "";
 
@@ -3466,7 +3955,9 @@ async function loadCustomerList() {
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${address}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lastLogin}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        ${deleteButton}
+                        <div class="flex flex-wrap justify-end">
+                            ${actionButtonsHTML}
+                        </div>
                     </td>
                 </tr>
             `;
@@ -3474,6 +3965,7 @@ async function loadCustomerList() {
 
     customerListTableBody.innerHTML = rows.join("");
 
+    // Re-attach listener untuk tombol Hapus (jika ada)
     document.querySelectorAll(".delete-user-btn").forEach((button) => {
       button.addEventListener("click", handleDeleteUser);
     });
@@ -5295,6 +5787,9 @@ document.addEventListener("DOMContentLoaded", () => {
   orderTotalPrice = document.getElementById("order-total-price");
   buyNowBtn = document.getElementById("buy-now-btn"); // Tombol "Beli Sekarang" (Single Item)
 
+  notificationModal = document.getElementById("notificationModal");
+  notificationForm = document.getElementById("notificationForm");
+
   // BAGIAN PROFIL & FORM UPDATE
   profileBtn = document.getElementById("profile-btn");
   profileModal = document.getElementById("profile-modal");
@@ -5536,6 +6031,47 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
+
+  // 🔥🔥🔥 BAGIAN BARU: LISTENER NOTIFIKASI ADMIN MODAL 🔥🔥🔥
+  // Catatan: Fungsi openSendNotificationModal dan closeModal sudah dipanggil
+  // melalui onclick di HTML/tabel admin. Di sini kita hanya butuh submit handler.
+  if (notificationForm) {
+    // Listener ini akan memanggil sendNotificationToUser(..., targetEmail)
+    notificationForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+
+      const uid = document.getElementById("targetUid").value;
+      const email = document.getElementById("targetEmail").value;
+      const title = document.getElementById("notificationTitle").value;
+      const message = document.getElementById("notificationMessage").value;
+
+      closeModal(); // Tutup modal notifikasi (menggunakan fungsi closeModal() yang baru)
+
+      // Panggil fungsi pengiriman (pastikan fungsi sendNotificationToUser
+      // sekarang menerima 4 argumen: uid, title, message, email)
+      if (typeof sendNotificationToUser === "function") {
+        sendNotificationToUser(uid, title, message, email);
+      } else {
+        console.error("Fungsi sendNotificationToUser tidak terdefinisi!");
+      }
+    });
+
+    // Tambahkan listener untuk menutup modal ketika klik backdrop (di dalam modal)
+    if (notificationModal) {
+      notificationModal.addEventListener("click", (e) => {
+        // Hanya tutup jika yang diklik adalah backdrop (modal itu sendiri)
+        if (e.target.id === "notificationModal") {
+          closeModal(); // Memanggil fungsi closeModal yang sudah Anda definisikan
+        }
+      });
+    }
+  } else {
+    console.warn(
+      "Element Form Notifikasi (id='notificationForm') tidak ditemukan."
+    );
+  }
+  // 🔥🔥🔥 AKHIR BAGIAN BARU: LISTENER NOTIFIKASI ADMIN MODAL 🔥🔥🔥
+
   if (closeModalBtn) {
     closeModalBtn.addEventListener("click", () => {
       if (authModal) authModal.classList.add("hidden");
