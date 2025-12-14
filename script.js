@@ -3678,6 +3678,9 @@ async function viewUserDetails(uid) {
   if (adminFeeSettingBtn) adminFeeSettingBtn.classList.add("hidden");
   if (filterWrapper) filterWrapper.classList.add("hidden"); // Sembunyikan saat loading
 
+  // 🔥 KONTROL SCROLL (Langkah Awal) 🔥
+  document.body.style.overflow = "hidden";
+
   // Tampilkan modal
   modal.classList.remove("hidden");
 
@@ -3701,6 +3704,10 @@ async function viewUserDetails(uid) {
       document.getElementById(
         "profileContent"
       ).innerHTML = `<p class="col-span-3 text-red-500">Dokumen pengguna tidak ditemukan.</p>`;
+
+      // 🔥 KONTROL SCROLL (Error Handle 1) 🔥
+      document.body.style.overflow = "";
+
       return;
     }
 
@@ -3773,6 +3780,7 @@ async function viewUserDetails(uid) {
     }
 
     // 🔥 FUNGSI INNER UNTUK MEMUAT & MERENDER METRIK DAN TRANSAKSI BULANAN 🔥
+    // ... (Logika loadAndRenderMetricsAndTransactions tetap sama, tidak perlu diulang)
     async function loadAndRenderMetricsAndTransactions(sellerUid, period) {
       console.log(`Memuat metrik dan transaksi untuk periode: ${period}`);
 
@@ -4240,6 +4248,9 @@ async function viewUserDetails(uid) {
     document.getElementById(
       "invoiceHistoryContent"
     ).innerHTML = `<p class="text-center text-red-500">Gagal memuat riwayat invoice.</p>`;
+
+    // 🔥 KONTROL SCROLL (Error Handle 2) 🔥
+    document.body.style.overflow = "";
   }
 }
 
