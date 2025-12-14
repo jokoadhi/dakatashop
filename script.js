@@ -123,6 +123,7 @@ let ALL_PRODUCTS_CACHE = [];
 let isHomePage = false;
 let currentView = "products";
 let isExiting = false; // Flag untuk mencegah popstate loop setelah konfirmasi keluar
+let sellerSalesChartInstance = null;
 
 // Variabel DOM baru
 let orderDetailView;
@@ -180,6 +181,16 @@ let cropModal, closeCropModalBtn, applyCropBtn;
 
 /// Struktur Data Keranjang
 let cart = loadCartFromLocalStorage(); // Harus memanggil fungsi load di sini
+let chartDataForSeller = {
+  labels: [],
+  datasets: [
+    {
+      label: "Penjualan Bersih (Rp)",
+      data: [],
+      backgroundColor: "#3b82f6", // blue-500
+    },
+  ],
+};
 
 // Elemen DOM Keranjang
 let cartCount; // Badge jumlah item di header
@@ -414,6 +425,7 @@ function renderProductList(products) {
     productListDiv.appendChild(productElement);
   });
 }
+
 async function loadProducts() {
   const productListDiv = document.getElementById("product-list"); // Asumsi ID elemen container Anda
   const productListTitleElement = document.getElementById("product-list-title"); // Asumsi ID elemen judul Anda
@@ -2442,6 +2454,25 @@ async function handleSubmitAuth(e) {
 }
 // Update UI berdasarkan status Auth (PENTING)
 auth.onAuthStateChanged(async (user) => {
+  // 🔥 AMBIL REFERENSI DOM DI AWAL UNTUK MENGATASI MASALAH TIMING
+
+  // 🔥🔥🔥 PERUBAHAN ID TOMBOL AUTENTIKASI 🔥🔥🔥
+  const authBtn = document.getElementById("auth-btn"); // <--- MENGGUNAKAN ID 'auth-btn'
+
+  // Asumsi ID DOM yang benar:
+  const mainBanner = document.getElementById("main-banner");
+  const profileBtn = document.getElementById("profileBtn");
+  const sellerControls = document.getElementById("seller-controls");
+  const sellerGreeting = document.getElementById("seller-greeting");
+  const adminBtn = document.getElementById("adminBtn");
+  const addUserBtn = document.getElementById("addUserBtn");
+  const managementView = document.getElementById("management-view");
+  const adminView = document.getElementById("adminView");
+  const productListWrapper = document.getElementById("product-list-wrapper");
+
+  // 🔥🔥🔥 PERUBAHAN ID TOMBOL MANAGEMENT 🔥🔥🔥
+  const manageBtn = document.getElementById("manage-btn"); // <--- MENGGUNAKAN ID 'manage-btn'
+
   if (user) {
     // 🔥 LOG VERIFIKASI UTAMA
     console.log("VERIFIKASI AUTENTIKASI: User login. Memproses UI.");
@@ -2452,6 +2483,7 @@ auth.onAuthStateChanged(async (user) => {
     const sellerData = await getSellerData(user.uid);
 
     if (!sellerData) {
+      // Ini hanya terjadi jika user login tapi data seller tidak ada/gagal dimuat
       auth.signOut();
       return;
     }
@@ -2506,20 +2538,23 @@ auth.onAuthStateChanged(async (user) => {
     if (mainBanner) mainBanner.classList.add("hidden");
 
     // --- TAMPILAN HEADER (Login/Logout & Profil) ---
-    authBtn.textContent = `Logout`;
-    authBtn.classList.remove(
-      "bg-gold-accent",
-      "text-navy-blue",
-      "hover:bg-white"
-    );
-    authBtn.classList.add("bg-red-500", "text-white", "hover:bg-red-600");
+    if (authBtn) {
+      // ✅ Menggunakan textContent sesuai permintaan (untuk tombol Logout)
+      authBtn.textContent = `Logout`;
+      authBtn.classList.remove(
+        "bg-gold-accent",
+        "text-navy-blue",
+        "hover:bg-white"
+      );
+      authBtn.classList.add("bg-red-500", "text-white", "hover:bg-red-600");
+    }
 
     if (profileBtn) profileBtn.classList.remove("hidden");
 
     // --- TAMPILAN SELLER CONTROLS CARD ---
     if (sellerControls) {
       sellerControls.classList.remove("hidden");
-      sellerGreeting.textContent = `Halo, ${shopName}!`;
+      if (sellerGreeting) sellerGreeting.textContent = `Halo, ${shopName}!`;
     }
 
     // LOGIKA KHUSUS ADMIN (BERDASARKAN ROLE)
@@ -2539,6 +2574,7 @@ auth.onAuthStateChanged(async (user) => {
       }
     }
 
+    // Reset Tampilan ke Produk
     if (managementView) managementView.classList.add("hidden");
     if (adminView) adminView.classList.add("hidden");
     if (productListWrapper) productListWrapper.classList.remove("hidden");
@@ -2546,7 +2582,7 @@ auth.onAuthStateChanged(async (user) => {
     // --- PEMASANGAN EVENT LISTENER KRITIS UNTUK manageBtn ---
     if (manageBtn) {
       console.log(
-        "VERIFIKASI DOM: Elemen manageBtn ditemukan. Memasang Listener."
+        "VERIFIKASI DOM: Elemen manageBtn ditemukan (ID: 'manage-btn'). Memasang Listener."
       );
 
       // 🔥🔥 Terapkan kelas 'relative' untuk posisi badge
@@ -2584,11 +2620,12 @@ auth.onAuthStateChanged(async (user) => {
       }
     } else {
       console.error(
-        "FATAL DOM ERROR: Elemen manageBtn (ID: 'manage-btn') tidak ditemukan!"
+        "FATAL DOM ERROR: Elemen manageBtn (ID: 'manage-btn') tidak ditemukan! Pastikan ID HTML sudah benar."
       );
     }
 
-    if (salesChartInstance) {
+    // Diasumsikan salesChartInstance adalah variabel global
+    if (typeof salesChartInstance !== "undefined" && salesChartInstance) {
       salesChartInstance.destroy();
     }
   } else {
@@ -2620,21 +2657,28 @@ auth.onAuthStateChanged(async (user) => {
     if (mainBanner) mainBanner.classList.remove("hidden");
 
     // --- TAMPILAN HEADER (Masuk) ---
-    authBtn.innerHTML = `
-        <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            fill="currentColor" 
-            class="h-4 w-4 sm:h-5 sm:w-5 bi bi-person-circle mr-1 flex-shrink-0" 
-            viewBox="0 0 16 16"
-            style="display: inline-block; vertical-align: middle;" 
-        >  
-            <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/>  
-            <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/>
-        </svg>Masuk
-    `;
+    if (authBtn) {
+      // ✅ Menggunakan innerHTML sesuai permintaan (untuk tombol Masuk)
+      authBtn.innerHTML = `
+            <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                fill="currentColor" 
+                class="h-4 w-4 sm:h-5 sm:w-5 bi bi-person-circle mr-1 flex-shrink-0" 
+                viewBox="0 0 16 16"
+                style="display: inline-block; vertical-align: middle;" 
+            >  
+                <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/>  
+                <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/>
+            </svg>Masuk
+        `;
 
-    authBtn.classList.remove("bg-red-500", "text-white", "hover:bg-red-600");
-    authBtn.classList.add("bg-gold-accent", "text-navy-blue", "hover:bg-white");
+      authBtn.classList.remove("bg-red-500", "text-white", "hover:bg-red-600");
+      authBtn.classList.add(
+        "bg-gold-accent",
+        "text-navy-blue",
+        "hover:bg-white"
+      );
+    }
 
     if (profileBtn) profileBtn.classList.add("hidden");
 
@@ -2653,7 +2697,6 @@ auth.onAuthStateChanged(async (user) => {
   isInitialLoad = false;
   loadProducts();
 });
-
 async function handleAddToCartFromList(productListItem) {
   if (!productListItem || !productListItem.id) {
     Swal.fire("Error", "ID produk hilang.", "error");
@@ -2996,6 +3039,118 @@ async function handleDeleteProduct(e) {
 // -----------------------------------------------------------------
 // BAGIAN 6: FUNGSI MANAGEMENT (RIWAYAT TRANSAKSI & SALDO)
 // -----------------------------------------------------------------
+async function updateDashboardMetrics(uid) {
+  console.log("LOG METRIK: Memuat metrik dashboard untuk UID:", uid);
+
+  // Dapatkan elemen-elemen DOM (jika belum dideklarasikan global)
+  const totalSaldoEl = document.getElementById("total-saldo");
+  const totalTerjualEl = document.getElementById("total-terjual");
+  const totalTransaksiEl = document.getElementById("total-transaksi");
+
+  // Reset tampilan loading
+  totalSaldoEl.textContent = "Memuat...";
+  totalTerjualEl.textContent = "Memuat...";
+  totalTransaksiEl.textContent = "Memuat...";
+
+  try {
+    const metricsDoc = await db.collection("dashboards").doc(uid).get();
+
+    // ⭐ LOG KRITIS 1: Apakah dokumen metrik ditemukan? ⭐
+    console.log("LOG METRIK: Dokumen dashboard ditemukan:", metricsDoc.exists);
+
+    if (metricsDoc.exists) {
+      const data = metricsDoc.data();
+
+      // --- 1. ISI KARTU STATISTIK ---
+      const totalBalance = data.totalBalance || 0;
+      const totalSold = data.totalSold || 0;
+      const totalTransactions = data.totalTransactions || 0;
+
+      totalSaldoEl.textContent = formatIDR(totalBalance);
+      totalTerjualEl.textContent = totalSold.toLocaleString("id-ID");
+      totalTransaksiEl.textContent = totalTransactions.toLocaleString("id-ID");
+
+      // --- 2. PERSIAPAN DATA CHART ---
+      const salesByPeriod = data.salesByPeriod || {};
+
+      // ⭐ LOG KRITIS 2: Apa isi dari kolom salesByPeriod? ⭐
+      console.log("LOG METRIK: Data salesByPeriod mentah:", salesByPeriod);
+
+      const sortedPeriods = Object.keys(salesByPeriod).sort();
+
+      const chartLabels = sortedPeriods.map((key) => {
+        // Logika pemformatan YYYY-MM menjadi Bulan/YY (misal: Des/25)
+        const [year, month] = key.split("-");
+        if (month) {
+          const monthNames = [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "Mei",
+            "Jun",
+            "Jul",
+            "Agu",
+            "Sep",
+            "Okt",
+            "Nov",
+            "Des",
+          ];
+          return `${monthNames[parseInt(month) - 1]}/${year.substring(2)}`;
+        }
+        return key;
+      });
+
+      const chartValues = sortedPeriods.map((key) => salesByPeriod[key] || 0);
+
+      // --- 3. ISI VARIABEL GLOBAL CHART DATA ---
+      // Variabel ini akan digunakan oleh renderSalesChart()
+      window.chartDataForSeller = {
+        labels: chartLabels.length > 0 ? chartLabels : ["N/A"],
+        datasets: [
+          {
+            label: "Penjualan Bersih (Rp)",
+            data: chartValues.length > 0 ? chartValues : [0],
+            backgroundColor: "#3b82f6", // Warna sesuai Tailwind blue-500
+          },
+        ],
+      };
+
+      console.log(
+        "LOG METRIK: chartDataForSeller diisi:",
+        window.chartDataForSeller
+      );
+    } else {
+      // Jika dokumen metrik tidak ditemukan
+      console.warn(
+        `LOG METRIK: Dokumen 'dashboards/${uid}' tidak ada. Menggunakan nilai default.`
+      );
+
+      // Isi kartu dengan 0
+      totalSaldoEl.textContent = formatIDR(0);
+      totalTerjualEl.textContent = "0";
+      totalTransaksiEl.textContent = "0";
+
+      // Isi variabel global chart dengan nilai default/kosong
+      window.chartDataForSeller = {
+        labels: ["N/A"],
+        datasets: [
+          {
+            label: "Penjualan Bersih (Rp)",
+            data: [0],
+            backgroundColor: "#ccc",
+          },
+        ],
+      };
+    }
+  } catch (error) {
+    console.error("Error loading dashboard metrics:", error);
+    totalSaldoEl.textContent = "Error";
+    totalTerjualEl.textContent = "Error";
+    totalTransaksiEl.textContent = "Error";
+  }
+}
+
 function toggleManagementView() {
   console.log(
     "LOG PANGGILAN FUNGSI: toggleManagementView BERHASIL dieksekusi."
@@ -3375,10 +3530,1236 @@ function renderSalesChart(salesData) {
     },
   });
 }
-
 // -----------------------------------------------------------------
 // BAGIAN 6.5: FUNGSI ADMIN (DAFTAR PELANGGAN)
 // -----------------------------------------------------------------
+
+function closeDetailModal() {
+  const modal = document.getElementById("userDetailsModal");
+  if (modal) {
+    modal.classList.add("hidden");
+  }
+}
+
+const formatIDR = (num) =>
+  (num || 0).toLocaleString("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+  });
+async function aggregateSellerMetrics(uid, period) {
+  const results = {
+    totalBalance: 0,
+    totalSold: 0, // Order Selesai
+    totalTransactions: 0,
+    totalAdminFee: 0, // 🔥 FIELD BARU 🔥
+    salesByPeriod: {},
+  };
+
+  // 🔥 1. Tentukan batas waktu filter (Jika 'period' diberikan) 🔥
+  let startDate = null;
+  let endDate = null;
+
+  if (period && period.match(/^\d{4}-\d{2}$/)) {
+    const [year, month] = period.split("-").map(Number);
+
+    // Awal bulan (contoh: 2025-12-01 00:00:00)
+    startDate = new Date(year, month - 1, 1, 0, 0, 0);
+    // Awal bulan berikutnya (contoh: 2026-01-01 00:00:00)
+    endDate = new Date(year, month, 1, 0, 0, 0);
+
+    console.log(
+      `Filtering metrics for period ${period}: ${startDate.toISOString()} to ${endDate.toISOString()}`
+    );
+  }
+
+  try {
+    // 2. Ambil Fixed Fee Rate dari dokumen penjual
+    const sellerDoc = await db.collection("sellers").doc(uid).get();
+    const sellerData = sellerDoc.data() || {};
+    // Ambil Fixed Fee, default 0 jika belum diset
+    const adminFeeFixedAmount = sellerData.adminFeeFixedAmount || 0;
+
+    // 3. Bangun query untuk Order
+    let query = db.collection("orders").where("ownerId", "==", uid);
+
+    // Terapkan filter waktu jika periode ditentukan
+    if (startDate && endDate) {
+      // 🔥 Filter Query Firestore menggunakan range timestamp 🔥
+      query = query
+        .where("timestamp", ">=", startDate)
+        .where("timestamp", "<", endDate);
+    }
+
+    // Order by timestamp untuk memproses
+    const ordersSnapshot = await query.orderBy("timestamp", "desc").get();
+
+    // TOTAL TRANSAKSI HANYA MENGHITUNG YANG TERFILTER
+    results.totalTransactions = ordersSnapshot.size;
+
+    ordersSnapshot.docs.forEach((doc) => {
+      const data = doc.data();
+      const currentStatus = data.status || "Diterima";
+
+      if (currentStatus === "Selesai") {
+        const orderDate = data.timestamp ? data.timestamp.toDate() : new Date();
+        const totalAmount = data.totalAmount || 0;
+
+        results.totalBalance += totalAmount;
+        results.totalSold += 1; // Menghitung sebagai "Total Order Selesai"
+
+        // 🔥 Hitung Total Biaya Admin (Fixed Fee * Jumlah Order Selesai) 🔥
+        // Perhitungan total admin fee bulanan harus dilakukan di luar loop,
+        // tapi kita bisa menghitung admin fee untuk order ini dan menjumlahkannya.
+        results.totalAdminFee += adminFeeFixedAmount;
+
+        // Perhitungan salesByPeriod (digunakan untuk chart, meskipun di modal viewUserDetails
+        // chart dirender untuk satu periode yang difilter)
+        const periodKey =
+          orderDate.getFullYear() +
+          "-" +
+          (orderDate.getMonth() + 1).toString().padStart(2, "0");
+        results.salesByPeriod[periodKey] =
+          (results.salesByPeriod[periodKey] || 0) + totalAmount;
+      }
+    });
+  } catch (error) {
+    console.error("Error aggregating seller metrics:", error);
+    // Kembalikan objek results kosong agar rendering tidak crash
+    return results;
+  }
+
+  console.log("Metrik yang diagregasi:", results);
+
+  return results;
+}
+
+async function viewUserDetails(uid) {
+  const modal = document.getElementById("userDetailsModal");
+
+  // Debug Log 1: Memulai fungsi dan UID yang dicari
+  console.log("--- Memuat Detail Pengguna ---");
+  console.log("UID yang diolah:", uid);
+
+  // Cek keberadaan elemen detailUid sebelum mencoba mengatur textContent.
+  const detailUidElement = document.getElementById("detailUid");
+  if (detailUidElement) {
+    detailUidElement.textContent = uid;
+  }
+
+  // 1. Reset/Loading state + 🔥 AMBIL REFERENSI SEMUA ELEMEN UTAMA 🔥
+  document.getElementById("detailShopName").textContent = "Memuat...";
+  document.getElementById(
+    "profileContent"
+  ).innerHTML = `<p class="col-span-3 text-center text-gray-500">Memuat profil...</p>`;
+
+  // Mengambil referensi elemen yang akan diakses di scope inner loadAndRenderMetrics
+  const dashboardContent = document.getElementById("dashboardContent");
+  const chartWrapper = document.getElementById("sellerChartWrapper");
+  const recentTransactionsContent = document.getElementById(
+    "recentTransactionsContent"
+  );
+  const transactionHeader = modal.querySelector(
+    ".bg-white.border.rounded-lg.shadow-lg.p-5 h4.text-xl.font-semibold.border-b.pb-2.mb-4.text-gray-700"
+  );
+
+  // 🔥 REFERENSI BARU UNTUK UI KALENDER KUSTOM 🔥
+  const periodInput = document.getElementById("periodInput");
+  const selectedPeriodText = document.getElementById("selectedPeriodText");
+  const calendarPopup = document.getElementById("calendarPopup");
+  const filterYear = document.getElementById("filterYear"); // Dropdown tahun di dalam popup
+  const monthGrid = document.getElementById("monthGrid");
+  const prevYearBtn = document.getElementById("prevYear");
+  const nextYearBtn = document.getElementById("nextYear");
+  const filterWrapper = document.getElementById("dashboardFilterWrapper");
+
+  if (dashboardContent) {
+    dashboardContent.innerHTML = `<p class="col-span-3 text-center text-gray-500">Memuat metrik...</p>`;
+  }
+
+  // Set loading state untuk Transaksi dan Invoice
+  recentTransactionsContent.innerHTML = `<p class="text-center text-gray-500">Memuat riwayat...</p>`;
+  document.getElementById(
+    "invoiceHistoryContent"
+  ).innerHTML = `<p class="text-center text-gray-500">Memuat invoice...</p>`;
+
+  // Reset Admin Fee Setting Container
+  const currentAdminFeeElement = document.getElementById("currentAdminFee");
+  const adminFeeSettingBtn = document.getElementById("adminFeeSettingBtn");
+
+  if (currentAdminFeeElement) currentAdminFeeElement.textContent = "Memuat...";
+  if (adminFeeSettingBtn) adminFeeSettingBtn.classList.add("hidden");
+  if (filterWrapper) filterWrapper.classList.add("hidden"); // Sembunyikan saat loading
+
+  // Tampilkan modal
+  modal.classList.remove("hidden");
+
+  try {
+    // --- A. AMBIL DATA SELLER (PROFILE) ---
+    const sellerDoc = await db.collection("sellers").doc(uid).get();
+
+    if (!sellerDoc.exists) {
+      console.error("Dokumen penjual tidak ditemukan untuk UID:", uid);
+
+      // 🔥 Ganti notifikasi error di sini dengan SweetAlert 🔥
+      Swal.fire({
+        icon: "error",
+        title: "Gagal Memuat",
+        text: `Dokumen penjual dengan UID ${uid} tidak ditemukan di database.`,
+        confirmButtonText: "Tutup",
+      });
+
+      document.getElementById("detailShopName").textContent =
+        "Pengguna Tidak Ditemukan";
+      document.getElementById(
+        "profileContent"
+      ).innerHTML = `<p class="col-span-3 text-red-500">Dokumen pengguna tidak ditemukan.</p>`;
+      return;
+    }
+
+    const sellerData = sellerDoc.data();
+    const shopName = sellerData.shopName || "Toko Tanpa Nama";
+    const role = sellerData.role || "biasa";
+
+    // ... (Bagian render kartu profil tetap sama) ...
+    document.getElementById("detailShopName").textContent =
+      shopName + (role === "admin" ? " (ADMIN)" : "");
+
+    document.getElementById("profileContent").innerHTML = `
+            <div class="col-span-2 md:col-span-3 pb-2 mb-4 border-b">
+                <p class="text-lg font-bold text-gray-800 flex items-center">
+                    ${shopName} 
+                    <span class="ml-3 text-sm font-medium px-3 py-1 rounded-full ${
+                      role === "admin"
+                        ? "bg-blue-100 text-blue-800"
+                        : "bg-green-100 text-green-800"
+                    }">${role.toUpperCase()}</span>
+                </p>
+            </div>
+            
+            <div class="col-span-2 md:col-span-1 space-y-2">
+                <label class="text-xs font-semibold text-gray-600">Email</label>
+                <div class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-sm text-gray-800">${
+                  sellerData.email || "-"
+                }</div>
+            </div>
+            
+            <div class="col-span-2 md:col-span-1 space-y-2">
+                <label class="text-xs font-semibold text-gray-600">Telepon</label>
+                <div class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-sm text-gray-800">${
+                  sellerData.phone || "-"
+                }</div>
+            </div>
+            
+            <div class="col-span-2 md:col-span-1 space-y-2">
+                <label class="text-xs font-semibold text-gray-600">UID Penjual</label>
+                <div class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs font-mono text-gray-700 break-all">${uid}</div>
+            </div>
+
+            <div class="col-span-2 md:col-span-3 mt-4 space-y-2 border-t pt-4">
+                <label class="text-xs font-semibold text-gray-600">Alamat Lengkap</label>
+                <div class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-sm text-gray-800">${
+                  sellerData.address || "-"
+                }</div>
+            </div>
+            
+            <div class="col-span-2 md:col-span-3 text-xs text-gray-500 mt-4">
+                <strong>Sandi:</strong> <span class="text-red-500 font-medium">TIDAK DAPAT DITAMPILKAN (Keamanan)</span>
+                | Terakhir Login: ${
+                  sellerData.lastLogin
+                    ? new Date(sellerData.lastLogin.toDate()).toLocaleString()
+                    : "-"
+                }
+            </div>
+        `;
+
+    // 🔥 PENGATURAN BIAYA ADMIN (FIXED FEE RATE) 🔥
+    const adminFeeFixedAmount = sellerData.adminFeeFixedAmount || 0;
+
+    // --- MENGISI KONTROL BIAYA ADMIN (RATE) ---
+    if (currentAdminFeeElement && adminFeeSettingBtn) {
+      currentAdminFeeElement.textContent = formatIDR(adminFeeFixedAmount);
+      adminFeeSettingBtn.classList.remove("hidden");
+      adminFeeSettingBtn.onclick = () =>
+        openAdminFeeModal(uid, adminFeeFixedAmount);
+      console.log("Kontrol Biaya Admin Fixed Fee Rate diset.");
+    }
+
+    // 🔥 FUNGSI INNER UNTUK MEMUAT & MERENDER METRIK DAN TRANSAKSI BULANAN 🔥
+    async function loadAndRenderMetricsAndTransactions(sellerUid, period) {
+      console.log(`Memuat metrik dan transaksi untuk periode: ${period}`);
+
+      if (dashboardContent) {
+        dashboardContent.innerHTML = `<p class="col-span-4 text-center text-gray-500 p-4">Memuat data metrik ${period}...</p>`;
+      }
+      if (recentTransactionsContent) {
+        recentTransactionsContent.innerHTML = `<p class="text-center text-gray-500">Memuat transaksi ${period}...</p>`;
+      }
+
+      // --- 1. RENDER METRIK (DASHBOARD CARDS & CHART) ---
+      const metrics = await aggregateSellerMetrics(sellerUid, period);
+      const fullMonthNames = [
+        "Januari",
+        "Februari",
+        "Maret",
+        "April",
+        "Mei",
+        "Juni",
+        "Juli",
+        "Agustus",
+        "September",
+        "Oktober",
+        "November",
+        "Desember",
+      ];
+      let periodLabel = period;
+
+      // Update text pada tombol input dan tentukan label chart
+      if (selectedPeriodText && period.match(/^\d{4}-\d{2}$/)) {
+        const [year, month] = period.split("-");
+        const monthIndex = parseInt(month, 10) - 1;
+        periodLabel = `${fullMonthNames[monthIndex]} ${year}`;
+        selectedPeriodText.textContent = periodLabel;
+      }
+
+      // Update Header Riwayat Transaksi
+      if (transactionHeader) {
+        transactionHeader.innerHTML = `Riwayat Transaksi (${periodLabel})`;
+      }
+
+      if (!metrics) {
+        if (dashboardContent) {
+          dashboardContent.innerHTML = `<p class="col-span-4 text-center text-red-500 p-4">Gagal memuat metrik untuk periode ini.</p>`;
+        }
+        if (chartWrapper) {
+          chartWrapper.innerHTML = `<h5 class="text-sm sm:text-base font-medium mb-2">Statistik Penjualan per Periode</h5><p class="text-center text-gray-500">Data tidak tersedia.</p>`;
+        }
+        // Lanjutkan ke bagian Transaksi, tapi metriknya gagal
+      } else {
+        // RENDER KARTU DASHBOARD (4 Kartu)
+        const totalAdminFee = metrics.totalAdminFee || 0;
+        if (dashboardContent) {
+          dashboardContent.innerHTML = `
+                <div class="bg-blue-50 p-3 rounded-lg shadow-sm border-l-4 border-blue-500">
+                    <p class="text-xs text-blue-700">Total Saldo (Revenue)</p>
+                    <p class="text-lg font-bold text-blue-900 mt-1">${formatIDR(
+                      metrics.totalBalance || 0
+                    )}</p>
+                </div>
+                <div class="bg-green-50 p-3 rounded-lg shadow-sm border-l-4 border-green-500">
+                    <p class="text-xs text-green-700">Order Selesai</p>
+                    <p class="text-lg font-bold text-green-900 mt-1">${(
+                      metrics.totalSold || 0
+                    ).toLocaleString("id-ID")}</p>
+                </div>
+                
+                <div class="bg-red-50 p-3 rounded-lg shadow-sm border-l-4 border-red-500">
+                    <p class="text-xs text-red-700">Total Biaya Admin</p>
+                    <p class="text-lg font-bold text-red-900 mt-1">${formatIDR(
+                      totalAdminFee
+                    )}</p>
+                </div>
+
+                <div class="bg-yellow-50 p-3 rounded-lg shadow-sm border-l-4 border-yellow-500">
+                    <p class="text-xs text-yellow-700">Total Transaksi</p>
+                    <p class="text-lg font-bold text-yellow-900 mt-1">${(
+                      metrics.totalTransactions || 0
+                    ).toLocaleString("id-ID")}</p>
+                </div>
+            `;
+        }
+
+        // LOGIKA CHART
+        if (chartWrapper && typeof renderSellerSalesChart === "function") {
+          chartWrapper.innerHTML = `
+                    <h5 class="text-sm sm:text-base font-medium mb-2">Statistik Penjualan per Periode</h5>
+                    <div style="height: 250px;">
+                        <canvas id="sellerSalesChart"></canvas>
+                    </div>
+                `;
+
+          const chartValue = metrics.totalBalance || 0;
+
+          const localChartData = {
+            labels: [periodLabel],
+            datasets: [
+              {
+                label: "Penjualan Bersih (Rp)",
+                data: [chartValue],
+                backgroundColor: "#3b82f6",
+              },
+            ],
+          };
+
+          renderSellerSalesChart(localChartData);
+        } else if (chartWrapper) {
+          console.error("Fungsi renderSellerSalesChart tidak ditemukan.");
+        }
+      } // end metrics rendering
+
+      // --- 2. RENDER TRANSAKSI (Filter berdasarkan periode YYYY-MM) ---
+      const [yearStr, monthStr] = period.split("-");
+      const year = parseInt(yearStr, 10);
+      const month = parseInt(monthStr, 10);
+
+      // Hitung batas waktu (dari awal bulan yang difilter hingga awal bulan berikutnya)
+      const startDate = new Date(year, month - 1, 1);
+      const endDate = new Date(year, month, 1); // Awal bulan berikutnya
+
+      // Konversi ke timestamp Firestore
+      const startTimestamp = firebase.firestore.Timestamp.fromDate(startDate);
+      const endTimestamp = firebase.firestore.Timestamp.fromDate(endDate);
+
+      console.log(
+        `Filtering transactions from ${startDate.toLocaleString()} to ${endDate.toLocaleString()}`
+      );
+
+      const transactionsSnapshot = await db
+        .collection("orders")
+        .where("ownerId", "==", sellerUid)
+        .where("timestamp", ">=", startTimestamp)
+        .where("timestamp", "<", endTimestamp)
+        .orderBy("timestamp", "desc")
+        .get();
+
+      if (transactionsSnapshot.empty) {
+        recentTransactionsContent.innerHTML = `<p class="text-center text-gray-500 italic">Tidak ada riwayat transaksi pada periode ini (${periodLabel}).</p>`;
+      } else {
+        let transactionsHTML = "";
+        transactionsSnapshot.docs.forEach((doc) => {
+          const data = doc.data();
+          const time = data.timestamp
+            ? new Date(data.timestamp.toDate()).toLocaleString()
+            : "-";
+          const statusColor =
+            data.status === "Selesai"
+              ? "bg-green-500"
+              : data.status === "Pending" || data.status === "Diproses"
+              ? "bg-yellow-500"
+              : "bg-gray-500";
+
+          const transactionPrice = data.totalAmount || 0;
+          const formattedPrice = formatIDR(transactionPrice);
+
+          transactionsHTML += `
+                      <div class="p-3 border rounded-lg flex justify-between items-center text-sm hover:bg-gray-50">
+                          <div>
+                              <p class="font-semibold text-gray-800">Order ID: <span class="font-mono text-xs text-blue-600">${doc.id.substring(
+                                0,
+                                10
+                              )}...</span></p>
+                              <p class="text-xs text-gray-500">Pembeli: ${
+                                data.buyerName || "Anonim"
+                              }</p>
+                              <p class="text-xs text-gray-500">${time}</p>
+                          </div>
+                          <div class="text-right">
+                              <span class="font-bold text-lg text-blue-600">${formattedPrice}</span>
+                              <span class="ml-3 px-2 py-0.5 rounded-full text-xs text-white ${statusColor}">${
+            data.status
+          }</span>
+                          </div>
+                      </div>
+                  `;
+        });
+        recentTransactionsContent.innerHTML = transactionsHTML;
+      }
+
+      currentPeriodTracker = period;
+    } // end loadAndRenderMetricsAndTransactions
+
+    // --- FUNGSI UTILITY FILTER BARU (KALENDER) ---
+    const monthNamesShort = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "Mei",
+      "Jun",
+      "Jul",
+      "Agu",
+      "Sep",
+      "Okt",
+      "Nov",
+      "Des",
+    ];
+
+    let currentPeriodTracker = ""; // YYYY-MM
+
+    /** Mengisi dropdown tahun di popup */
+    function initializeYearFilter(defaultYear) {
+      if (!filterYear) return;
+      filterYear.innerHTML = "";
+
+      const currentYear = new Date().getFullYear();
+      const startYear = 2023; // Tentukan tahun awal data/aplikasi Anda
+
+      for (let year = currentYear; year >= startYear; year--) {
+        const option = document.createElement("option");
+        option.value = year;
+        option.textContent = year;
+        if (year === defaultYear) {
+          option.selected = true;
+        }
+        filterYear.appendChild(option);
+      }
+    }
+
+    /** Mengisi grid tombol bulan */
+    function renderMonthGrid(selectedYear, activePeriod) {
+      if (!monthGrid) return;
+      monthGrid.innerHTML = "";
+
+      const today = new Date();
+      const currentYear = today.getFullYear();
+      const currentMonth = today.getMonth() + 1; // 1-based
+
+      for (let i = 1; i <= 12; i++) {
+        const monthValue = String(i).padStart(2, "0");
+        const monthKey = `${selectedYear}-${monthValue}`;
+
+        let button = document.createElement("button");
+        button.type = "button";
+        button.textContent = monthNamesShort[i - 1];
+        button.value = monthValue;
+
+        let classList =
+          "px-1 py-2 text-xs rounded-lg transition duration-150 w-full";
+
+        // Nonaktifkan bulan di masa depan
+        const isFutureMonth =
+          parseInt(selectedYear, 10) > currentYear ||
+          (parseInt(selectedYear, 10) === currentYear && i > currentMonth);
+
+        if (isFutureMonth) {
+          classList += " bg-gray-100 text-gray-400 cursor-not-allowed";
+          button.disabled = true;
+        } else {
+          classList += " text-gray-700 hover:bg-indigo-100";
+        }
+
+        // Tandai bulan yang sedang dipilih
+        if (monthKey === activePeriod) {
+          classList = classList.replace(
+            "text-gray-700 hover:bg-indigo-100",
+            ""
+          );
+          classList += " bg-indigo-500 text-white hover:bg-indigo-600";
+        }
+
+        button.className = classList;
+
+        // Event Listener pada tombol bulan
+        button.onclick = (e) => {
+          if (isFutureMonth) return; // double check
+          e.stopPropagation();
+
+          // Ambil nilai periode baru, update tracker, render metrik, dan tutup popup
+          const newPeriod = `${filterYear.value}-${e.target.value}`;
+          loadAndRenderMetricsAndTransactions(uid, newPeriod);
+          calendarPopup.classList.add("hidden");
+        };
+
+        monthGrid.appendChild(button);
+      }
+    }
+
+    // 🔥 INISIALISASI UTAMA FILTER PERIODE DASHBOARD 🔥
+    const today = new Date();
+    const defaultYear = today.getFullYear();
+    const defaultMonth = today.getMonth() + 1; // 1-based (integer)
+    const defaultPeriod = `${defaultYear}-${String(defaultMonth).padStart(
+      2,
+      "0"
+    )}`; // YYYY-MM
+    currentPeriodTracker = defaultPeriod;
+
+    // Cek ketersediaan semua elemen UI kalender kustom
+    if (
+      periodInput &&
+      filterYear &&
+      monthGrid &&
+      filterWrapper &&
+      prevYearBtn &&
+      nextYearBtn &&
+      calendarPopup &&
+      selectedPeriodText
+    ) {
+      filterWrapper.classList.remove("hidden");
+
+      // 1. Inisialisasi Tahun Dropdown
+      initializeYearFilter(defaultYear);
+
+      // 2. Render Grid Bulan awal
+      renderMonthGrid(defaultYear, currentPeriodTracker);
+
+      // 3. Pasang Event Listener untuk navigasi Tahun
+      prevYearBtn.onclick = () => {
+        const selectedYear = parseInt(filterYear.value, 10);
+        const newYear = selectedYear - 1;
+        if (newYear >= 2023) {
+          filterYear.value = newYear;
+          renderMonthGrid(newYear, currentPeriodTracker);
+        }
+      };
+
+      nextYearBtn.onclick = () => {
+        const selectedYear = parseInt(filterYear.value, 10);
+        const currentMaxYear = new Date().getFullYear();
+        const newYear = selectedYear + 1;
+        if (newYear <= currentMaxYear) {
+          filterYear.value = newYear;
+          renderMonthGrid(newYear, currentPeriodTracker);
+        }
+      };
+
+      // 4. Event Listener saat Tahun di Dropdown berubah
+      filterYear.onchange = () => {
+        const newYear = filterYear.value;
+        renderMonthGrid(newYear, currentPeriodTracker);
+      };
+
+      // 5. Event Listener untuk Tampilkan/Sembunyikan Popup
+      periodInput.onclick = (e) => {
+        e.stopPropagation();
+        calendarPopup.classList.toggle("hidden");
+
+        // Set dropdown tahun di popup ke tahun periode aktif
+        const selectedYear = currentPeriodTracker.substring(0, 4);
+        filterYear.value = selectedYear;
+        renderMonthGrid(selectedYear, currentPeriodTracker);
+      };
+
+      // 6. Tutup popup jika klik di luar
+      document.addEventListener("click", (e) => {
+        if (
+          calendarPopup &&
+          !calendarPopup.contains(e.target) &&
+          !periodInput.contains(e.target)
+        ) {
+          calendarPopup.classList.add("hidden");
+        }
+      });
+
+      console.log("UI Filter Kalender Kustom berhasil diinisialisasi.");
+    } else {
+      console.error(
+        "Gagal menemukan elemen filter UI kalender. Pastikan struktur HTML sudah benar."
+      );
+    }
+
+    // 🔥 Panggil fungsi rendering metrik dan transaksi untuk pertama kali (default) 🔥
+    await loadAndRenderMetricsAndTransactions(uid, defaultPeriod);
+
+    // --- D. RIWAYAT INVOICE (TIDAK BERUBAH) ---
+    const invoiceHistoryContent = document.getElementById(
+      "invoiceHistoryContent"
+    );
+
+    const invoicesSnapshot = await db
+      .collection("invoices")
+      .where("sellerId", "==", uid)
+      .orderBy("createdAt", "desc")
+      .get();
+
+    if (invoicesSnapshot.empty) {
+      invoiceHistoryContent.innerHTML = `<p class="text-center text-gray-500 italic">Pengguna ini belum memiliki riwayat invoice sewa toko.</p>`;
+    } else {
+      let invoiceHTML = "";
+
+      invoicesSnapshot.docs.forEach((doc) => {
+        const invoice = { ...doc.data(), docId: doc.id };
+
+        let statusColor;
+        let amountColor;
+
+        if (invoice.status === "Lunas") {
+          statusColor = "bg-green-500";
+          amountColor = "text-green-600";
+        } else if (
+          invoice.status === "Tertunda" ||
+          invoice.status === "Kurang Bayar"
+        ) {
+          statusColor = "bg-yellow-500";
+          amountColor = "text-red-600";
+        } else if (invoice.status === "Pending") {
+          statusColor = "bg-gray-500";
+          amountColor = "text-gray-600";
+        } else {
+          statusColor = "bg-red-500";
+          amountColor = "text-gray-600";
+        }
+
+        const priceDisplay = invoice.price || invoice.monthlyPrice || 0;
+
+        invoiceHTML += `
+                    <div class="p-3 border rounded-lg flex items-center justify-between text-sm bg-white hover:bg-gray-50 transition duration-100 min-w-[500px]">
+                        
+                        <div class="flex flex-col flex-1 min-w-0">
+                            <p class="font-semibold text-gray-800 truncate">${
+                              invoice.packageName || "Invoice Sewa Toko"
+                            }</p>
+                            <p class="text-xs text-gray-500">${
+                              invoice.monthYear
+                            } (${invoice.invoiceId || "N/A"})</p>
+                        </div>
+
+                        <div class="text-right flex items-center space-x-4 ml-4">
+                            <span class="font-bold text-base ${amountColor}">${formatIDR(
+          priceDisplay
+        )}</span>
+                            
+                            <button onclick="openPublishInvoiceModal('${uid}', ${JSON.stringify(
+          invoice
+        ).replace(/"/g, "&quot;")})"
+                                class="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition">
+                                Bayar/Edit
+                            </button>
+                            
+                            <span class="px-3 py-1 rounded-full text-xs font-medium text-white ${statusColor} min-w-[70px] text-center">${
+          invoice.status
+        }</span>
+                        </div>
+
+                    </div>
+                `;
+      });
+
+      invoiceHistoryContent.innerHTML = invoiceHTML;
+    }
+  } catch (error) {
+    // 🔥 Ganti penanganan error FATAL di sini dengan SweetAlert 🔥
+    console.error("Error FATAL memuat detail pengguna:", error);
+
+    // Tampilkan SweetAlert untuk Error FATAL
+    Swal.fire({
+      icon: "error",
+      title: "Gagal Memuat Detail",
+      html: `Terjadi kesalahan fatal saat memuat data penjual. Detail: <br> <strong>${error.message}</strong>`,
+      confirmButtonText: "Tutup",
+    });
+
+    // Logika Error Handling di UI
+    document.getElementById("detailShopName").textContent = "Error";
+    document.getElementById(
+      "profileContent"
+    ).innerHTML = `<p class="col-span-3 text-red-500">Gagal memuat data: ${error.message}</p>`;
+
+    if (dashboardContent) {
+      dashboardContent.innerHTML = `<p class="col-span-3 text-red-500">Gagal memuat metrik.</p>`;
+    }
+
+    recentTransactionsContent.innerHTML = `<p class="text-center text-red-500">Gagal memuat riwayat transaksi.</p>`;
+    document.getElementById(
+      "invoiceHistoryContent"
+    ).innerHTML = `<p class="text-center text-red-500">Gagal memuat riwayat invoice.</p>`;
+  }
+}
+
+function openAdminFeeModal(uid, currentFixedAmount) {
+  console.log(
+    `[MODAL ADMIN FEE] Membuka pengaturan biaya admin fixed fee untuk UID: ${uid}`
+  );
+
+  const modal = document.getElementById("adminFeeModal");
+  const title = document.getElementById("adminFeeModalTitle");
+  // 🔥 ID INPUT DIUBAH 🔥
+  const inputFixedAmount = document.getElementById("adminFeeFixedAmountInput");
+  const sellerUidInput = document.getElementById("adminFeeSellerUid");
+
+  if (!modal) {
+    console.error("Elemen adminFeeModal tidak ditemukan.");
+    return;
+  }
+
+  // Mengisi data modal
+  title.textContent = "Atur Biaya Admin Tetap";
+  sellerUidInput.value = uid;
+
+  // 🔥 Mengisi nilai saat ini (langsung dalam format angka) 🔥
+  inputFixedAmount.value = currentFixedAmount || 0;
+
+  // Tampilkan modal
+  modal.classList.remove("hidden");
+}
+
+function closeAdminFeeModal() {
+  const modal = document.getElementById("adminFeeModal");
+  if (modal) {
+    modal.classList.add("hidden");
+  }
+}
+
+async function handleAdminFeeSubmission(event) {
+  event.preventDefault();
+
+  const uid = document.getElementById("adminFeeSellerUid").value;
+  // 🔥 ID INPUT DIUBAH 🔥
+  const fixedAmountInput = document.getElementById(
+    "adminFeeFixedAmountInput"
+  ).value;
+
+  // Konversi input ke format integer (mata uang)
+  const newFixedFee = parseInt(fixedAmountInput);
+
+  if (isNaN(newFixedFee) || newFixedFee < 0) {
+    Swal.fire("Error", "Biaya Admin harus berupa angka, minimal Rp0.", "error");
+    return;
+  }
+
+  const formattedFee = formatIDR(newFixedFee); // Gunakan fungsi formatIDR Anda untuk konfirmasi
+
+  Swal.fire({
+    title: "Konfirmasi",
+    text: `Anda yakin ingin mengatur Biaya Admin Tetap per transaksi untuk penjual ini menjadi ${formattedFee}?`,
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Ya, Atur!",
+    cancelButtonText: "Batal",
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      try {
+        // 🔥 LOGIKA DATABASE UTAMA: Menyimpan nilai mata uang ke field baru 🔥
+        await db.collection("sellers").doc(uid).update({
+          adminFeeFixedAmount: newFixedFee,
+          // Opsional: Hapus field persentase lama jika sudah tidak dipakai
+          adminFeePercentage: firebase.firestore.FieldValue.delete(),
+        });
+
+        closeAdminFeeModal();
+
+        // Refresh data detail pengguna
+        viewUserDetails(uid);
+
+        Swal.fire(
+          "Berhasil!",
+          "Biaya Admin Tetap berhasil diperbarui.",
+          "success"
+        );
+      } catch (error) {
+        console.error("Gagal menyimpan biaya admin fixed fee:", error);
+        Swal.fire(
+          "Error Database",
+          `Gagal menyimpan data: ${error.message}`,
+          "error"
+        );
+      }
+    }
+  });
+}
+
+// Tambahkan fungsi ini di script.js Anda, di samping fungsi Chart.js lainnya
+function renderSellerSalesChart(data) {
+  const ctx = document.getElementById("sellerSalesChart");
+
+  // Hancurkan instance lama sebelum membuat yang baru (PENTING!)
+  if (sellerSalesChartInstance) {
+    sellerSalesChartInstance.destroy();
+  }
+
+  if (!ctx) {
+    console.warn(
+      "Canvas #sellerSalesChart tidak ditemukan saat mencoba render."
+    );
+    return;
+  }
+
+  const defaultData = {
+    labels: ["N/A"],
+    datasets: [
+      { label: "Penjualan Bersih (Rp)", data: [0], backgroundColor: "#ccc" },
+    ],
+  };
+
+  const finalData = data ? data : defaultData;
+
+  sellerSalesChartInstance = new Chart(ctx, {
+    type: "bar",
+    data: finalData,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: "Pendapatan (Rp)",
+          },
+          ticks: {
+            callback: function (value) {
+              return "Rp " + value.toLocaleString("id-ID");
+            },
+          },
+        },
+        x: {
+          title: {
+            display: true,
+            text: "Periode (Bulan/Tahun)",
+          },
+        },
+      },
+      plugins: {
+        legend: {
+          display: false,
+        },
+      },
+    },
+  });
+}
+
+function closePublishInvoiceModal() {
+  const modal = document.getElementById("publishInvoiceModal");
+
+  if (modal) {
+    modal.classList.add("hidden");
+
+    // --- 1. Reset Formulir dan Data Tersembunyi ---
+    const form = document.getElementById("invoiceForm"); // Menggunakan ID yang konsisten (invoiceForm)
+    if (form) {
+      form.reset();
+    }
+
+    // Kosongkan ID dokumen agar siap untuk "Terbitkan Baru" berikutnya
+    const invoiceDocIdInput = document.getElementById("invoiceDocId");
+    if (invoiceDocIdInput) {
+      invoiceDocIdInput.value = "";
+    }
+
+    // Kosongkan URL Bukti Transfer yang tersembunyi
+    const invoiceProofUrlInput = document.getElementById("invoiceProofUrl");
+    if (invoiceProofUrlInput) {
+      invoiceProofUrlInput.value = "";
+    }
+
+    // --- 2. Reset Judul dan Teks Tampilan ---
+    // Judul utama (asumsi ini adalah h3 di dalam modal)
+    const titleElement = modal.querySelector("h3");
+    if (titleElement) {
+      // Reset ke mode default "Terbitkan Invoice Baru"
+      titleElement.textContent = "Terbitkan Invoice Baru: ";
+    }
+
+    // Bersihkan display Seller ID
+    const invoiceSellerIdDisplay = document.getElementById("invoiceSellerId");
+    if (invoiceSellerIdDisplay) {
+      invoiceSellerIdDisplay.textContent = "";
+    }
+
+    // --- 3. Sembunyikan link bukti transfer (Jika ada) ---
+    // Asumsi Anda memiliki elemen `proofLink` yang menampilkan link bukti
+    // Karena elemen ini tidak ada di HTML yang kita sediakan, ini adalah asumsi.
+    // Jika Anda menggunakan ID 'proofLink', pastikan ID tersebut ada di HTML Anda.
+    const proofLinkElement = document.getElementById("proofLink");
+    if (proofLinkElement) {
+      proofLinkElement.classList.add("hidden");
+    }
+  }
+}
+
+async function handleInvoiceSubmission(event) {
+  event.preventDefault();
+
+  const uid = document.getElementById("invoiceSellerUid").value;
+  const invoiceId = document.getElementById("invoiceIdToUpdate").value;
+  const packageName = document.getElementById("packageName").value;
+
+  // Mengambil data Bulanan
+  const monthlyPrice = parseInt(document.getElementById("monthlyPrice").value);
+  const monthYear = document.getElementById("monthYear").value;
+
+  const status = document.getElementById("paymentStatus").value;
+  const proofFile = document.getElementById("transferProof").files[0];
+
+  let proofUrl = document.getElementById("proofLink").href.includes("http")
+    ? document.getElementById("proofLink").href
+    : "";
+
+  try {
+    // --- LOGIKA UPLOAD BUKTI TRANSFER (Asumsi Anda sudah punya) ---
+    if (proofFile) {
+      // Misalnya: proofUrl = await uploadFile(proofFile);
+      // Anda harus memastikan fungsi uploadFile atau logika Firebase Storage sudah terimplementasi di sini
+      console.log("Simulasi: Mengupload bukti transfer...");
+    }
+
+    // STRUKTUR DATA DIKEMBALIKAN KE SEWA BULANAN
+    const invoiceData = {
+      sellerId: uid,
+      packageName: packageName,
+      price: monthlyPrice, // Harga adalah harga bulanan
+      monthYear: monthYear, // Periode tagihan
+      status: status,
+      proofUrl: proofUrl,
+      // Field Komisi (feePerTransaction, transactionCount) dihapus
+    };
+
+    if (invoiceId) {
+      // MODE EDIT / UPDATE PEMBAYARAN
+      await db
+        .collection("invoices")
+        .doc(invoiceId)
+        .update({
+          ...invoiceData,
+          paymentDate:
+            status === "Lunas"
+              ? firebase.firestore.FieldValue.serverTimestamp()
+              : null,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+      alert(
+        `Invoice ${invoiceId} berhasil diperbarui (Tagihan: ${formatIDR(
+          monthlyPrice
+        )}).`
+      );
+    } else {
+      // MODE TERBITKAN BARU
+      const newDocRef = await db.collection("invoices").add({
+        ...invoiceData,
+        invoiceId: `INV-${monthYear.replace("-", "")}-${Math.random()
+          .toString(36)
+          .substring(2, 6)
+          .toUpperCase()}`, // ID Unik
+        issueDate: firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      alert(
+        `Invoice baru (${
+          newDocRef.id
+        }) berhasil diterbitkan (Tagihan: ${formatIDR(monthlyPrice)}).`
+      );
+    }
+
+    closePublishInvoiceModal();
+    viewUserDetails(uid);
+  } catch (error) {
+    console.error("Gagal menyimpan invoice:", error);
+    alert("Gagal menyimpan invoice: " + error.message);
+  }
+}
+
+function openPublishInvoiceModal(sellerId, invoiceData = null) {
+  const modal = document.getElementById("publishInvoiceModal");
+  const form = document.getElementById("invoiceForm");
+
+  // 🔥 Ambil referensi elemen yang RENTAN ERROR dan tambahkan Pengecekan (PENTING!) 🔥
+  const titleElement = modal ? modal.querySelector("h3") : null;
+  const invoiceSellerIdDisplay = document.getElementById("invoiceSellerId"); // Kemungkinan penyebab error
+
+  // Ambil referensi elemen input lainnya
+  const invoiceFixedFeeRateInput = document.getElementById(
+    "invoiceFixedFeeRate"
+  );
+  const invoiceDocIdInput = document.getElementById("invoiceDocId");
+  const invoiceSellerUidInput = document.getElementById("invoiceSellerUid");
+  const invoicePackageNameInput = document.getElementById("invoicePackageName");
+  const invoicePriceInput = document.getElementById("invoicePrice");
+  const invoiceMonthYearInput = document.getElementById("invoiceMonthYear");
+  const invoiceStatusSelect = document.getElementById("invoiceStatus");
+
+  // Pastikan modal ada sebelum melanjutkan
+  if (!modal) {
+    console.error("Modal 'publishInvoiceModal' tidak ditemukan.");
+    return;
+  }
+
+  // Reset Form (Jika form ditemukan)
+  if (form) {
+    form.reset();
+
+    // Atur default/reset nilai tersembunyi
+    if (invoiceDocIdInput) invoiceDocIdInput.value = "";
+    if (invoiceSellerUidInput) invoiceSellerUidInput.value = sellerId;
+  } else {
+    console.error("Form 'invoiceForm' tidak ditemukan di dalam modal.");
+    return;
+  }
+
+  // Mengatur tampilan ID Penjual (Ini adalah baris yang paling sering menyebabkan error)
+  if (invoiceSellerIdDisplay) {
+    invoiceSellerIdDisplay.textContent = `UID: ${sellerId}`;
+  }
+
+  if (invoiceData && invoiceData.docId) {
+    // --- MODE EDIT INVOICE ---
+    if (titleElement) {
+      titleElement.textContent = `Edit & Catat Pembayaran Invoice: `;
+    }
+
+    if (invoiceDocIdInput) invoiceDocIdInput.value = invoiceData.docId;
+
+    // Isi form dengan data yang ada (dengan pengecekan elemen)
+    if (invoicePackageNameInput)
+      invoicePackageNameInput.value = invoiceData.packageName || "";
+
+    // 🔥 Mengisi Fixed Fee Rate baru 🔥
+    if (invoiceFixedFeeRateInput)
+      invoiceFixedFeeRateInput.value = invoiceData.fixedFeeRate || 0;
+
+    // Mengisi Total Biaya Admin Bulan Ini (price)
+    if (invoicePriceInput)
+      invoicePriceInput.value =
+        invoiceData.price || invoiceData.monthlyPrice || 0;
+
+    if (invoiceMonthYearInput)
+      invoiceMonthYearInput.value = invoiceData.monthYear || "";
+    if (invoiceStatusSelect)
+      invoiceStatusSelect.value = invoiceData.status || "Pending";
+  } else {
+    // --- MODE TERBITKAN INVOICE BARU ---
+    if (titleElement) {
+      titleElement.textContent = `Terbitkan Invoice Baru: `;
+    }
+
+    // Set nilai default untuk invoice baru (dengan pengecekan elemen)
+    if (invoicePackageNameInput)
+      invoicePackageNameInput.value = "Biaya Admin Per-Transaksi";
+    if (invoicePriceInput) invoicePriceInput.value = ""; // Biarkan kosong
+    if (invoiceFixedFeeRateInput) invoiceFixedFeeRateInput.value = "";
+
+    // Set periode default ke bulan dan tahun saat ini
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const year = today.getFullYear();
+    if (invoiceMonthYearInput) invoiceMonthYearInput.value = `${year}-${month}`;
+    if (invoiceStatusSelect) invoiceStatusSelect.value = "Pending";
+  }
+
+  // Tampilkan Modal
+  modal.classList.remove("hidden");
+
+  // Logika submit form (gunakan fungsi submitInvoiceForm yang sudah kita buat)
+  if (form) {
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      submitInvoiceForm();
+    };
+  }
+}
+
+async function submitInvoiceForm() {
+  const form = document.getElementById("invoiceForm");
+  const invoiceDocId = document.getElementById("invoiceDocId").value;
+  const isEditing = !!invoiceDocId; // True jika ada docId (mode edit)
+  const submitButton = form.querySelector('button[type="submit"]');
+
+  // 1. Ambil data dari form
+  const formData = {
+    sellerId: document.getElementById("invoiceSellerUid").value,
+    packageName: document.getElementById("invoicePackageName").value,
+
+    // 🔥 Kolom baru: Biaya Admin Per Transaksi (diubah menjadi Number)
+    fixedFeeRate: Number(document.getElementById("invoiceFixedFeeRate").value),
+
+    // 🔥 Kolom yang labelnya berubah: Total Biaya Admin Bulan Ini (diubah menjadi Number)
+    price: Number(document.getElementById("invoicePrice").value),
+
+    monthYear: document.getElementById("invoiceMonthYear").value,
+    status: document.getElementById("invoiceStatus").value,
+    proofUrl: document.getElementById("invoiceProofUrl").value || null, // URL bukti yang sudah ada
+  };
+
+  const proofFileInput = document.getElementById("invoiceProof");
+  const file = proofFileInput.files[0];
+
+  // Validasi dasar
+  if (
+    !formData.sellerId ||
+    !formData.monthYear ||
+    formData.price <= 0 ||
+    formData.fixedFeeRate < 0
+  ) {
+    // 🔥 Ganti alert() dengan Swal.fire() (Warning)
+    Swal.fire({
+      icon: "warning",
+      title: "Data Tidak Lengkap",
+      text: "UID Penjual, Periode, dan Total Biaya Admin (Harus > 0) harus diisi dengan benar.",
+      confirmButtonText: "Oke",
+    });
+    return;
+  }
+
+  // Tampilkan loading state
+  submitButton.disabled = true;
+  submitButton.textContent = isEditing ? "Menyimpan..." : "Menerbitkan...";
+
+  try {
+    let finalProofUrl = formData.proofUrl;
+
+    // 2. Proses File Upload (Jika ada file baru)
+    if (file) {
+      console.log("Mengupload bukti pembayaran...");
+      const storagePath = `invoice_proofs/${formData.sellerId}/${Date.now()}_${
+        file.name
+      }`;
+      const fileRef = firebase.storage().ref(storagePath);
+
+      const snapshot = await fileRef.put(file);
+      finalProofUrl = await snapshot.ref.getDownloadURL();
+
+      console.log("Upload selesai. URL:", finalProofUrl);
+    }
+
+    // 3. Persiapan Data Akhir untuk Firestore
+    const dataToSave = {
+      ...formData,
+      proofUrl: finalProofUrl,
+      // Tambahkan/Update timestamp
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    };
+
+    // Jika mode Terbitkan Baru, tambahkan createdAt
+    if (!isEditing) {
+      dataToSave.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      dataToSave.invoiceId = `INV-${formData.monthYear.replace(
+        "-",
+        ""
+      )}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    }
+
+    // 4. Menyimpan/Memperbarui di Firestore
+    if (isEditing) {
+      // Mode Update
+      await db.collection("invoices").doc(invoiceDocId).update(dataToSave);
+      console.log(`Invoice ID ${invoiceDocId} berhasil diupdate.`);
+
+      // 🔥 Ganti alert() dengan Swal.fire() (Success)
+      Swal.fire("Berhasil!", "Invoice berhasil diperbarui.", "success");
+    } else {
+      // Mode Create (Terbitkan Baru)
+      await db.collection("invoices").add(dataToSave);
+      console.log("Invoice baru berhasil diterbitkan.");
+
+      // 🔥 Ganti alert() dengan Swal.fire() (Success)
+      Swal.fire("Berhasil!", "Invoice baru berhasil diterbitkan.", "success");
+    }
+
+    // 5. Tutup Modal dan Refresh Tampilan
+    closePublishInvoiceModal();
+
+    // Setelah menyimpan, panggil ulang fungsi detail pengguna untuk me-refresh riwayat invoice
+    const currentSellerId = document.getElementById("detailUid").textContent;
+    if (currentSellerId) {
+      viewUserDetails(currentSellerId);
+    }
+  } catch (error) {
+    console.error("Error saat submit invoice:", error);
+
+    // 🔥 Ganti alert() dengan Swal.fire() (Error)
+    Swal.fire({
+      icon: "error",
+      title: "Gagal Menyimpan",
+      html: `Gagal menyimpan invoice: <strong>${error.message}</strong>. Cek konsol untuk detail teknis.`,
+      confirmButtonText: "Tutup",
+    });
+  } finally {
+    // Hapus loading state
+    submitButton.disabled = false;
+    submitButton.textContent = isEditing
+      ? "Simpan Invoice"
+      : "Terbitkan Invoice";
+  }
+}
 
 async function loadNotificationHistory(targetUid) {
   const historyContent = document.getElementById("historyContent");
@@ -3549,7 +4930,7 @@ function setupRealTimeNotificationsListener() {
               : "Baru Saja";
 
           notificationHtml += `
-                    <div id="info-card-${docId}" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-4 shadow-lg rounded-lg relative">
+                    <div id="info-card-${docId}" class="bg-red-100 border-l-4 border-red-500 text-red-800 p-4 mb-4 shadow-lg rounded-lg relative">
                         <h3 class="font-bold text-lg mb-1 flex justify-between items-center">
                             ${data.title}
                             <span class="text-xs text-gray-500">${formattedTime}</span>
@@ -3558,7 +4939,7 @@ function setupRealTimeNotificationsListener() {
                         <div class="mt-2 text-right">
                             <button 
                                 onclick="markNotificationAsRead('${docId}')" 
-                                class="text-xs text-yellow-700 hover:text-yellow-900 font-medium py-1 px-3 bg-yellow-200 rounded-md transition duration-300"
+                                class="text-xs text-white bg-red-600 hover:bg-red-700 font-medium py-1 px-3 rounded-md transition duration-300 shadow-md"
                             >
                                 Tandai Sudah Dibaca
                             </button>
@@ -5302,7 +6683,7 @@ Mohon konfirmasi ketersediaan produk dan instruksi pembayarannya. Terima kasih!`
       currentOrderProductDetail.hargaAsli || currentOrderProductDetail.price;
     const hargaDiskonSingle = currentOrderProductDetail.hargaDiskon || null;
     const isDiscountedSingle =
-      hargaDiskonSingle !== null && hargaAskonSingle < hargaAsliSingle;
+      hargaDiskonSingle !== null && hargaDiskonSingle < hargaAsliSingle;
 
     orderItems.push({
       nama: currentOrderProductDetail.nama,

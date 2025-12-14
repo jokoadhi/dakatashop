@@ -1716,49 +1716,269 @@
         </div>
       </div>
     </div>
-
-    <div id="notificationModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50 overflow-y-auto" onclick="closeModal()">
+<div id="userDetailsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50 overflow-y-auto" onclick="closeDetailModal()">
     <div class="flex items-center justify-center min-h-screen">
-        <div class="bg-white rounded-lg shadow-xl w-11/12 md:w-1/2 lg:w-1/3 mx-auto p-6 transition-all transform duration-300" 
+        <div class="bg-white rounded-lg shadow-xl w-11/12 md:w-4/5 lg:w-4/5 mx-auto p-6 transition-all transform duration-300 max-h-[90vh]" 
              onclick="event.stopPropagation()">
             
-            <div class="flex justify-between items-center border-b pb-3">
-                <h3 class="text-xl font-bold text-gray-800">Kirim Notifikasi ke Penjual</h3>
-                <button onclick="closeModal()" class="text-gray-500 hover:text-gray-800 text-2xl font-semibold leading-none">&times;</button>
+            <span id="detailUid" style="display: none;"></span> 
+            
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 class="text-2xl font-bold text-gray-800">Detail Pengguna: <span id="detailShopName" class="text-blue-600">Memuat...</span></h3>
+                <button onclick="closeDetailModal()" class="text-gray-500 hover:text-gray-800 text-3xl font-semibold leading-none">&times;</button>
             </div>
 
-            <form id="notificationForm" class="mt-4">
-                <input type="hidden" id="targetUid">
-                <input type="hidden" id="targetEmail">
-
-                <div class="mb-4">
-                    <label for="displayEmail" class="block text-sm font-medium text-gray-700">Penerima</label>
-                    <input type="text" id="displayEmail" class="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed" readonly>
+            <div class="overflow-y-auto max-h-[75vh] pr-2 space-y-6">
+                
+                <div class="bg-white border rounded-lg shadow-lg p-5">
+                    <h4 class="text-xl font-semibold border-b pb-2 mb-4 text-gray-700">Profil Penjual</h4>
+                    <div id="profileContent" class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-3 text-sm">
+                        </div>
                 </div>
 
-                <div class="mb-4">
-                    <label for="notificationTitle" class="block text-sm font-medium text-gray-700">Judul Notifikasi</label>
-                    <input type="text" id="notificationTitle" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                <div class="bg-white border rounded-lg shadow-lg p-3 sm:p-4">
+    <h4 class="text-base sm:text-lg font-semibold border-b pb-2 mb-3 text-gray-700">Dasbor & Statistik Penjualan</h4>
+    
+    <div id="adminFeeSettingContainer" class="flex flex-col sm:flex-row items-start sm:items-center justify-between py-2 mb-3 border-b border-dashed border-gray-200">
+        <p class="text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-0">
+            Biaya Admin Saat Ini: 
+            <span id="currentAdminFee" class="font-bold text-indigo-600">Memuat...</span>
+        </p>
+        <button 
+            id="adminFeeSettingBtn"
+            class="px-2 py-1 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 transition hidden">
+            Atur Biaya Admin
+        </button>
+    </div>
+    
+    <div id="dashboardFilterWrapper" class="flex items-center space-x-3 mt-2 mb-4 hidden">
+    <label class="text-sm font-medium text-gray-700">Periode:</label>
+    
+    <div class="relative">
+        <button id="periodInput" type="button" 
+                class="border rounded-lg text-sm p-1.5 focus:ring-indigo-500 focus:border-indigo-500 w-40 text-left flex justify-between items-center bg-white hover:bg-gray-50 transition">
+            <span id="selectedPeriodText">Memuat...</span>
+            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+        </button>
+
+        <div id="calendarPopup" 
+             class="absolute right-0 mt-2 z-10 bg-white border border-gray-300 rounded-lg shadow-xl p-4 hidden w-64">
+            
+            <div class="flex justify-between items-center mb-3">
+                <button id="prevYear" class="text-indigo-600 hover:text-indigo-800 font-bold text-lg">&lt;</button>
+                <select id="filterYear" class="text-base font-semibold border-none focus:ring-0 p-0 text-center"></select>
+                <button id="nextYear" class="text-indigo-600 hover:text-indigo-800 font-bold text-lg">&gt;</button>
+            </div>
+            
+            <div id="monthGrid" class="grid grid-cols-3 gap-2">
+                </div>
+            
+        </div>
+    </div>
+</div>
+    <div id="dashboardContent" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        </div>
+
+    <div id="sellerChartWrapper" class="border p-3 rounded-lg bg-gray-50">
+        <h5 class="text-sm sm:text-base font-medium mb-2">Statistik Penjualan per Periode</h5>
+        <div style="height: 250px;">
+            <canvas id="sellerSalesChart"></canvas>
+        </div>
+    </div>
+</div>
+                
+                <div class="bg-white border rounded-lg shadow-lg p-5">
+                    <h4 class="text-xl font-semibold border-b pb-2 mb-4 text-gray-700">Riwayat Transaksi</h4>
+                    <div id="recentTransactionsContent" class="space-y-3">
+                        </div>
+                </div>
+                
+                <div class="bg-white border rounded-lg shadow-lg p-5">
+                    <h4 class="text-xl font-semibold border-b pb-2 mb-4 text-gray-700">Riwayat Invoice Sewa Toko</h4>
+                    <div class="flex justify-between items-center pb-2 mb-4">
+                        <h4 class="text-xl font-semibold text-gray-700">Daftar Invoice</h4>
+                        <button 
+                            onclick="openPublishInvoiceModal(document.getElementById('detailUid').textContent)" 
+                            class="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition">
+                            Terbitkan Invoice Baru
+                        </button>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <div id="invoiceHistoryContent" class="space-y-3 min-w-max">
+                            </div>
+                    </div>
+                    </div>
+                
+            </div>
+
+            <div class="mt-4 pt-3 border-t">
+                <button onclick="closeDetailModal()" class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition duration-150">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="adminFeeModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden z-[60] overflow-y-auto" onclick="closeAdminFeeModal()">
+    <div class="flex items-center justify-center min-h-screen p-2 sm:p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-xs sm:max-w-sm mx-auto p-4 sm:p-5 transition-all transform duration-300" 
+             onclick="event.stopPropagation()">
+            
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 class="text-xl sm:text-2xl font-bold text-gray-800" id="adminFeeModalTitle">Atur Biaya Admin Transaksi</h3>
+                <button onclick="closeAdminFeeModal()" class="text-gray-500 hover:text-gray-800 text-2xl font-semibold leading-none">&times;</button>
+            </div>
+
+            <form id="adminFeeForm" onsubmit="handleAdminFeeSubmission(event)" class="space-y-3">
+                <input type="hidden" id="adminFeeSellerUid">
+
+                <div class="space-y-2 sm:space-y-3">
+                    
+                    <div>
+                        <label for="adminFeeFixedAmountInput" class="block text-xs sm:text-sm font-medium text-gray-700">
+                            Biaya Admin Tetap per Transaksi (Rp)
+                        </label>
+                        <div class="mt-1 flex rounded-lg shadow-sm">
+                            <span class="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
+                                Rp
+                            </span>
+                            <input
+                                type="number"
+                                id="adminFeeFixedAmountInput"
+                                required
+                                min="0"
+                                step="100"
+                                placeholder="Cth: 500"
+                                class="block w-full px-3 py-2 text-sm border border-gray-300 rounded-r-lg focus:ring-indigo-500 focus:border-indigo-500"
+                            />
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500">Masukkan biaya tetap (cth: 500) yang akan dikenakan per transaksi.</p>
+                    </div>
                 </div>
 
-                <div class="mb-6">
-                    <label for="notificationMessage" class="block text-sm font-medium text-gray-700">Pesan</label>
-                    <textarea id="notificationMessage" rows="4" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"></textarea>
-                </div>
-
-                <div class="flex justify-end space-x-3">
-                    <button type="button" onclick="closeModal()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition duration-150">Batal</button>
-                    <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition duration-150">Kirim Notifikasi</button>
+                <div class="mt-4 flex justify-end space-x-3 pt-2 border-t">
+                    <button type="button" onclick="closeAdminFeeModal()" class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300">Batal</button>
+                    <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">Simpan Pengaturan</button>
                 </div>
             </form>
 
-            <div id="notificationHistoryContainer" class="mt-6 pt-4 border-t border-gray-200">
-                <h4 class="text-lg font-bold mb-3 text-gray-700">Riwayat Pesan Terkirim</h4>
-                <div id="historyContent" class="space-y-3 max-h-60 overflow-y-auto">
+        </div>
+    </div>
+</div>
+
+<div id="publishInvoiceModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50 overflow-y-auto" onclick="closePublishInvoiceModal()">
+    <div class="flex items-center justify-center min-h-screen p-4 sm:p-8"> 
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-auto p-4 sm:p-6 transition-all transform duration-300" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 class="text-xl font-bold text-gray-800">Edit & Catat Pembayaran Invoice: <span id="invoiceSellerId" class="text-sm text-gray-500"></span></h3>
+                <button onclick="closePublishInvoiceModal()" class="text-gray-500 hover:text-gray-800 text-3xl font-semibold leading-none">&times;</button>
+            </div>
+
+            <form id="invoiceForm">
+                <input type="hidden" id="invoiceDocId" name="docId">
+                <input type="hidden" id="invoiceOldPrice" name="oldPrice">
+                <input type="hidden" id="invoiceSellerUid" name="sellerId">
+
+                <div class="mb-4">
+                    <label for="invoicePackageName" class="block text-sm font-medium text-gray-700">Nama Paket</label>
+                    <input type="text" id="invoicePackageName" name="packageName" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500" required>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="invoiceFixedFeeRate" class="block text-sm font-medium text-gray-700">Biaya Admin Per Transaksi (Rp)</label>
+                    <input type="number" id="invoiceFixedFeeRate" name="fixedFeeRate" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Contoh: 500" required>
+                    <p class="text-xs text-gray-500 mt-1">Biaya admin tetap per transaksi yang dikenakan kepada penjual pada periode ini.</p>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="invoicePrice" class="block text-sm font-medium text-gray-700">Total Biaya Admin Bulan Ini (IDR)</label>
+                    <input type="number" id="invoicePrice" name="price" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Contoh: 20000" required>
+                    <p class="text-xs text-gray-500 mt-1 text-red-500 font-medium">Pastikan nilai ini adalah total biaya admin untuk bulan tagihan, dihitung dari semua transaksi.</p>
+                </div>
+
+                <div class="mb-4">
+                    <label for="invoiceMonthYear" class="block text-sm font-medium text-gray-700">Periode Tagihan (cth: 2026-01)</label>
+                    <input type="text" id="invoiceMonthYear" name="monthYear" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="YYYY-MM" required>
+                </div>
+
+                <div class="p-4 bg-gray-50 border rounded-lg">
+                    <h5 class="text-md font-semibold mb-3">Pencatatan Pembayaran</h5>
+                    <div class="mb-4">
+                        <label for="invoiceStatus" class="block text-sm font-medium text-gray-700">Status Pembayaran</label>
+                        <select id="invoiceStatus" name="status" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="Pending">Pending (Belum Dibayar)</option>
+                            <option value="Lunas">Lunas</option>
+                            <option value="Tertunda">Tertunda</option>
+                            <option value="Gagal">Gagal</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="invoiceProof" class="block text-sm font-medium text-gray-700">Bukti Transfer (Admin Upload/Catat)</label>
+                        <input type="file" id="invoiceProof" name="proofFile" class="mt-1 block w-full text-sm text-gray-500
+                            file:mr-4 file:py-2 file:px-4
+                            file:rounded-md file:border-0
+                            file:text-sm file:font-semibold
+                            file:bg-indigo-50 file:text-indigo-700
+                            hover:file:bg-indigo-100
+                        ">
+                        <p class="text-xs text-gray-500 mt-1">Admin dapat mengupload bukti atau mencatatnya sudah diterima secara manual.</p>
+                        <input type="hidden" id="invoiceProofUrl" name="proofUrl">
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" onclick="closePublishInvoiceModal()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition duration-150">Batal</button>
+                    <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition duration-150">Simpan Invoice</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="notificationModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50 overflow-y-auto" onclick="closeModal()">
+    <div class="flex items-center justify-center min-h-screen p-2 sm:p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-xs sm:max-w-sm mx-auto p-4 sm:p-5 transition-all transform duration-300" 
+             onclick="event.stopPropagation()">
+            
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="text-xl sm:text-2xl font-bold text-gray-800">Kirim Notifikasi ke Penjual</h3>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-gray-800 text-2xl font-semibold leading-none">&times;</button>
+            </div>
+
+            <form id="notificationForm" class="mt-4 space-y-2 sm:space-y-3">
+                <input type="hidden" id="targetUid">
+                <input type="hidden" id="targetEmail">
+
+                <div>
+                    <label for="displayEmail" class="block text-xs sm:text-sm font-medium text-gray-700">Penerima</label>
+                    <input type="text" id="displayEmail" class="mt-1 block w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed" readonly>
+                </div>
+
+                <div>
+                    <label for="notificationTitle" class="block text-xs sm:text-sm font-medium text-gray-700">Judul Notifikasi</label>
+                    <input type="text" id="notificationTitle" required class="mt-1 block w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+
+                <div class="mb-4">
+                    <label for="notificationMessage" class="block text-xs sm:text-sm font-medium text-gray-700">Pesan</label>
+                    <textarea id="notificationMessage" rows="3" required class="mt-1 block w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+
+                <div class="flex justify-end space-x-3 pt-2 border-t">
+                    <button type="button" onclick="closeModal()" class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-150">Batal</button>
+                    <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition duration-150">Kirim Notifikasi</button>
+                </div>
+            </form>
+
+            <div id="notificationHistoryContainer" class="mt-4 pt-4 border-t border-gray-200">
+                <h4 class="text-sm font-bold mb-3 text-gray-700">Riwayat Pesan Terkirim</h4>
+                <div id="historyContent" class="space-y-3 max-h-40 overflow-y-auto text-xs">
                     <p class="text-center text-gray-500 text-sm">Memuat riwayat...</p>
                 </div>
             </div>
-            </div>
+            
+        </div>
     </div>
 </div>
 
