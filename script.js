@@ -2452,26 +2452,28 @@ async function handleSubmitAuth(e) {
     setLoading(authSubmitBtn, false, originalText);
   }
 }
+
 // Update UI berdasarkan status Auth (PENTING)
 auth.onAuthStateChanged(async (user) => {
   // 🔥 AMBIL REFERENSI DOM DI AWAL UNTUK MENGATASI MASALAH TIMING
 
-  // 🔥🔥🔥 PERUBAHAN ID TOMBOL AUTENTIKASI 🔥🔥🔥
-  const authBtn = document.getElementById("auth-btn"); // <--- MENGGUNAKAN ID 'auth-btn'
-
-  // Asumsi ID DOM yang benar:
+  // 🔥🔥🔥 INISIALISASI DOM DENGAN ID YANG BENAR 🔥🔥🔥
+  const authBtn = document.getElementById("auth-btn");
   const mainBanner = document.getElementById("main-banner");
   const profileBtn = document.getElementById("profileBtn");
   const sellerControls = document.getElementById("seller-controls");
   const sellerGreeting = document.getElementById("seller-greeting");
-  const adminBtn = document.getElementById("adminBtn");
+
+  // ✅ ID TOMBOL ADMIN YANG BENAR
+  const adminBtn = document.getElementById("admin-btn"); // <--- FIX ID
+
   const addUserBtn = document.getElementById("addUserBtn");
   const managementView = document.getElementById("management-view");
   const adminView = document.getElementById("adminView");
   const productListWrapper = document.getElementById("product-list-wrapper");
 
-  // 🔥🔥🔥 PERUBAHAN ID TOMBOL MANAGEMENT 🔥🔥🔥
-  const manageBtn = document.getElementById("manage-btn"); // <--- MENGGUNAKAN ID 'manage-btn'
+  // ✅ ID TOMBOL MANAGEMENT YANG BENAR
+  const manageBtn = document.getElementById("manage-btn");
 
   if (user) {
     // 🔥 LOG VERIFIKASI UTAMA
@@ -2483,13 +2485,12 @@ auth.onAuthStateChanged(async (user) => {
     const sellerData = await getSellerData(user.uid);
 
     if (!sellerData) {
-      // Ini hanya terjadi jika user login tapi data seller tidak ada/gagal dimuat
       auth.signOut();
       return;
     }
 
     const shopName = sellerData.shopName || user.email.split("@")[0];
-    const userRole = sellerData.role; // Mendapatkan role
+    const userRole = sellerData.role;
 
     if (!isInitialLoad) {
       Swal.fire({
@@ -2508,23 +2509,16 @@ auth.onAuthStateChanged(async (user) => {
 
     if (userRole && userRole !== "admin") {
       console.log("[NOTIF] Memuat notifikasi realtime untuk user penjual...");
-
-      // Hapus listener notifikasi lama jika ada
       if (typeof unsubscribeNotifications === "function") {
         unsubscribeNotifications();
         unsubscribeNotifications = null;
         console.log("RT Listener: Listener notifikasi lama dihentikan.");
       }
-
-      // Pasang listener notifikasi realtime yang baru
       if (typeof setupRealTimeNotificationsListener === "function") {
         unsubscribeNotifications = setupRealTimeNotificationsListener();
       }
     } else {
-      // Jika admin, pastikan banner info tersembunyi
       if (infoWrapper) infoWrapper.classList.add("hidden");
-
-      // Hentikan listener notifikasi jika user adalah admin atau tidak ada role
       if (typeof unsubscribeNotifications === "function") {
         unsubscribeNotifications();
         unsubscribeNotifications = null;
@@ -2537,9 +2531,8 @@ auth.onAuthStateChanged(async (user) => {
 
     if (mainBanner) mainBanner.classList.add("hidden");
 
-    // --- TAMPILAN HEADER (Login/Logout & Profil) ---
+    // --- TAMPILAN HEADER (Logout) ---
     if (authBtn) {
-      // ✅ Menggunakan textContent sesuai permintaan (untuk tombol Logout)
       authBtn.textContent = `Logout`;
       authBtn.classList.remove(
         "bg-gold-accent",
@@ -2565,6 +2558,10 @@ auth.onAuthStateChanged(async (user) => {
 
         adminBtn.textContent = "Admin (Pelanggan)";
 
+        // Memastikan listener admin dipasang dengan benar
+        adminBtn.removeEventListener("click", toggleAdminView);
+        adminBtn.addEventListener("click", toggleAdminView);
+
         if (adminView) adminView.classList.add("hidden");
         if (productListWrapper) productListWrapper.classList.remove("hidden");
       } else {
@@ -2579,7 +2576,7 @@ auth.onAuthStateChanged(async (user) => {
     if (adminView) adminView.classList.add("hidden");
     if (productListWrapper) productListWrapper.classList.remove("hidden");
 
-    // --- PEMASANGAN EVENT LISTENER KRITIS UNTUK manageBtn ---
+    // --- PEMASANGAN EVENT LISTENER KRITIS UNTUK manageBtn (FIX TIMING) ---
     if (manageBtn) {
       console.log(
         "VERIFIKASI DOM: Elemen manageBtn ditemukan (ID: 'manage-btn'). Memasang Listener."
@@ -2588,16 +2585,12 @@ auth.onAuthStateChanged(async (user) => {
       // 🔥🔥 Terapkan kelas 'relative' untuk posisi badge
       manageBtn.classList.add("relative");
 
-      // Hapus listener lama untuk mencegah duplikasi pemanggilan
+      // FIX: Hapus listener lama jika ada (termasuk listener anonymous function atau dari initial load)
+      // Kita hapus listener yang merujuk langsung ke fungsi toggleManagementView
       manageBtn.removeEventListener("click", toggleManagementView);
 
-      // Pasang listener baru dengan anonymous function untuk memastikan pemanggilan terjadi
-      manageBtn.addEventListener("click", () => {
-        console.log(
-          "LOG KLIK TOMBOL: Tombol Management diklik. Memanggil toggleManagementView()."
-        );
-        toggleManagementView();
-      });
+      // FIX: Pasang listener baru menggunakan referensi fungsi LANGSUNG
+      manageBtn.addEventListener("click", toggleManagementView);
 
       // Set InnerHTML tombol Management + BADGE NOTIFIKASI
       manageBtn.innerHTML = `
@@ -2614,7 +2607,7 @@ auth.onAuthStateChanged(async (user) => {
             `;
       manageBtn.style.display = "inline-flex";
 
-      // 🔥 PENTING: Panggil listener di sini satu kali saat login untuk MENDAPATKAN HITUNGAN AWAL badge
+      // Panggil listener untuk badge
       if (typeof setupRealTimeNewOrdersListener === "function") {
         unsubscribeOrders = setupRealTimeNewOrdersListener();
       }
@@ -2624,33 +2617,28 @@ auth.onAuthStateChanged(async (user) => {
       );
     }
 
-    // Diasumsikan salesChartInstance adalah variabel global
     if (typeof salesChartInstance !== "undefined" && salesChartInstance) {
       salesChartInstance.destroy();
     }
   } else {
     currentUser = null;
 
-    // --- LOGIKA UNSUBSCRIBE SAAT LOGOUT (Order) ---
+    // --- LOGIKA UNSUBSCRIBE SAAT LOGOUT ---
     if (typeof unsubscribeOrders === "function") {
       unsubscribeOrders();
       unsubscribeOrders = null;
-      console.log(
-        "RT Listener: Listener order real-time telah dihentikan saat logout."
-      );
     }
-
-    // 🔥 LOGIKA BARU: UNSUBSCRIBE SAAT LOGOUT (Notifikasi) 🔥
     if (typeof unsubscribeNotifications === "function") {
       unsubscribeNotifications();
       unsubscribeNotifications = null;
-      console.log(
-        "RT Listener: Listener notifikasi real-time telah dihentikan saat logout."
-      );
+    }
+
+    // Hapus listener Management saat logout untuk memastikan tidak ada sisa listener lama
+    if (manageBtn) {
+      manageBtn.removeEventListener("click", toggleManagementView);
     }
     // --- AKHIR LOGIKA UNSUBSCRIBE ---
 
-    // Pastikan notifikasi dihilangkan saat logout
     const infoWrapper = document.getElementById("user-info-banner-wrapper");
     if (infoWrapper) infoWrapper.innerHTML = "";
 
@@ -2658,7 +2646,6 @@ auth.onAuthStateChanged(async (user) => {
 
     // --- TAMPILAN HEADER (Masuk) ---
     if (authBtn) {
-      // ✅ Menggunakan innerHTML sesuai permintaan (untuk tombol Masuk)
       authBtn.innerHTML = `
             <svg 
                 xmlns="http://www.w3.org/2000/svg" 
