@@ -2460,7 +2460,7 @@ auth.onAuthStateChanged(async (user) => {
   // 🔥🔥🔥 INISIALISASI DOM DENGAN ID YANG BENAR 🔥🔥🔥
   const authBtn = document.getElementById("auth-btn");
   const mainBanner = document.getElementById("main-banner");
-  const profileBtn = document.getElementById("profileBtn");
+  const profileBtn = document.getElementById("profile-btn");
   const sellerControls = document.getElementById("seller-controls");
   const sellerGreeting = document.getElementById("seller-greeting");
 
